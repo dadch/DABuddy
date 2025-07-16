@@ -1,0 +1,162 @@
+<%- include('../partials/header', { title: 'Expert Dashboard - DABuddy', user: user }) %>
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h1>Theses for Expert Review</h1>
+    <div class="text-muted">
+        <i class="bi bi-calendar"></i> Academic Year: <%= selectedYear %>
+    </div>
+</div>
+
+<% if (theses.length === 0) { %>
+    <div class="alert alert-info" role="alert">
+        <i class="bi bi-info-circle"></i>
+        No theses assigned for expert review in the selected academic year.
+    </div>
+<% } else { %>
+    <div class="table-responsive">
+        <table class="table table-striped">
+            <thead>
+                <tr>
+                    <th>Thesis Title</th>
+                    <th>Department</th>
+                    <th>Students</th>
+                    <th>Coach</th>
+                    <th>Sponsor</th>
+                    <th>State</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                <% theses.forEach(function(thesis) { %>
+                    <tr>
+                        <td>
+                            <strong><%= thesis.title %></strong>
+                        </td>
+                        <td><%= thesis.department.name %></td>
+                        <td>
+                            <% thesis.students.forEach(function(student, index) { %>
+                                <%= student.firstname %> <%= student.name %><% if (index < thesis.students.length - 1) { %>, <% } %>
+                            <% }); %>
+                        </td>
+                        <td>
+                            <% thesis.coaches.forEach(function(coach, index) { %>
+                                <%= coach.firstname %> <%= coach.name %><% if (index < thesis.coaches.length - 1) { %>, <% } %>
+                            <% }); %>
+                        </td>
+                        <td><%= thesis.sponsor || '-' %></td>
+                        <td>
+                            <div class="d-flex align-items-center">
+                                <span class="badge bg-<%= getStateColor(thesis.state) %> me-2">
+                                    <%= thesis.state %>
+                                </span>
+                                <button class="btn btn-outline-info btn-sm" onclick="changeThesisState(<%= thesis.id %>)" title="Change State">
+                                    <i class="bi bi-arrow-repeat"></i>
+                                </button>
+                            </div>
+                        </td>
+                        <td>
+                            <button class="btn btn-outline-primary btn-sm">
+                                <i class="bi bi-eye"></i> Review
+                            </button>
+                        </td>
+                    </tr>
+                <% }); %>
+            </tbody>
+        </table>
+    </div>
+<% } %>
+
+<!-- Change State Modal -->
+<div class="modal fade" id="changeStateModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Change Thesis State</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form id="changeStateForm">
+                <div class="modal-body">
+                    <input type="hidden" id="stateThesisId" name="thesisId">
+                    <div class="mb-3">
+                        <label for="currentState" class="form-label">Current State</label>
+                        <input type="text" class="form-control" id="currentState" readonly>
+                    </div>
+                    <div class="mb-3">
+                        <label for="newState" class="form-label">New State</label>
+                        <select class="form-select" id="newState" name="newState" required>
+                            <option value="">Select new state...</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Change State</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script>
+// State change functionality
+function changeThesisState(thesisId) {
+    fetch(`/api/theses/${thesisId}/state-options`)
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                document.getElementById('stateThesisId').value = thesisId;
+                document.getElementById('currentState').value = data.currentState;
+                
+                const newStateSelect = document.getElementById('newState');
+                newStateSelect.innerHTML = '<option value="">Select new state...</option>';
+                
+                data.availableStates.forEach(state => {
+                    const option = document.createElement('option');
+                    option.value = state.value;
+                    option.textContent = state.label;
+                    newStateSelect.appendChild(option);
+                });
+                
+                new bootstrap.Modal(document.getElementById('changeStateModal')).show();
+            } else {
+                alert('Error loading state options: ' + data.message);
+            }
+        })
+        .catch(error => {
+            console.error('Error loading state options:', error);
+            alert('Error loading state options');
+        });
+}
+
+document.getElementById('changeStateForm').addEventListener('submit', function(e) {
+    e.preventDefault();
+    const formData = new FormData(this);
+    const thesisId = formData.get('thesisId');
+    const newState = formData.get('newState');
+    
+    fetch(`/api/theses/${thesisId}/state`, {
+        method: 'PUT',
+        headers: {
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ newState })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            bootstrap.Modal.getInstance(document.getElementById('changeStateModal')).hide();
+            location.reload();
+        } else {
+            alert('Error changing state: ' + data.message);
+        }
+    })
+    .catch(error => {
+        console.error('Error changing state:', error);
+        alert('Error changing state');
+    });
+});
+
+// Additional functionality will be added here
+</script>
+
+<%- include('../partials/footer') %>

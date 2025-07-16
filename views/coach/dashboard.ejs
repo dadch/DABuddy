@@ -1,0 +1,168 @@
+<%- include('../partials/header', { title: 'Coach Dashboard - DABuddy', user: user }) %>
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h1>My Coached Theses</h1>
+    <div class="text-muted">
+        <i class="bi bi-calendar"></i> Academic Year: <%= selectedYear %>
+    </div>
+</div>
+
+<% if (theses.length === 0) { %>
+    <div class="alert alert-info" role="alert">
+        <i class="bi bi-info-circle"></i>
+        No theses assigned for coaching in the selected academic year.
+    </div>
+<% } else { %>
+    <div class="row">
+        <% theses.forEach(function(thesis) { %>
+            <div class="col-md-6 mb-4">
+                <div class="card h-100">
+                    <div class="card-header">
+                        <h6 class="mb-0">
+                            <i class="bi bi-file-text"></i> <%= thesis.title %>
+                        </h6>
+                    </div>
+                    <div class="card-body">
+                        <p><strong>Department:</strong> <%= thesis.department.name %></p>
+                        <% if (thesis.sponsor) { %>
+                            <p><strong>Sponsor:</strong> <%= thesis.sponsor %></p>
+                        <% } %>
+                        <div class="mb-3">
+                            <strong>State:</strong> 
+                            <span class="badge bg-<%= getStateColor(thesis.state) %> me-2">
+                                <%= thesis.state %>
+                            </span>
+                            <button class="btn btn-outline-info btn-sm" onclick="changeThesisState(<%= thesis.id %>)" title="Change State">
+                                <i class="bi bi-arrow-repeat"></i>
+                            </button>
+                        </div>
+
+                        <div class="mt-3">
+                            <h6>Students:</h6>
+                            <% thesis.students.forEach(function(student) { %>
+                                <div class="mb-2">
+                                    <i class="bi bi-person-fill"></i> 
+                                    <%= student.firstname %> <%= student.name %>
+                                    <br><small class="text-muted"><%= student.email %></small>
+                                </div>
+                            <% }); %>
+                        </div>
+
+                        <% if (thesis.experts.length > 0) { %>
+                            <div class="mt-3">
+                                <h6>Experts:</h6>
+                                <% thesis.experts.forEach(function(expert) { %>
+                                    <div class="mb-2">
+                                        <i class="bi bi-award"></i> 
+                                        <%= expert.firstname %> <%= expert.name %>
+                                        <br><small class="text-muted"><%= expert.email %></small>
+                                    </div>
+                                <% }); %>
+                            </div>
+                        <% } %>
+                    </div>
+                    <div class="card-footer">
+                        <button class="btn btn-outline-primary btn-sm">
+                            <i class="bi bi-eye"></i> View Details
+                        </button>
+                    </div>
+                </div>
+            </div>
+        <% }); %>
+    </div>
+<% } %>
+
+<!-- Change State Modal -->
+<div class="modal fade" id="changeStateModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Change Thesis State</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form id="changeStateForm">
+                <div class="modal-body">
+                    <input type="hidden" id="stateThesisId" name="thesisId">
+                    <div class="mb-3">
+                        <label for="currentState" class="form-label">Current State</label>
+                        <input type="text" class="form-control" id="currentState" readonly>
+                    </div>
+                    <div class="mb-3">
+                        <label for="newState" class="form-label">New State</label>
+                        <select class="form-select" id="newState" name="newState" required>
+                            <option value="">Select new state...</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Change State</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script>
+// State change functionality
+function changeThesisState(thesisId) {
+    fetch(`/api/theses/${thesisId}/state-options`)
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                document.getElementById('stateThesisId').value = thesisId;
+                document.getElementById('currentState').value = data.currentState;
+                
+                const newStateSelect = document.getElementById('newState');
+                newStateSelect.innerHTML = '<option value="">Select new state...</option>';
+                
+                data.availableStates.forEach(state => {
+                    const option = document.createElement('option');
+                    option.value = state.value;
+                    option.textContent = state.label;
+                    newStateSelect.appendChild(option);
+                });
+                
+                new bootstrap.Modal(document.getElementById('changeStateModal')).show();
+            } else {
+                alert('Error loading state options: ' + data.message);
+            }
+        })
+        .catch(error => {
+            console.error('Error loading state options:', error);
+            alert('Error loading state options');
+        });
+}
+
+document.getElementById('changeStateForm').addEventListener('submit', function(e) {
+    e.preventDefault();
+    const formData = new FormData(this);
+    const thesisId = formData.get('thesisId');
+    const newState = formData.get('newState');
+    
+    fetch(`/api/theses/${thesisId}/state`, {
+        method: 'PUT',
+        headers: {
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ newState })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            bootstrap.Modal.getInstance(document.getElementById('changeStateModal')).hide();
+            location.reload();
+        } else {
+            alert('Error changing state: ' + data.message);
+        }
+    })
+    .catch(error => {
+        console.error('Error changing state:', error);
+        alert('Error changing state');
+    });
+});
+
+// Additional functionality will be added here
+</script>
+
+<%- include('../partials/footer') %>

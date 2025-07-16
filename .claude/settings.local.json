@@ -1,0 +1,21 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(sudo npm i -g @anthropic-ai/claude-code)",
+      "Bash(npm init:*)",
+      "Bash(mkdir:*)",
+      "Bash(npm install:*)",
+      "Bash(npm run seed:*)",
+      "Bash(npm run dev:*)",
+      "Bash(lsof:*)",
+      "Bash(pkill:*)",
+      "Bash(node:*)",
+      "Bash(find:*)",
+      "Bash(npm start)",
+      "Bash(curl:*)",
+      "Bash(PORT=3001 npm start)",
+      "Bash(rm:*)"
+    ],
+    "deny": []
+  }
+}
