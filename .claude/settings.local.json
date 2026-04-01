@@ -14,7 +14,13 @@
       "Bash(npm start)",
       "Bash(curl:*)",
       "Bash(PORT=3001 npm start)",
-      "Bash(rm:*)"
+      "Bash(rm:*)",
+      "Bash(cp:*)",
+      "Bash(sed:*)",
+      "Bash(ls:*)",
+      "Bash(npm run:*)",
+      "Bash(npx sequelize-cli migration:generate:*)",
+      "Bash(npx sequelize-cli:*)"
     ],
     "deny": []
   }

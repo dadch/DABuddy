@@ -28,6 +28,9 @@
                     <button type="button" class="btn btn-success" onclick="openAddThesisModal()">
                         <i class="bi bi-plus"></i> Add Thesis
                     </button>
+                    <a href="/dashboard/admin/due-dates" class="btn btn-outline-primary">
+                        <i class="bi bi-calendar-event"></i> Due Dates
+                    </a>
                     <button type="button" class="btn btn-info" onclick="openUserManagementModal()">
                         <i class="bi bi-person-gear"></i> Manage Users
                     </button>
@@ -125,6 +128,9 @@
                         </td>
                         <td>
                             <div class="btn-group" role="group">
+                                <a href="/dashboard/thesis/<%= thesis.id %>" class="btn btn-primary btn-sm">
+                                    <i class="bi bi-eye"></i>
+                                </a>
                                 <button class="btn btn-outline-primary btn-sm" onclick="editThesis(<%= thesis.id %>)">
                                     <i class="bi bi-pencil"></i>
                                 </button>

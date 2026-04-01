@@ -22,7 +22,15 @@ const {
   createDepartmentLeadUser,
   updateDepartmentLeadUser,
   deleteDepartmentLeadUser,
-  getDepartmentLeadDepartments
+  getDepartmentLeadDepartments,
+  uploadDocument,
+  getThesisDocuments,
+  deleteDocument,
+  downloadDocument,
+  getDocumentLogs,
+  getDocumentDueDates,
+  setDocumentDueDate,
+  deleteDocumentDueDate
 } = require('../controllers/apiController');
 
 
@@ -65,5 +73,16 @@ router.put('/department-lead/users/:id', requireRole(['department_lead']), updat
 router.delete('/department-lead/users/:id', requireRole(['department_lead']), deleteDepartmentLeadUser);
 router.get('/department-lead/departments', requireRole(['department_lead']), getDepartmentLeadDepartments);
 
+// Document management routes
+router.post('/theses/:id/documents', uploadDocument);
+router.get('/theses/:id/documents', getThesisDocuments);
+router.delete('/documents/:id', deleteDocument);
+router.get('/documents/:id/download', downloadDocument);
+router.get('/theses/:id/document-logs', getDocumentLogs);
+
+// Document due date management (admin only)
+router.get('/years/:yearId/document-due-dates', requireAuth, getDocumentDueDates);
+router.post('/document-due-dates', requireAuth, requireRole('admin'), setDocumentDueDate);
+router.delete('/years/:yearId/document-due-dates/:documentType', requireAuth, requireRole('admin'), deleteDocumentDueDate);
 
 module.exports = router;

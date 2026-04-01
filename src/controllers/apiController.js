@@ -1,5 +1,15 @@
-const { User, Thesis, Department, Year } = require('../models');
+const { User, Thesis, Department, Year, Document, DocumentLog, DocumentDueDate } = require('../models');
 const { getAvailableNextStates, isTransitionAllowed, getStateDisplayInfo } = require('../utils/thesisStateMachine');
+const { 
+  upload, 
+  isDocumentAllowed, 
+  canUserUploadDocument, 
+  getRequiredDocuments, 
+  getAllowedDocuments, 
+  logDocumentUpload 
+} = require('../utils/documentUpload');
+const fs = require('fs');
+const path = require('path');
 
 const getThesis = async (req, res) => {
   try {
@@ -1210,6 +1220,343 @@ const getDepartmentLeadDepartments = async (req, res) => {
   }
 };
 
+// Document upload endpoint
+const uploadDocument = async (req, res) => {
+  upload.single('document')(req, res, async (err) => {
+    if (err) {
+      return res.status(400).json({ success: false, message: err.message });
+    }
+    
+    if (!req.file) {
+      return res.status(400).json({ success: false, message: 'No file uploaded' });
+    }
+    
+    try {
+      const thesisId = req.params.id;
+      const { document_type } = req.body;
+      const userId = req.session.userId;
+      const userRole = req.session.userRole;
+      
+      // Get thesis to check state
+      const thesis = await Thesis.findByPk(thesisId, {
+        include: [
+          { model: User, as: 'students' },
+          { model: User, as: 'coaches' }
+        ]
+      });
+      
+      if (!thesis) {
+        fs.unlinkSync(req.file.path);
+        return res.status(404).json({ success: false, message: 'Thesis not found' });
+      }
+      
+      // Check if document type is allowed for current state
+      if (!isDocumentAllowed(thesis.state, document_type)) {
+        fs.unlinkSync(req.file.path);
+        return res.status(400).json({ 
+          success: false, 
+          message: `Document type "${document_type}" is not allowed in state "${thesis.state}"` 
+        });
+      }
+      
+      // Determine user's role in relation to this thesis
+      let thesisUserRole = userRole;
+      if (userRole === 'student' && thesis.students.some(student => student.id === userId)) {
+        thesisUserRole = 'student';
+      } else if (userRole === 'coach' && thesis.coaches.some(coach => coach.id === userId)) {
+        thesisUserRole = 'coach';
+      }
+      
+      // Check if user can upload this document type
+      if (!canUserUploadDocument(thesis.state, document_type, thesisUserRole)) {
+        fs.unlinkSync(req.file.path);
+        return res.status(403).json({ 
+          success: false, 
+          message: `You are not authorized to upload "${document_type}" documents in state "${thesis.state}"` 
+        });
+      }
+      
+      // Check if document already exists (for single-document types)
+      const existingDocument = await Document.findOne({
+        where: { 
+          thesis_id: thesisId, 
+          document_type: document_type 
+        }
+      });
+      
+      if (existingDocument && !['Minutes', 'Worktime Report'].includes(document_type)) {
+        fs.unlinkSync(req.file.path);
+        return res.status(400).json({ 
+          success: false, 
+          message: `Document type "${document_type}" already exists for this thesis` 
+        });
+      }
+      
+      // Create document record
+      const document = await Document.create({
+        name: req.file.originalname,
+        filename: req.file.filename,
+        filepath: req.file.path,
+        mimetype: req.file.mimetype,
+        size: req.file.size,
+        document_type: document_type,
+        thesis_id: thesisId,
+        uploaded_by: userId,
+        upload_timestamp: new Date()
+      });
+      
+      // Log the upload
+      await logDocumentUpload(
+        userId,
+        thesisId,
+        req.file.originalname,
+        document_type,
+        'upload',
+        req.file.size,
+        req.ip
+      );
+      
+      res.json({ 
+        success: true, 
+        message: 'Document uploaded successfully',
+        document: document
+      });
+      
+    } catch (error) {
+      fs.unlinkSync(req.file.path);
+      console.error('Error uploading document:', error);
+      res.status(500).json({ success: false, message: 'Internal server error' });
+    }
+  });
+};
+
+// Get thesis documents
+const getThesisDocuments = async (req, res) => {
+  try {
+    const thesisId = req.params.id;
+    
+    const documents = await Document.findAll({
+      where: { thesis_id: thesisId },
+      include: [
+        { model: User, as: 'uploader', attributes: ['id', 'firstname', 'name'] }
+      ],
+      order: [['upload_timestamp', 'DESC']]
+    });
+    
+    res.json({ success: true, documents });
+  } catch (error) {
+    console.error('Error fetching thesis documents:', error);
+    res.status(500).json({ success: false, message: 'Internal server error' });
+  }
+};
+
+// Delete document
+const deleteDocument = async (req, res) => {
+  try {
+    const documentId = req.params.id;
+    const userId = req.session.userId;
+    const userRole = req.session.userRole;
+    
+    const document = await Document.findByPk(documentId);
+    
+    if (!document) {
+      return res.status(404).json({ success: false, message: 'Document not found' });
+    }
+    
+    // Only allow deletion by uploader or admin
+    if (document.uploaded_by !== userId && userRole !== 'admin') {
+      return res.status(403).json({ success: false, message: 'Not authorized to delete this document' });
+    }
+    
+    // Delete file from filesystem
+    if (fs.existsSync(document.filepath)) {
+      fs.unlinkSync(document.filepath);
+    }
+    
+    // Log the deletion
+    await logDocumentUpload(
+      userId,
+      document.thesis_id,
+      document.name,
+      document.document_type,
+      'delete',
+      null,
+      req.ip
+    );
+    
+    await document.destroy();
+    
+    res.json({ success: true, message: 'Document deleted successfully' });
+  } catch (error) {
+    console.error('Error deleting document:', error);
+    res.status(500).json({ success: false, message: 'Internal server error' });
+  }
+};
+
+// Get document logs
+const getDocumentLogs = async (req, res) => {
+  try {
+    const thesisId = req.params.id;
+    
+    const logs = await DocumentLog.findAll({
+      where: { thesis_id: thesisId },
+      include: [
+        { model: User, as: 'user', attributes: ['id', 'firstname', 'name'] }
+      ],
+      order: [['upload_timestamp', 'DESC']]
+    });
+    
+    res.json({ success: true, logs });
+  } catch (error) {
+    console.error('Error fetching document logs:', error);
+    res.status(500).json({ success: false, message: 'Internal server error' });
+  }
+};
+
+// Download document
+const downloadDocument = async (req, res) => {
+  try {
+    const documentId = req.params.id;
+    const userId = req.session.userId;
+    const userRole = req.session.userRole;
+    
+    const document = await Document.findByPk(documentId, {
+      include: [
+        { 
+          model: Thesis, 
+          as: 'thesis',
+          include: [
+            { model: User, as: 'students' },
+            { model: User, as: 'coaches' },
+            { model: User, as: 'experts' },
+            { model: Department, as: 'department' }
+          ]
+        }
+      ]
+    });
+    
+    if (!document) {
+      return res.status(404).json({ success: false, message: 'Document not found' });
+    }
+    
+    // Check if user has access to this document
+    const thesis = document.thesis;
+    const hasAccess = 
+      userRole === 'admin' ||
+      (userRole === 'student' && thesis.students.some(s => s.id === userId)) ||
+      (userRole === 'coach' && thesis.coaches.some(c => c.id === userId)) ||
+      (userRole === 'expert' && thesis.experts.some(e => e.id === userId)) ||
+      (userRole === 'department_lead' && thesis.department.department_lead_id === userId);
+    
+    if (!hasAccess) {
+      return res.status(403).json({ success: false, message: 'You do not have permission to download this document' });
+    }
+    
+    // Check if file exists
+    if (!fs.existsSync(document.filepath)) {
+      return res.status(404).json({ success: false, message: 'Document file not found' });
+    }
+    
+    // Set headers for file download
+    res.setHeader('Content-Type', document.mimetype);
+    res.setHeader('Content-Disposition', `attachment; filename="${document.name}"`);
+    
+    // Send file
+    res.sendFile(path.resolve(document.filepath));
+    
+  } catch (error) {
+    console.error('Error downloading document:', error);
+    res.status(500).json({ success: false, message: 'Internal server error' });
+  }
+};
+
+// Document due date management endpoints
+const getDocumentDueDates = async (req, res) => {
+  try {
+    const yearId = req.params.yearId;
+    
+    const dueDates = await DocumentDueDate.findAll({
+      where: { year_id: yearId },
+      include: [
+        { model: Year, as: 'year' }
+      ],
+      order: [['document_type', 'ASC']]
+    });
+    
+    res.json({ success: true, dueDates });
+  } catch (error) {
+    console.error('Error fetching document due dates:', error);
+    res.status(500).json({ success: false, message: 'Internal server error' });
+  }
+};
+
+const setDocumentDueDate = async (req, res) => {
+  try {
+    const { yearId, documentType, dueDate } = req.body;
+    const userRole = req.session.userRole;
+    
+    if (userRole !== 'admin') {
+      return res.status(403).json({ 
+        success: false, 
+        message: 'Only administrators can set document due dates' 
+      });
+    }
+    
+    // Check if year exists
+    const year = await Year.findByPk(yearId);
+    if (!year) {
+      return res.status(404).json({ success: false, message: 'Academic year not found' });
+    }
+    
+    // Update or create due date
+    const [documentDueDate, created] = await DocumentDueDate.upsert({
+      year_id: yearId,
+      document_type: documentType,
+      due_date: new Date(dueDate)
+    });
+    
+    res.json({ 
+      success: true, 
+      message: created ? 'Due date set successfully' : 'Due date updated successfully',
+      documentDueDate
+    });
+  } catch (error) {
+    console.error('Error setting document due date:', error);
+    res.status(500).json({ success: false, message: 'Internal server error' });
+  }
+};
+
+const deleteDocumentDueDate = async (req, res) => {
+  try {
+    const { yearId, documentType } = req.params;
+    const userRole = req.session.userRole;
+    
+    if (userRole !== 'admin') {
+      return res.status(403).json({ 
+        success: false, 
+        message: 'Only administrators can delete document due dates' 
+      });
+    }
+    
+    const documentDueDate = await DocumentDueDate.findOne({
+      where: { 
+        year_id: yearId,
+        document_type: documentType
+      }
+    });
+    
+    if (!documentDueDate) {
+      return res.status(404).json({ success: false, message: 'Document due date not found' });
+    }
+    
+    await documentDueDate.destroy();
+    res.json({ success: true, message: 'Due date deleted successfully' });
+  } catch (error) {
+    console.error('Error deleting document due date:', error);
+    res.status(500).json({ success: false, message: 'Internal server error' });
+  }
+};
+
 module.exports = {
   getThesis,
   createThesis,
@@ -1232,5 +1579,13 @@ module.exports = {
   createDepartmentLeadUser,
   updateDepartmentLeadUser,
   deleteDepartmentLeadUser,
-  getDepartmentLeadDepartments
+  getDepartmentLeadDepartments,
+  uploadDocument,
+  getThesisDocuments,
+  deleteDocument,
+  downloadDocument,
+  getDocumentLogs,
+  getDocumentDueDates,
+  setDocumentDueDate,
+  deleteDocumentDueDate
 };
