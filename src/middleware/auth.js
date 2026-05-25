@@ -2,7 +2,7 @@ const requireAuth = (req, res, next) => {
   if (req.session && req.session.userId) {
     return next();
   } else {
-    req.flash('error', 'Please log in to access this page.');
+    req.flash('error', 'Bitte melden Sie sich an, um auf diese Seite zuzugreifen.');
     return res.redirect('/login');
   }
 };
@@ -13,11 +13,11 @@ const requireRole = (roles) => {
       if (roles.includes(req.session.userRole)) {
         return next();
       } else {
-        req.flash('error', 'Access denied. Insufficient permissions.');
+        req.flash('error', 'Zugriff verweigert. Unzureichende Berechtigungen.');
         return res.redirect('/dashboard');
       }
     } else {
-      req.flash('error', 'Please log in to access this page.');
+      req.flash('error', 'Bitte melden Sie sich an, um auf diese Seite zuzugreifen.');
       return res.redirect('/login');
     }
   };

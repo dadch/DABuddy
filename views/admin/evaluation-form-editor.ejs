@@ -1,0 +1,295 @@
+<%- include('../partials/header', { title: 'Formular bearbeiten - DABuddy', user: user }) %>
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+        <nav aria-label="breadcrumb">
+            <ol class="breadcrumb">
+                <li class="breadcrumb-item"><a href="/dashboard">Dashboard</a></li>
+                <li class="breadcrumb-item"><a href="/dashboard/admin/evaluation-forms">Bewertungsformulare</a></li>
+                <li class="breadcrumb-item active" aria-current="page">Bearbeiten</li>
+            </ol>
+        </nav>
+        <h1>Formular bearbeiten</h1>
+    </div>
+</div>
+
+<!-- Formular-Titel -->
+<div class="card mb-4">
+    <div class="card-header"><h5 class="mb-0">Formular</h5></div>
+    <div class="card-body">
+        <form id="titleForm" class="row g-3">
+            <div class="col-md-5">
+                <label class="form-label">Titel (Deutsch)</label>
+                <input type="text" class="form-control" id="titleDe" required>
+            </div>
+            <div class="col-md-5">
+                <label class="form-label">Titel (Französisch)</label>
+                <input type="text" class="form-control" id="titleFr" required>
+            </div>
+            <div class="col-md-2 d-flex align-items-end">
+                <button type="submit" class="btn btn-primary w-100">Titel speichern</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Gruppen -->
+<div class="d-flex justify-content-between align-items-center mb-2">
+    <h4 class="mb-0">Bewertungsgruppen</h4>
+    <button class="btn btn-success btn-sm" onclick="openGroupModal()"><i class="bi bi-plus"></i> Gruppe hinzufügen</button>
+</div>
+<div id="groups"></div>
+
+<!-- Gruppen-Modal -->
+<div class="modal fade" id="groupModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header"><h5 class="modal-title" id="groupModalTitle">Gruppe</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
+            <form id="groupForm">
+                <div class="modal-body">
+                    <input type="hidden" id="groupId">
+                    <div class="mb-3"><label class="form-label">Name (Deutsch)</label><input type="text" class="form-control" id="groupNameDe" required></div>
+                    <div class="mb-3"><label class="form-label">Name (Französisch)</label><input type="text" class="form-control" id="groupNameFr" required></div>
+                    <div class="mb-3"><label class="form-label">Gewichtung (Faktor für Gesamtnote)</label><input type="number" step="0.1" min="0" class="form-control" id="groupWeight" value="1" required></div>
+                </div>
+                <div class="modal-footer"><button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Abbrechen</button><button type="submit" class="btn btn-primary">Speichern</button></div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Kriterium-Modal -->
+<div class="modal fade" id="criterionModal" tabindex="-1">
+    <div class="modal-dialog modal-xl">
+        <div class="modal-content">
+            <div class="modal-header"><h5 class="modal-title" id="criterionModalTitle">Kriterium</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
+            <form id="criterionForm">
+                <div class="modal-body">
+                    <input type="hidden" id="criterionId">
+                    <input type="hidden" id="criterionGroupId">
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <label class="form-label">Bezeichnung (Deutsch) <span class="badge bg-info text-dark">Markdown</span></label>
+                            <textarea class="form-control" id="critLabelDe" rows="3" oninput="updateLabelPreview('de')" required></textarea>
+                            <div class="form-text">Vorschau:</div>
+                            <div class="border rounded p-2 bg-light small" id="critLabelDePreview"></div>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Bezeichnung (Französisch) <span class="badge bg-info text-dark">Markdown</span></label>
+                            <textarea class="form-control" id="critLabelFr" rows="3" oninput="updateLabelPreview('fr')" required></textarea>
+                            <div class="form-text">Vorschau:</div>
+                            <div class="border rounded p-2 bg-light small" id="critLabelFrPreview"></div>
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label">Gewichtung</label>
+                            <input type="number" step="0.1" min="0" class="form-control" id="critWeight" value="1" required>
+                        </div>
+                    </div>
+                    <hr>
+                    <p class="text-muted small mb-2">Qualitätsbeschreibung je Punktestufe (0–5)</p>
+                    <div id="levelRows"></div>
+                </div>
+                <div class="modal-footer"><button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Abbrechen</button><button type="submit" class="btn btn-primary">Speichern</button></div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.2/Sortable.min.js"></script>
+<script>
+const FORM_ID = <%- JSON.stringify(formId) %>;
+let currentForm = null;
+
+function escapeHtml(s){ return (s||'').replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
+
+function loadForm() {
+    fetch('/api/evaluation-forms/' + FORM_ID)
+        .then(r => r.json())
+        .then(d => {
+            if (!d.success) { alert('Formular nicht gefunden'); return; }
+            currentForm = d.form;
+            document.getElementById('titleDe').value = currentForm.title_de;
+            document.getElementById('titleFr').value = currentForm.title_fr;
+            renderGroups();
+        });
+}
+
+function renderGroups() {
+    const groups = (currentForm.groups || []).slice().sort((a,b)=>a.position-b.position);
+    const el = document.getElementById('groups');
+    if (!groups.length) { el.innerHTML = '<div class="alert alert-light border">Noch keine Gruppen. Fügen Sie eine Gruppe hinzu.</div>'; return; }
+    el.innerHTML = groups.map(g => {
+        const crits = (g.criteria || []).slice().sort((a,b)=>a.position-b.position);
+        return `
+        <div class="card mb-3">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <div><strong>${escapeHtml(g.name_de)}</strong> <span class="text-muted">/ ${escapeHtml(g.name_fr)}</span>
+                    <span class="badge bg-secondary ms-2">Gewicht ${g.weight}</span></div>
+                <div>
+                    <button class="btn btn-outline-success btn-sm" onclick='openCriterionModal(${g.id})'><i class="bi bi-plus"></i> Kriterium</button>
+                    <button class="btn btn-outline-primary btn-sm" onclick='openGroupModal(${JSON.stringify(g).replace(/'/g, "&#39;")})'><i class="bi bi-pencil"></i></button>
+                    <button class="btn btn-outline-danger btn-sm" onclick="deleteGroup(${g.id})"><i class="bi bi-trash"></i></button>
+                </div>
+            </div>
+            <div class="card-body">
+                ${crits.length ? `
+                <table class="table table-sm align-middle">
+                    <thead><tr><th style="width:36px;"></th><th>Kriterium (DE / FR)</th><th style="width:110px;">Gewichtung</th><th style="width:110px;">Max. Punkte</th><th style="width:110px;">Aktionen</th></tr></thead>
+                    <tbody id="crit-rows-${g.id}" data-group-id="${g.id}">
+                        ${crits.map(c => `
+                            <tr data-criterion-id="${c.id}">
+                                <td class="text-muted text-center crit-drag-handle" style="cursor:grab" title="Zum Sortieren ziehen"><i class="bi bi-grip-vertical"></i></td>
+                                <td>${renderMarkdownInline(c.label_de)} <span class="text-muted">/ ${renderMarkdownInline(c.label_fr)}</span></td>
+                                <td>${c.weight}</td>
+                                <td>${(5 * Number(c.weight)).toFixed(1)}</td>
+                                <td>
+                                    <button class="btn btn-outline-primary btn-sm" onclick='openCriterionModal(${g.id}, ${JSON.stringify(c).replace(/'/g, "&#39;")})'><i class="bi bi-pencil"></i></button>
+                                    <button class="btn btn-outline-danger btn-sm" onclick="deleteCriterion(${c.id})"><i class="bi bi-trash"></i></button>
+                                </td>
+                            </tr>`).join('')}
+                    </tbody>
+                </table>
+                <div class="form-text"><i class="bi bi-info-circle"></i> Kriterien per Ziehen am Griff <i class="bi bi-grip-vertical"></i> sortieren.</div>
+                ` : '<p class="text-muted mb-0">Noch keine Kriterien in dieser Gruppe.</p>'}
+            </div>
+        </div>`;
+    }).join('');
+
+    initSortable();
+}
+
+let sortableInstances = [];
+function initSortable() {
+    sortableInstances.forEach(s => { try { s.destroy(); } catch (e) {} });
+    sortableInstances = [];
+    if (!window.Sortable) return;
+    (currentForm.groups || []).forEach(g => {
+        const tbody = document.getElementById('crit-rows-' + g.id);
+        if (!tbody) return;
+        sortableInstances.push(new Sortable(tbody, {
+            handle: '.crit-drag-handle',
+            animation: 150,
+            onEnd: () => persistCriteriaOrder(g.id, tbody),
+        }));
+    });
+}
+
+function persistCriteriaOrder(groupId, tbody) {
+    const order = Array.from(tbody.querySelectorAll('tr[data-criterion-id]')).map(tr => Number(tr.getAttribute('data-criterion-id')));
+    fetch('/api/evaluation-groups/' + groupId + '/criteria/reorder', {
+        method: 'PUT', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ order })
+    })
+    .then(r => r.json())
+    .then(d => {
+        if (!d.success) { alert('Reihenfolge konnte nicht gespeichert werden: ' + (d.message || '')); loadForm(); return; }
+        // update local state so positions stay consistent
+        const grp = (currentForm.groups || []).find(x => x.id === groupId);
+        if (grp && grp.criteria) order.forEach((cid, idx) => { const c = grp.criteria.find(x => x.id === cid); if (c) c.position = idx; });
+    })
+    .catch(e => { console.error(e); alert('Fehler beim Speichern der Reihenfolge'); loadForm(); });
+}
+
+// Titel speichern
+document.getElementById('titleForm').addEventListener('submit', function(e){
+    e.preventDefault();
+    fetch('/api/evaluation-forms/' + FORM_ID, { method:'PUT', headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({ title_de: document.getElementById('titleDe').value, title_fr: document.getElementById('titleFr').value }) })
+        .then(r=>r.json()).then(d=>{ if(d.success){ loadForm(); } else alert('Fehler: '+(d.message||'')); });
+});
+
+// Gruppe
+function openGroupModal(g) {
+    document.getElementById('groupForm').reset();
+    document.getElementById('groupId').value = g && g.id ? g.id : '';
+    document.getElementById('groupModalTitle').textContent = g && g.id ? 'Gruppe bearbeiten' : 'Gruppe hinzufügen';
+    document.getElementById('groupNameDe').value = g && g.name_de ? g.name_de : '';
+    document.getElementById('groupNameFr').value = g && g.name_fr ? g.name_fr : '';
+    document.getElementById('groupWeight').value = g && g.weight !== undefined ? g.weight : 1;
+    new bootstrap.Modal(document.getElementById('groupModal')).show();
+}
+
+document.getElementById('groupForm').addEventListener('submit', function(e){
+    e.preventDefault();
+    const id = document.getElementById('groupId').value;
+    const body = JSON.stringify({
+        name_de: document.getElementById('groupNameDe').value,
+        name_fr: document.getElementById('groupNameFr').value,
+        weight: parseFloat(document.getElementById('groupWeight').value)
+    });
+    const url = id ? '/api/evaluation-groups/' + id : '/api/evaluation-forms/' + FORM_ID + '/groups';
+    fetch(url, { method: id ? 'PUT' : 'POST', headers:{'Content-Type':'application/json'}, body })
+        .then(r=>r.json()).then(d=>{ if(d.success){ bootstrap.Modal.getInstance(document.getElementById('groupModal')).hide(); loadForm(); } else alert('Fehler: '+(d.message||'')); });
+});
+
+function deleteGroup(id) {
+    if (!confirm('Gruppe inkl. Kriterien löschen?')) return;
+    fetch('/api/evaluation-groups/' + id, { method:'DELETE' }).then(r=>r.json()).then(d=>{ if(d.success) loadForm(); else alert('Fehler'); });
+}
+
+// Kriterium
+function renderLevelRows(de, fr) {
+    de = de || ['','','','','',''];
+    fr = fr || ['','','','','',''];
+    let html = '';
+    for (let i = 0; i <= 5; i++) {
+        html += `<div class="mb-3">
+            <label class="form-label mb-1"><span class="badge bg-secondary">Stufe ${i}</span></label>
+            <div class="row g-2">
+                <div class="col-md-6"><textarea class="form-control" rows="3" placeholder="Beschreibung (DE)" data-lvl-de="${i}">${escapeHtml(de[i]||'')}</textarea></div>
+                <div class="col-md-6"><textarea class="form-control" rows="3" placeholder="Beschreibung (FR)" data-lvl-fr="${i}">${escapeHtml(fr[i]||'')}</textarea></div>
+            </div>
+        </div>`;
+    }
+    document.getElementById('levelRows').innerHTML = html;
+}
+
+function updateLabelPreview(lang) {
+    const txt = document.getElementById(lang === 'fr' ? 'critLabelFr' : 'critLabelDe').value;
+    document.getElementById(lang === 'fr' ? 'critLabelFrPreview' : 'critLabelDePreview').innerHTML = renderMarkdownBlock(txt);
+}
+
+function openCriterionModal(groupId, c) {
+    document.getElementById('criterionForm').reset();
+    document.getElementById('criterionGroupId').value = groupId;
+    document.getElementById('criterionId').value = c && c.id ? c.id : '';
+    document.getElementById('criterionModalTitle').textContent = c && c.id ? 'Kriterium bearbeiten' : 'Kriterium hinzufügen';
+    document.getElementById('critLabelDe').value = c && c.label_de ? c.label_de : '';
+    document.getElementById('critLabelFr').value = c && c.label_fr ? c.label_fr : '';
+    document.getElementById('critWeight').value = c && c.weight !== undefined ? c.weight : 1;
+    renderLevelRows(c ? c.level_descriptions_de : null, c ? c.level_descriptions_fr : null);
+    updateLabelPreview('de');
+    updateLabelPreview('fr');
+    new bootstrap.Modal(document.getElementById('criterionModal')).show();
+}
+
+document.getElementById('criterionForm').addEventListener('submit', function(e){
+    e.preventDefault();
+    const id = document.getElementById('criterionId').value;
+    const groupId = document.getElementById('criterionGroupId').value;
+    const de = [], fr = [];
+    for (let i=0;i<=5;i++){
+        de.push(document.querySelector(`[data-lvl-de="${i}"]`).value);
+        fr.push(document.querySelector(`[data-lvl-fr="${i}"]`).value);
+    }
+    const body = JSON.stringify({
+        label_de: document.getElementById('critLabelDe').value,
+        label_fr: document.getElementById('critLabelFr').value,
+        weight: parseFloat(document.getElementById('critWeight').value),
+        level_descriptions_de: de,
+        level_descriptions_fr: fr
+    });
+    const url = id ? '/api/evaluation-criteria/' + id : '/api/evaluation-groups/' + groupId + '/criteria';
+    fetch(url, { method: id ? 'PUT' : 'POST', headers:{'Content-Type':'application/json'}, body })
+        .then(r=>r.json()).then(d=>{ if(d.success){ bootstrap.Modal.getInstance(document.getElementById('criterionModal')).hide(); loadForm(); } else alert('Fehler: '+(d.message||'')); });
+});
+
+function deleteCriterion(id) {
+    if (!confirm('Kriterium löschen?')) return;
+    fetch('/api/evaluation-criteria/' + id, { method:'DELETE' }).then(r=>r.json()).then(d=>{ if(d.success) loadForm(); else alert('Fehler'); });
+}
+
+loadForm();
+</script>
+
+<%- include('../partials/footer') %>

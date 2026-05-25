@@ -1,125 +1,65 @@
-const { User, Thesis, Department, Year, Document, DocumentLog, DocumentDueDate } = require('../models');
-const { getStateDisplayInfo } = require('../utils/thesisStateMachine');
-const { getRequiredDocuments, getAllowedDocuments, canUserUploadDocument } = require('../utils/documentUpload');
+const { User, Thesis, Department, Year, Milestone, ThesisMilestone, ThesisMilestoneDocument, ThesisLog, EvaluationForm, ThesisEvaluation, ThesisEvaluationGroup } = require('../models');
 
 const showDashboard = async (req, res) => {
   try {
-    console.log('Dashboard request - Session data:', {
-      userId: req.session.userId,
-      userRole: req.session.userRole,
-      selectedYear: req.session.selectedYear
-    });
-
     const userId = req.session.userId;
     const userRole = req.session.userRole;
     const selectedYearId = req.session.selectedYear;
 
     if (!userId || !userRole || !selectedYearId) {
-      console.log('Missing session data, redirecting to login');
-      req.flash('error', 'Session expired. Please login again.');
+      req.flash('error', 'Sitzung abgelaufen. Bitte erneut anmelden.');
       return res.redirect('/login');
     }
 
-    console.log('Fetching user and year data...');
     const user = await User.findByPk(userId);
     const selectedYear = await Year.findByPk(selectedYearId);
 
     if (!user || !selectedYear) {
-      console.log('User or year not found:', { user: !!user, selectedYear: !!selectedYear });
-      req.flash('error', 'Invalid session data. Please login again.');
+      req.flash('error', 'Ungültige Sitzungsdaten. Bitte erneut anmelden.');
       return res.redirect('/login');
     }
 
     let theses = [];
 
+    const baseInclude = [
+      { model: Department, as: 'department' },
+      { model: Year, as: 'year' },
+      { model: User, as: 'students' },
+      { model: User, as: 'coaches' },
+      { model: User, as: 'experts' },
+      { model: User, as: 'fieldProjectCoaches' }
+    ];
+
     if (userRole === 'student') {
-      const studentTheses = await user.getStudentTheses({
-        where: { year_id: selectedYearId },
-        include: [
-          { model: Department, as: 'department' },
-          { model: Year, as: 'year' },
-          { model: User, as: 'students' },
-          { model: User, as: 'coaches' },
-          { model: User, as: 'experts' }
-        ]
-      });
-      theses = studentTheses;
+      theses = await user.getStudentTheses({ where: { year_id: selectedYearId }, include: baseInclude });
     } else if (userRole === 'coach') {
-      const coachedTheses = await user.getCoachedTheses({
-        where: { year_id: selectedYearId },
-        include: [
-          { model: Department, as: 'department' },
-          { model: Year, as: 'year' },
-          { model: User, as: 'students' },
-          { model: User, as: 'coaches' },
-          { model: User, as: 'experts' }
-        ]
-      });
-      theses = coachedTheses;
+      theses = await user.getCoachedTheses({ where: { year_id: selectedYearId }, include: baseInclude });
     } else if (userRole === 'expert') {
-      const expertTheses = await user.getExpertTheses({
-        where: { year_id: selectedYearId },
-        include: [
-          { model: Department, as: 'department' },
-          { model: Year, as: 'year' },
-          { model: User, as: 'students' },
-          { model: User, as: 'coaches' },
-          { model: User, as: 'experts' }
-        ]
-      });
-      theses = expertTheses;
+      theses = await user.getExpertTheses({ where: { year_id: selectedYearId }, include: baseInclude });
+    } else if (userRole === 'field_project_coach') {
+      theses = await user.getFieldProjectCoachTheses({ where: { year_id: selectedYearId }, include: baseInclude });
     } else if (userRole === 'department_lead') {
-      // Get departments led by this user
-      const ledDepartments = await Department.findAll({
-        where: { department_lead_id: userId },
-        attributes: ['id']
-      });
-      
-      const departmentIds = ledDepartments.map(dept => dept.id);
-      
+      const ledDepartments = await Department.findAll({ where: { department_lead_id: userId }, attributes: ['id'] });
+      const departmentIds = ledDepartments.map(d => d.id);
+
       if (departmentIds.length > 0) {
         const departmentFilter = req.query.department;
         const whereClause = { year_id: selectedYearId };
-        
+
         if (departmentFilter && departmentIds.includes(parseInt(departmentFilter))) {
           whereClause.department_id = departmentFilter;
         } else {
           whereClause.department_id = departmentIds;
         }
-        
-        const departmentTheses = await Thesis.findAll({
-          where: whereClause,
-          include: [
-            { model: Department, as: 'department' },
-            { model: Year, as: 'year' },
-            { model: User, as: 'students' },
-            { model: User, as: 'coaches' },
-            { model: User, as: 'experts' },
-          ],
-          order: [['title', 'ASC']]
-        });
-        theses = departmentTheses;
+
+        theses = await Thesis.findAll({ where: whereClause, include: baseInclude, order: [['title', 'ASC']] });
       }
     } else if (userRole === 'admin') {
       const departmentFilter = req.query.department;
       const whereClause = { year_id: selectedYearId };
-      
-      if (departmentFilter) {
-        whereClause.department_id = departmentFilter;
-      }
-      
-      const allTheses = await Thesis.findAll({
-        where: whereClause,
-        include: [
-          { model: Department, as: 'department' },
-          { model: Year, as: 'year' },
-          { model: User, as: 'students' },
-          { model: User, as: 'coaches' },
-          { model: User, as: 'experts' }
-        ],
-        order: [['title', 'ASC']]
-      });
-      theses = allTheses;
+      if (departmentFilter) whereClause.department_id = departmentFilter;
+
+      theses = await Thesis.findAll({ where: whereClause, include: baseInclude, order: [['title', 'ASC']] });
     }
 
     const dashboardData = {
@@ -128,36 +68,26 @@ const showDashboard = async (req, res) => {
         role: userRole
       },
       selectedYear: selectedYear.year,
+      selectedYearId: selectedYear.id,
       theses,
       messages: req.flash(),
-      getStateColor: (state) => getStateDisplayInfo(state).color
     };
 
     if (userRole === 'admin') {
       dashboardData.departments = await Department.findAll({ order: [['name', 'ASC']] });
       dashboardData.selectedDepartment = req.query.department;
     } else if (userRole === 'department_lead') {
-      // Get departments led by this user
-      const ledDepartments = await Department.findAll({
-        where: { department_lead_id: userId },
-        order: [['name', 'ASC']]
-      });
+      const ledDepartments = await Department.findAll({ where: { department_lead_id: userId }, order: [['name', 'ASC']] });
       dashboardData.departments = ledDepartments;
       dashboardData.selectedDepartment = req.query.department;
     }
 
     res.render(`${userRole}/dashboard`, dashboardData);
-    
+
   } catch (error) {
     console.error('Dashboard error:', error);
-    req.flash('error', 'Unable to load dashboard');
-    // Destroy session to prevent redirect loop
-    req.session.destroy((err) => {
-      if (err) {
-        console.error('Session destroy error:', err);
-      }
-      res.redirect('/login');
-    });
+    req.flash('error', 'Dashboard konnte nicht geladen werden');
+    req.session.destroy(() => res.redirect('/login'));
   }
 };
 
@@ -166,13 +96,12 @@ const showThesisDetail = async (req, res) => {
     const userId = req.session.userId;
     const userRole = req.session.userRole;
     const thesisId = req.params.id;
-    
+
     if (!userId || !userRole) {
-      req.flash('error', 'Session expired. Please login again.');
+      req.flash('error', 'Sitzung abgelaufen. Bitte erneut anmelden.');
       return res.redirect('/login');
     }
 
-    // Get thesis with all relationships
     const thesis = await Thesis.findByPk(thesisId, {
       include: [
         { model: Department, as: 'department' },
@@ -180,198 +109,154 @@ const showThesisDetail = async (req, res) => {
         { model: User, as: 'students' },
         { model: User, as: 'coaches' },
         { model: User, as: 'experts' },
-        { 
-          model: Document, 
-          as: 'documents',
-          include: [
-            { model: User, as: 'uploader', attributes: ['id', 'firstname', 'name'] }
-          ],
-          order: [['upload_timestamp', 'DESC']]
-        }
+        { model: User, as: 'fieldProjectCoaches' },
       ]
     });
 
     if (!thesis) {
-      req.flash('error', 'Thesis not found');
+      req.flash('error', 'Diplomarbeit nicht gefunden');
       return res.redirect('/dashboard');
     }
 
-    // Check if user has access to this thesis
-    const hasAccess = 
+    const hasAccess =
       userRole === 'admin' ||
       (userRole === 'student' && thesis.students.some(s => s.id === userId)) ||
       (userRole === 'coach' && thesis.coaches.some(c => c.id === userId)) ||
       (userRole === 'expert' && thesis.experts.some(e => e.id === userId)) ||
+      (userRole === 'field_project_coach' && thesis.fieldProjectCoaches.some(f => f.id === userId)) ||
       (userRole === 'department_lead' && await checkDepartmentLeadAccess(userId, thesis.department_id));
 
     if (!hasAccess) {
-      req.flash('error', 'You do not have permission to view this thesis');
+      req.flash('error', 'Sie haben keine Berechtigung, diese Diplomarbeit anzusehen');
       return res.redirect('/dashboard');
     }
 
-    // Get due dates for the current year
-    const dueDates = await DocumentDueDate.findAll({
-      where: { year_id: thesis.year_id },
-      order: [['document_type', 'ASC']]
-    });
-
-    // Create a map of due dates by document type
-    const dueDateMap = {};
-    dueDates.forEach(dd => {
-      dueDateMap[dd.document_type] = dd.due_date;
-    });
-
-    // Get document requirements and permissions
-    const requiredDocuments = getRequiredDocuments(thesis.state);
-    const allowedDocuments = getAllowedDocuments(thesis.state);
-    
-    // Determine user's role in relation to this thesis
-    let thesisUserRole = userRole;
-    if (userRole === 'student' && thesis.students.some(student => student.id === userId)) {
-      thesisUserRole = 'student';
-    } else if (userRole === 'coach' && thesis.coaches.some(coach => coach.id === userId)) {
-      thesisUserRole = 'coach';
-    }
-
-    // Check which documents user can upload
-    const uploadableDocuments = allowedDocuments.filter(docType => 
-      canUserUploadDocument(thesis.state, docType, thesisUserRole)
-    );
-
-    // Determine which documents to display
-    // Students see only documents for current state, others see all documents
-    const displayableDocuments = userRole === 'student' ? allowedDocuments : [
-      'Project Scribble',
-      'Project Order', 
-      'Requirements Specification',
-      'Thesis Assignment',
-      'Minutes',
-      'Worktime Report',
-      'Thesis Document',
-      'Abstract',
-      'Monetary Benefit Description'
-    ];
-
-    // Get document logs
-    const documentLogs = await DocumentLog.findAll({
+    const milestones = await ThesisMilestone.findAll({
       where: { thesis_id: thesisId },
       include: [
-        { model: User, as: 'user', attributes: ['id', 'firstname', 'name'] }
+        {
+          model: ThesisMilestoneDocument,
+          as: 'documents',
+          include: [{ model: User, as: 'uploader', attributes: ['id', 'firstname', 'name', 'role'] }]
+        },
+        { model: User, as: 'evaluator', attributes: ['id', 'firstname', 'name', 'role'] },
+        { model: User, as: 'approver', attributes: ['id', 'firstname', 'name', 'role'] },
+        { model: User, as: 'approver2', attributes: ['id', 'firstname', 'name', 'role'] },
+        {
+          model: ThesisEvaluation,
+          as: 'thesisEvaluation',
+          include: [
+            { model: ThesisEvaluationGroup, as: 'groups' },
+            { model: User, as: 'evaluator', attributes: ['id', 'firstname', 'name'] }
+          ]
+        }
       ],
-      order: [['upload_timestamp', 'DESC']],
-      limit: 10
+      order: [['due_at', 'ASC'], [{ model: ThesisMilestoneDocument, as: 'documents' }, 'version', 'DESC']]
     });
 
-    // Group documents by type
-    const documentsByType = {};
-    thesis.documents.forEach(doc => {
-      if (!documentsByType[doc.document_type]) {
-        documentsByType[doc.document_type] = [];
-      }
-      documentsByType[doc.document_type].push(doc);
+    const logs = await ThesisLog.findAll({
+      where: { thesis_id: thesisId },
+      include: [{ model: User, as: 'user', attributes: ['id', 'firstname', 'name', 'role'] }],
+      order: [['createdAt', 'DESC']],
+      limit: 100
     });
 
-    const detailData = {
-      user: {
-        id: userId,
-        fullName: req.session.fullName,
-        role: userRole
-      },
+    res.render(`${userRole}/thesis-detail`, {
+      user: { id: userId, fullName: req.session.fullName, role: userRole },
       thesis,
-      documents: thesis.documents,
-      documentsByType,
-      documentLogs,
-      requiredDocuments,
-      allowedDocuments,
-      displayableDocuments,
-      uploadableDocuments,
-      thesisUserRole,
-      dueDateMap,
+      milestones,
+      logs,
       messages: req.flash(),
-      getStateColor: (state) => getStateDisplayInfo(state).color,
       formatFileSize: (bytes) => {
+        if (!bytes && bytes !== 0) return '';
         const sizes = ['Bytes', 'KB', 'MB', 'GB'];
         if (bytes === 0) return '0 Bytes';
         const i = Math.floor(Math.log(bytes) / Math.log(1024));
         return Math.round(bytes / Math.pow(1024, i) * 100) / 100 + ' ' + sizes[i];
       }
-    };
+    });
 
-    res.render(`${userRole}/thesis-detail`, detailData);
-    
   } catch (error) {
     console.error('Thesis detail error:', error);
-    req.flash('error', 'Unable to load thesis details');
+    req.flash('error', 'Diplomarbeit-Details konnten nicht geladen werden');
     res.redirect('/dashboard');
   }
 };
 
-// Helper function to check department lead access
 const checkDepartmentLeadAccess = async (userId, departmentId) => {
   const department = await Department.findByPk(departmentId);
   return department && department.department_lead_id === userId;
 };
 
-const showDueDatesManagement = async (req, res) => {
+const showMilestonesManagement = async (req, res) => {
   try {
-    const userId = req.session.userId;
     const userRole = req.session.userRole;
     const selectedYearId = req.session.selectedYear;
 
     if (userRole !== 'admin') {
-      req.flash('error', 'Access denied. Only administrators can manage due dates.');
+      req.flash('error', 'Zugriff verweigert. Nur Administratoren können Meilensteine verwalten.');
       return res.redirect('/dashboard');
     }
 
-    const user = await User.findByPk(userId);
     const selectedYear = await Year.findByPk(selectedYearId);
-
-    if (!user || !selectedYear) {
-      req.flash('error', 'Invalid session data. Please login again.');
+    if (!selectedYear) {
+      req.flash('error', 'Ungültige Sitzungsdaten. Bitte erneut anmelden.');
       return res.redirect('/login');
     }
 
-    // Get all years
-    const years = await Year.findAll({
-      order: [['year', 'DESC']]
-    });
-
-    // Get current due dates for selected year
-    const dueDates = await DocumentDueDate.findAll({
+    const milestones = await Milestone.findAll({
       where: { year_id: selectedYearId },
-      order: [['document_type', 'ASC']]
+      include: [{ model: EvaluationForm, as: 'evaluationForm', attributes: ['id', 'title_de'] }],
+      order: [['due_at', 'ASC']]
     });
 
-    // Define all document types
-    const documentTypes = [
-      'Project Scribble',
-      'Project Order',
-      'Requirements Specification',
-      'Thesis Assignment',
-      'Minutes',
-      'Worktime Report',
-      'Thesis Document',
-      'Abstract',
-      'Monetary Benefit Description'
-    ];
+    const thesesCount = await Thesis.count({ where: { year_id: selectedYearId } });
 
-    // Create a map of due dates by document type
-    const dueDateMap = {};
-    dueDates.forEach(dd => {
-      dueDateMap[dd.document_type] = dd.due_date;
-    });
-
-    res.render('admin/due-dates-management', {
-      user,
+    res.render('admin/milestones-management', {
+      user: { fullName: req.session.fullName, role: userRole },
       selectedYear,
-      years,
-      documentTypes,
-      dueDateMap,
-      getStateDisplayInfo
+      milestones,
+      thesesCount,
+      messages: req.flash(),
     });
   } catch (error) {
-    console.error('Error in showDueDatesManagement:', error);
-    req.flash('error', 'An error occurred while loading the due dates management page.');
+    console.error('Error in showMilestonesManagement:', error);
+    req.flash('error', 'Beim Laden der Meilenstein-Verwaltung ist ein Fehler aufgetreten.');
+    res.redirect('/dashboard');
+  }
+};
+
+const showEvaluationForms = async (req, res) => {
+  try {
+    if (req.session.userRole !== 'admin') {
+      req.flash('error', 'Zugriff verweigert. Nur Administratoren können Bewertungsformulare verwalten.');
+      return res.redirect('/dashboard');
+    }
+    res.render('admin/evaluation-forms', {
+      user: { fullName: req.session.fullName, role: req.session.userRole },
+      messages: req.flash(),
+    });
+  } catch (error) {
+    console.error('Error in showEvaluationForms:', error);
+    req.flash('error', 'Beim Laden der Bewertungsformulare ist ein Fehler aufgetreten.');
+    res.redirect('/dashboard');
+  }
+};
+
+const showEvaluationFormEditor = async (req, res) => {
+  try {
+    if (req.session.userRole !== 'admin') {
+      req.flash('error', 'Zugriff verweigert.');
+      return res.redirect('/dashboard');
+    }
+    res.render('admin/evaluation-form-editor', {
+      user: { fullName: req.session.fullName, role: req.session.userRole },
+      formId: req.params.id,
+      messages: req.flash(),
+    });
+  } catch (error) {
+    console.error('Error in showEvaluationFormEditor:', error);
+    req.flash('error', 'Beim Laden des Formular-Editors ist ein Fehler aufgetreten.');
     res.redirect('/dashboard');
   }
 };
@@ -379,5 +264,7 @@ const showDueDatesManagement = async (req, res) => {
 module.exports = {
   showDashboard,
   showThesisDetail,
-  showDueDatesManagement
+  showMilestonesManagement,
+  showEvaluationForms,
+  showEvaluationFormEditor,
 };

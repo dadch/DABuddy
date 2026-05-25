@@ -48,16 +48,16 @@ app.get('/', (req, res) => {
 });
 
 app.use((req, res) => {
-  res.status(404).render('404', { 
-    title: 'Page Not Found',
+  res.status(404).render('404', {
+    title: 'Seite nicht gefunden',
     messages: req.flash()
   });
 });
 
 app.use((err, req, res, next) => {
   console.error(err.stack);
-  res.status(500).render('500', { 
-    title: 'Server Error',
+  res.status(500).render('500', {
+    title: 'Serverfehler',
     messages: req.flash()
   });
 });

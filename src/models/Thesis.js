@@ -38,18 +38,11 @@ const Thesis = sequelize.define('Thesis', {
       key: 'id',
     },
   },
-  state: {
-    type: DataTypes.ENUM(
-      'Initial',
-      'Scribble',
-      'Project assignment',
-      'Requirements done',
-      'Assignment done',
-      'Thesis done',
-      'Evaluation confirmed'
-    ),
+  // Sprache der Diplomarbeit (bestimmt die Sprache der Bewertungsformulare)
+  language: {
+    type: DataTypes.ENUM('de', 'fr'),
     allowNull: false,
-    defaultValue: 'Initial',
+    defaultValue: 'de',
   },
 }, {
   tableName: 'theses',

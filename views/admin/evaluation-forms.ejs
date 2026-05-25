@@ -1,0 +1,117 @@
+<%- include('../partials/header', { title: 'Bewertungsformulare - DABuddy', user: user }) %>
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+        <nav aria-label="breadcrumb">
+            <ol class="breadcrumb">
+                <li class="breadcrumb-item"><a href="/dashboard">Dashboard</a></li>
+                <li class="breadcrumb-item active" aria-current="page">Bewertungsformulare</li>
+            </ol>
+        </nav>
+        <h1>Bewertungsformulare</h1>
+    </div>
+    <button class="btn btn-success" onclick="openCreateForm()">
+        <i class="bi bi-plus"></i> Formular erstellen
+    </button>
+</div>
+
+<div class="card">
+    <div class="card-body">
+        <div class="alert alert-info">
+            <i class="bi bi-info-circle"></i>
+            Bewertungsformulare sind zweisprachig (Deutsch / Französisch) und können mehreren Meilensteinen zugewiesen werden.
+        </div>
+        <div id="formsList"><p class="text-muted">Wird geladen…</p></div>
+    </div>
+</div>
+
+<!-- Create Modal -->
+<div class="modal fade" id="createFormModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Neues Bewertungsformular</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form id="createForm">
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="form-label">Titel (Deutsch)</label>
+                        <input type="text" class="form-control" name="title_de" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Titel (Französisch)</label>
+                        <input type="text" class="form-control" name="title_fr" required>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Abbrechen</button>
+                    <button type="submit" class="btn btn-primary">Erstellen</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script>
+function loadForms() {
+    fetch('/api/evaluation-forms')
+        .then(r => r.json())
+        .then(forms => {
+            const el = document.getElementById('formsList');
+            if (!forms.length) { el.innerHTML = '<p class="text-muted mb-0">Noch keine Formulare erfasst.</p>'; return; }
+            el.innerHTML = `
+                <div class="table-responsive"><table class="table table-striped">
+                    <thead><tr><th>Titel (DE)</th><th>Titel (FR)</th><th>Gruppen</th><th>Aktionen</th></tr></thead>
+                    <tbody>
+                        ${forms.map(f => `
+                            <tr>
+                                <td><strong>${escapeHtml(f.title_de)}</strong></td>
+                                <td>${escapeHtml(f.title_fr)}</td>
+                                <td>${f.groupCount}</td>
+                                <td>
+                                    <a href="/dashboard/admin/evaluation-forms/${f.id}" class="btn btn-outline-primary btn-sm">
+                                        <i class="bi bi-pencil"></i> Bearbeiten
+                                    </a>
+                                    <button class="btn btn-outline-danger btn-sm" onclick="deleteForm(${f.id}, '${escapeHtml(f.title_de).replace(/'/g, "\\'")}')">
+                                        <i class="bi bi-trash"></i>
+                                    </button>
+                                </td>
+                            </tr>`).join('')}
+                    </tbody>
+                </table></div>`;
+        })
+        .catch(e => { console.error(e); document.getElementById('formsList').innerHTML = '<div class="alert alert-danger">Fehler beim Laden</div>'; });
+}
+
+function escapeHtml(s) { return (s || '').replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
+
+function openCreateForm() {
+    document.getElementById('createForm').reset();
+    new bootstrap.Modal(document.getElementById('createFormModal')).show();
+}
+
+document.getElementById('createForm').addEventListener('submit', function(e) {
+    e.preventDefault();
+    const data = Object.fromEntries(new FormData(this));
+    fetch('/api/evaluation-forms', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify(data) })
+        .then(r => r.json())
+        .then(d => {
+            if (d.success) window.location.href = '/dashboard/admin/evaluation-forms/' + d.form.id;
+            else alert('Fehler: ' + (d.message || 'Unbekannt'));
+        })
+        .catch(e => { console.error(e); alert('Fehler beim Erstellen'); });
+});
+
+function deleteForm(id, title) {
+    if (!confirm(`Formular "${title}" wirklich löschen? Zugewiesene Meilensteine verlieren die Zuordnung; bestehende Bewertungen bleiben erhalten.`)) return;
+    fetch('/api/evaluation-forms/' + id, { method: 'DELETE' })
+        .then(r => r.json())
+        .then(d => { if (d.success) loadForms(); else alert('Fehler: ' + (d.message || 'Unbekannt')); })
+        .catch(e => { console.error(e); alert('Fehler beim Löschen'); });
+}
+
+loadForms();
+</script>
+
+<%- include('../partials/footer') %>

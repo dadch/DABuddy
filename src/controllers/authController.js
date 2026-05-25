@@ -6,7 +6,7 @@ const showLogin = async (req, res) => {
     res.render('login', { years, messages: req.flash() });
   } catch (error) {
     console.error('Error loading login page:', error);
-    res.render('login', { years: [], messages: { error: ['Unable to load years'] } });
+    res.render('login', { years: [], messages: { error: ['Diplomjahre konnten nicht geladen werden'] } });
   }
 };
 
@@ -15,27 +15,27 @@ const processLogin = async (req, res) => {
 
   try {
     if (!username || !password || !year) {
-      req.flash('error', 'Please fill in all fields');
+      req.flash('error', 'Bitte füllen Sie alle Felder aus');
       return res.redirect('/login');
     }
 
     const user = await User.findOne({ where: { username } });
-    
+
     if (!user) {
-      req.flash('error', 'Invalid username or password');
+      req.flash('error', 'Benutzername oder Passwort ungültig');
       return res.redirect('/login');
     }
 
     const isValidPassword = await user.validatePassword(password);
-    
+
     if (!isValidPassword) {
-      req.flash('error', 'Invalid username or password');
+      req.flash('error', 'Benutzername oder Passwort ungültig');
       return res.redirect('/login');
     }
 
     const selectedYear = await Year.findByPk(year);
     if (!selectedYear) {
-      req.flash('error', 'Invalid year selected');
+      req.flash('error', 'Ungültiges Diplomjahr ausgewählt');
       return res.redirect('/login');
     }
 
@@ -52,12 +52,12 @@ const processLogin = async (req, res) => {
       fullName: req.session.fullName
     });
 
-    req.flash('success', `Welcome back, ${user.firstname}!`);
+    req.flash('success', `Willkommen zurück, ${user.firstname}!`);
     res.redirect('/dashboard');
 
   } catch (error) {
     console.error('Login error:', error);
-    req.flash('error', 'An error occurred during login');
+    req.flash('error', 'Bei der Anmeldung ist ein Fehler aufgetreten');
     res.redirect('/login');
   }
 };
@@ -66,7 +66,7 @@ const logout = (req, res) => {
   req.session.destroy((err) => {
     if (err) {
       console.error('Logout error:', err);
-      req.flash('error', 'Could not log out');
+      req.flash('error', 'Abmeldung nicht möglich');
       return res.redirect('/dashboard');
     }
     res.redirect('/login');

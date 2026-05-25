@@ -1,0 +1,534 @@
+<%- include('../partials/header', { title: 'Meilenstein-Verwaltung - DABuddy', user: user }) %>
+
+<%
+const ROLE_LABELS = { student: 'Student', coach: 'Coach', expert: 'ExpertIn', admin: 'Administrator', department_lead: 'FachbereichsleiterIn', field_project_coach: 'Field Project Coach' };
+%>
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+        <nav aria-label="breadcrumb">
+            <ol class="breadcrumb">
+                <li class="breadcrumb-item"><a href="/dashboard">Dashboard</a></li>
+                <li class="breadcrumb-item active" aria-current="page">Meilenstein-Verwaltung</li>
+            </ol>
+        </nav>
+        <h1>Meilenstein-Verwaltung</h1>
+    </div>
+    <div class="text-muted">
+        <i class="bi bi-calendar"></i> Diplomjahr: <%= selectedYear.year %>
+    </div>
+</div>
+
+<div class="card mb-4">
+    <div class="card-header d-flex justify-content-between align-items-center">
+        <h5 class="mb-0">
+            <i class="bi bi-flag"></i> Meilensteine für <%= selectedYear.year %>
+        </h5>
+        <button class="btn btn-success" onclick="openAddMilestoneModal()">
+            <i class="bi bi-plus"></i> Meilenstein hinzufügen
+        </button>
+    </div>
+    <div class="card-body">
+        <div class="alert alert-info">
+            <i class="bi bi-info-circle"></i>
+            Diese Meilensteine werden als Vorlage für alle neuen Diplomarbeiten in <%= selectedYear.year %> verwendet.
+            Aktuell existieren <strong><%= thesesCount %></strong> Diplomarbeiten in diesem Diplomjahr.
+        </div>
+
+        <% if (milestones.length === 0) { %>
+            <div class="text-center py-4">
+                <i class="bi bi-flag text-muted" style="font-size: 48px;"></i>
+                <p class="text-muted mt-2">Noch keine Meilensteine erfasst.</p>
+            </div>
+        <% } else { %>
+            <div class="table-responsive">
+                <table class="table table-striped">
+                    <thead>
+                        <tr>
+                            <th>Bezeichnung</th>
+                            <th>Termin</th>
+                            <th>Verantwortliche Rolle</th>
+                            <th>Konfiguration</th>
+                            <th>Aktionen</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <% milestones.forEach(function(m) { %>
+                            <tr>
+                                <td><strong><%= m.label %></strong></td>
+                                <td>
+                                    <i class="bi bi-calendar-event"></i>
+                                    <%= new Date(m.due_at).toLocaleDateString('de-CH') %>
+                                    <%= new Date(m.due_at).toLocaleTimeString('de-CH', { hour: '2-digit', minute: '2-digit' }) %>
+                                </td>
+                                <td>
+                                    <span class="badge bg-secondary"><%= ROLE_LABELS[m.responsible_role] || m.responsible_role %></span>
+                                </td>
+                                <td>
+                                    <% if (m.allow_upload) { %>
+                                        <span class="badge bg-success" title="Upload erlaubt"><i class="bi bi-upload"></i> Upload</span>
+                                    <% } else { %>
+                                        <span class="badge bg-light text-muted" title="Kein Upload"><i class="bi bi-upload"></i> kein Upload</span>
+                                    <% } %>
+                                    <% if (m.allow_update) { %>
+                                        <span class="badge bg-info text-dark" title="Aktualisierung erlaubt"><i class="bi bi-arrow-repeat"></i> Update</span>
+                                    <% } %>
+                                    <% if (m.requires_evaluation) { %>
+                                        <span class="badge bg-warning text-dark" title="Bewertung durch <%= ROLE_LABELS[m.evaluator_role] || m.evaluator_role %>">
+                                            <i class="bi bi-star"></i> Bewertung: <%= ROLE_LABELS[m.evaluator_role] || m.evaluator_role %>
+                                        </span>
+                                        <% if (m.evaluationForm) { %>
+                                            <span class="badge bg-primary" title="Bewertungsformular">
+                                                <i class="bi bi-clipboard-check"></i> <%= m.evaluationForm.title_de %>
+                                            </span>
+                                        <% } else { %>
+                                            <span class="badge bg-light text-muted">Freitext</span>
+                                        <% } %>
+                                    <% } %>
+                                    <% if (m.requires_approval) { %>
+                                        <span class="badge bg-dark" title="Freigabe 1 durch <%= ROLE_LABELS[m.approver_role] || m.approver_role %>">
+                                            <i class="bi bi-unlock"></i> Freigabe 1: <%= ROLE_LABELS[m.approver_role] || m.approver_role %>
+                                        </span>
+                                    <% } %>
+                                    <% if (m.requires_approval_2) { %>
+                                        <span class="badge bg-dark" title="Freigabe 2 durch <%= ROLE_LABELS[m.approver_role_2] || m.approver_role_2 %>">
+                                            <i class="bi bi-unlock"></i> Freigabe 2: <%= ROLE_LABELS[m.approver_role_2] || m.approver_role_2 %>
+                                        </span>
+                                    <% } %>
+                                </td>
+                                <td>
+                                    <div class="btn-group">
+                                        <button class="btn btn-outline-primary btn-sm" onclick='editMilestone(<%- JSON.stringify(m) %>)'>
+                                            <i class="bi bi-pencil"></i>
+                                        </button>
+                                        <button class="btn btn-outline-danger btn-sm" onclick="deleteMilestone(<%= m.id %>, '<%= m.label.replace(/'/g, "\\'") %>')">
+                                            <i class="bi bi-trash"></i>
+                                        </button>
+                                    </div>
+                                </td>
+                            </tr>
+                        <% }); %>
+                    </tbody>
+                </table>
+            </div>
+        <% } %>
+    </div>
+</div>
+
+<!-- Hinzufügen Modal -->
+<div class="modal fade" id="addMilestoneModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Meilenstein hinzufügen</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form id="addMilestoneForm">
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="form-label">Bezeichnung</label>
+                        <input type="text" class="form-control" name="label" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Termin (Datum & Zeit)</label>
+                        <input type="datetime-local" class="form-control" name="due_at" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Verantwortliche Rolle</label>
+                        <select class="form-select" name="responsible_role" required>
+                            <option value="">Rolle auswählen...</option>
+                            <option value="student">Student</option>
+                            <option value="coach">Coach</option>
+                            <option value="expert">ExpertIn</option>
+                            <option value="department_lead">FachbereichsleiterIn</option>
+                            <option value="field_project_coach">Field Project Coach</option>
+                            <option value="admin">Administrator</option>
+                        </select>
+                    </div>
+                    <hr>
+                    <div class="form-check mb-2">
+                        <input type="checkbox" class="form-check-input" name="allow_upload" id="addAllowUpload" checked>
+                        <label class="form-check-label" for="addAllowUpload">Dokument-Upload durch Verantwortliche erlaubt</label>
+                    </div>
+                    <div class="form-check mb-2">
+                        <input type="checkbox" class="form-check-input" name="allow_update" id="addAllowUpdate">
+                        <label class="form-check-label" for="addAllowUpdate">Aktualisierung (neue Version) erlaubt</label>
+                    </div>
+                    <div class="form-check mb-2">
+                        <input type="checkbox" class="form-check-input" name="requires_evaluation" id="addRequiresEval" onchange="toggleEvalRole('add')">
+                        <label class="form-check-label" for="addRequiresEval">Dokument wird bewertet</label>
+                    </div>
+                    <div class="mb-3 d-none" id="addEvalRoleWrap">
+                        <label class="form-label">Bewertende Rolle</label>
+                        <select class="form-select" name="evaluator_role" id="addEvalRole">
+                            <option value="">Rolle auswählen...</option>
+                            <option value="coach">Coach</option>
+                            <option value="expert">ExpertIn</option>
+                            <option value="department_lead">FachbereichsleiterIn</option>
+                            <option value="field_project_coach">Field Project Coach</option>
+                            <option value="admin">Administrator</option>
+                        </select>
+                    </div>
+                    <div class="mb-3 d-none" id="addEvalFormWrap">
+                        <label class="form-label">Bewertungsformular (optional)</label>
+                        <select class="form-select" name="evaluation_form_id" id="addEvalForm">
+                            <option value="">Freitext-Bewertung (kein Formular)</option>
+                        </select>
+                    </div>
+                    <hr>
+                    <div class="form-check mb-2">
+                        <input type="checkbox" class="form-check-input" name="requires_approval" id="addRequiresApproval" onchange="toggleApprover('add')">
+                        <label class="form-check-label" for="addRequiresApproval">Freigabe 1 erforderlich</label>
+                    </div>
+                    <div class="mb-3 d-none" id="addApproverWrap">
+                        <label class="form-label">Freigebende Rolle (Freigabe 1)</label>
+                        <select class="form-select" name="approver_role" id="addApproverRole">
+                            <option value="">Rolle auswählen...</option>
+                            <option value="student">Student</option>
+                            <option value="coach">Coach</option>
+                            <option value="expert">ExpertIn</option>
+                            <option value="department_lead">FachbereichsleiterIn</option>
+                            <option value="field_project_coach">Field Project Coach</option>
+                            <option value="admin">Administrator</option>
+                        </select>
+                    </div>
+                    <div class="form-check mb-2">
+                        <input type="checkbox" class="form-check-input" name="requires_approval_2" id="addRequiresApproval2" onchange="toggleApprover2('add')">
+                        <label class="form-check-label" for="addRequiresApproval2">Freigabe 2 erforderlich</label>
+                    </div>
+                    <div class="mb-3 d-none" id="addApprover2Wrap">
+                        <label class="form-label">Freigebende Rolle (Freigabe 2)</label>
+                        <select class="form-select" name="approver_role_2" id="addApproverRole2">
+                            <option value="">Rolle auswählen...</option>
+                            <option value="student">Student</option>
+                            <option value="coach">Coach</option>
+                            <option value="expert">ExpertIn</option>
+                            <option value="department_lead">FachbereichsleiterIn</option>
+                            <option value="field_project_coach">Field Project Coach</option>
+                            <option value="admin">Administrator</option>
+                        </select>
+                    </div>
+                    <hr>
+                    <% if (thesesCount > 0) { %>
+                    <div class="form-check">
+                        <input type="checkbox" class="form-check-input" name="applyToExisting" id="addApplyToExisting" checked>
+                        <label class="form-check-label" for="addApplyToExisting">
+                            Auf bereits existierende Diplomarbeiten anwenden (<%= thesesCount %>)
+                        </label>
+                    </div>
+                    <% } %>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Abbrechen</button>
+                    <button type="submit" class="btn btn-primary">Hinzufügen</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Bearbeiten Modal -->
+<div class="modal fade" id="editMilestoneModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Meilenstein bearbeiten</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form id="editMilestoneForm">
+                <div class="modal-body">
+                    <input type="hidden" name="id" id="editMilestoneId">
+                    <div class="mb-3">
+                        <label class="form-label">Bezeichnung</label>
+                        <input type="text" class="form-control" name="label" id="editMilestoneLabel" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Termin (Datum & Zeit)</label>
+                        <input type="datetime-local" class="form-control" name="due_at" id="editMilestoneDueAt" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Verantwortliche Rolle</label>
+                        <select class="form-select" name="responsible_role" id="editMilestoneRole" required>
+                            <option value="student">Student</option>
+                            <option value="coach">Coach</option>
+                            <option value="expert">ExpertIn</option>
+                            <option value="department_lead">FachbereichsleiterIn</option>
+                            <option value="field_project_coach">Field Project Coach</option>
+                            <option value="admin">Administrator</option>
+                        </select>
+                    </div>
+                    <hr>
+                    <div class="form-check mb-2">
+                        <input type="checkbox" class="form-check-input" name="allow_upload" id="editAllowUpload">
+                        <label class="form-check-label" for="editAllowUpload">Dokument-Upload durch Verantwortliche erlaubt</label>
+                    </div>
+                    <div class="form-check mb-2">
+                        <input type="checkbox" class="form-check-input" name="allow_update" id="editAllowUpdate">
+                        <label class="form-check-label" for="editAllowUpdate">Aktualisierung (neue Version) erlaubt</label>
+                    </div>
+                    <div class="form-check mb-2">
+                        <input type="checkbox" class="form-check-input" name="requires_evaluation" id="editRequiresEval" onchange="toggleEvalRole('edit')">
+                        <label class="form-check-label" for="editRequiresEval">Dokument wird bewertet</label>
+                    </div>
+                    <div class="mb-3 d-none" id="editEvalRoleWrap">
+                        <label class="form-label">Bewertende Rolle</label>
+                        <select class="form-select" name="evaluator_role" id="editEvalRole">
+                            <option value="">Rolle auswählen...</option>
+                            <option value="coach">Coach</option>
+                            <option value="expert">ExpertIn</option>
+                            <option value="department_lead">FachbereichsleiterIn</option>
+                            <option value="field_project_coach">Field Project Coach</option>
+                            <option value="admin">Administrator</option>
+                        </select>
+                    </div>
+                    <div class="mb-3 d-none" id="editEvalFormWrap">
+                        <label class="form-label">Bewertungsformular (optional)</label>
+                        <select class="form-select" name="evaluation_form_id" id="editEvalForm">
+                            <option value="">Freitext-Bewertung (kein Formular)</option>
+                        </select>
+                    </div>
+                    <hr>
+                    <div class="form-check mb-2">
+                        <input type="checkbox" class="form-check-input" name="requires_approval" id="editRequiresApproval" onchange="toggleApprover('edit')">
+                        <label class="form-check-label" for="editRequiresApproval">Freigabe 1 erforderlich</label>
+                    </div>
+                    <div class="mb-3 d-none" id="editApproverWrap">
+                        <label class="form-label">Freigebende Rolle (Freigabe 1)</label>
+                        <select class="form-select" name="approver_role" id="editApproverRole">
+                            <option value="">Rolle auswählen...</option>
+                            <option value="student">Student</option>
+                            <option value="coach">Coach</option>
+                            <option value="expert">ExpertIn</option>
+                            <option value="department_lead">FachbereichsleiterIn</option>
+                            <option value="field_project_coach">Field Project Coach</option>
+                            <option value="admin">Administrator</option>
+                        </select>
+                    </div>
+                    <div class="form-check mb-2">
+                        <input type="checkbox" class="form-check-input" name="requires_approval_2" id="editRequiresApproval2" onchange="toggleApprover2('edit')">
+                        <label class="form-check-label" for="editRequiresApproval2">Freigabe 2 erforderlich</label>
+                    </div>
+                    <div class="mb-3 d-none" id="editApprover2Wrap">
+                        <label class="form-label">Freigebende Rolle (Freigabe 2)</label>
+                        <select class="form-select" name="approver_role_2" id="editApproverRole2">
+                            <option value="">Rolle auswählen...</option>
+                            <option value="student">Student</option>
+                            <option value="coach">Coach</option>
+                            <option value="expert">ExpertIn</option>
+                            <option value="department_lead">FachbereichsleiterIn</option>
+                            <option value="field_project_coach">Field Project Coach</option>
+                            <option value="admin">Administrator</option>
+                        </select>
+                    </div>
+                    <hr>
+                    <% if (thesesCount > 0) { %>
+                    <div class="form-check">
+                        <input type="checkbox" class="form-check-input" name="applyToExisting" id="editApplyToExisting">
+                        <label class="form-check-label" for="editApplyToExisting">
+                            Änderung auf bereits existierende Diplomarbeiten anwenden (<%= thesesCount %>)
+                        </label>
+                    </div>
+                    <% } %>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Abbrechen</button>
+                    <button type="submit" class="btn btn-primary">Speichern</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Löschen Modal -->
+<div class="modal fade" id="deleteMilestoneModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Meilenstein löschen</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form id="deleteMilestoneForm">
+                <div class="modal-body">
+                    <input type="hidden" id="deleteMilestoneId">
+                    <p>Möchten Sie den Meilenstein <strong id="deleteMilestoneLabel"></strong> wirklich löschen?</p>
+                    <p class="text-muted">
+                        Diese Aktion entfernt den Meilenstein aus der Vorlage. Bereits zugewiesene Instanzen pro Diplomarbeit werden je nach Auswahl behandelt.
+                    </p>
+                    <div class="form-check">
+                        <input type="radio" class="form-check-input" name="keepUploaded" id="keepUploadedYes" value="true" checked>
+                        <label class="form-check-label" for="keepUploadedYes">
+                            Bereits hochgeladene Dokumente behalten<br>
+                            <small class="text-muted">Diplomarbeiten mit hochgeladenem Dokument für diesen Meilenstein bleiben unverändert. Andere werden gelöscht.</small>
+                        </label>
+                    </div>
+                    <div class="form-check mt-2">
+                        <input type="radio" class="form-check-input" name="keepUploaded" id="keepUploadedNo" value="false">
+                        <label class="form-check-label" for="keepUploadedNo">
+                            Alle löschen<br>
+                            <small class="text-muted">Auch bereits hochgeladene Dokumente werden entfernt.</small>
+                        </label>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Abbrechen</button>
+                    <button type="submit" class="btn btn-danger">Löschen</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script>
+const selectedYearId = <%= selectedYear.id %>;
+
+function roleLabel(role) {
+    const m = { student: 'Student', coach: 'Coach', expert: 'ExpertIn', admin: 'Administrator', department_lead: 'FachbereichsleiterIn' };
+    return m[role] || role;
+}
+
+function toLocalInput(iso) {
+    const d = new Date(iso);
+    const pad = n => String(n).padStart(2, '0');
+    return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
+
+let evaluationForms = [];
+
+function loadEvaluationForms() {
+    return fetch('/api/evaluation-forms').then(r => r.json()).then(forms => {
+        evaluationForms = forms;
+        ['addEvalForm', 'editEvalForm'].forEach(selId => {
+            const sel = document.getElementById(selId);
+            const current = sel.value;
+            sel.innerHTML = '<option value="">Freitext-Bewertung (kein Formular)</option>' +
+                forms.map(f => `<option value="${f.id}">${(f.title_de||'').replace(/</g,'&lt;')}</option>`).join('');
+            sel.value = current;
+        });
+    }).catch(e => console.error('Formulare laden fehlgeschlagen', e));
+}
+
+function toggleEvalRole(prefix) {
+    const checked = document.getElementById(prefix + 'RequiresEval').checked;
+    document.getElementById(prefix + 'EvalRoleWrap').classList.toggle('d-none', !checked);
+    document.getElementById(prefix + 'EvalFormWrap').classList.toggle('d-none', !checked);
+}
+
+function toggleApprover(prefix) {
+    const checked = document.getElementById(prefix + 'RequiresApproval').checked;
+    document.getElementById(prefix + 'ApproverWrap').classList.toggle('d-none', !checked);
+}
+
+function toggleApprover2(prefix) {
+    const checked = document.getElementById(prefix + 'RequiresApproval2').checked;
+    document.getElementById(prefix + 'Approver2Wrap').classList.toggle('d-none', !checked);
+}
+
+function openAddMilestoneModal() {
+    document.getElementById('addMilestoneForm').reset();
+    document.getElementById('addAllowUpload').checked = true;
+    toggleEvalRole('add');
+    toggleApprover('add');
+    toggleApprover2('add');
+    new bootstrap.Modal(document.getElementById('addMilestoneModal')).show();
+}
+
+function editMilestone(m) {
+    document.getElementById('editMilestoneId').value = m.id;
+    document.getElementById('editMilestoneLabel').value = m.label;
+    document.getElementById('editMilestoneDueAt').value = toLocalInput(m.due_at);
+    document.getElementById('editMilestoneRole').value = m.responsible_role;
+    document.getElementById('editAllowUpload').checked = !!m.allow_upload;
+    document.getElementById('editAllowUpdate').checked = !!m.allow_update;
+    document.getElementById('editRequiresEval').checked = !!m.requires_evaluation;
+    document.getElementById('editEvalRole').value = m.evaluator_role || '';
+    document.getElementById('editEvalForm').value = m.evaluation_form_id || '';
+    document.getElementById('editRequiresApproval').checked = !!m.requires_approval;
+    document.getElementById('editApproverRole').value = m.approver_role || '';
+    document.getElementById('editRequiresApproval2').checked = !!m.requires_approval_2;
+    document.getElementById('editApproverRole2').value = m.approver_role_2 || '';
+    toggleEvalRole('edit');
+    toggleApprover('edit');
+    toggleApprover2('edit');
+    const apply = document.getElementById('editApplyToExisting');
+    if (apply) apply.checked = false;
+    new bootstrap.Modal(document.getElementById('editMilestoneModal')).show();
+}
+
+// Convert checkbox form values ('on'/undefined) to real booleans
+function normalizeConfig(data) {
+    data.allow_upload = !!data.allow_upload;
+    data.allow_update = !!data.allow_update;
+    data.requires_evaluation = !!data.requires_evaluation;
+    if (!data.requires_evaluation) { data.evaluator_role = null; data.evaluation_form_id = null; }
+    if (data.evaluation_form_id === '') data.evaluation_form_id = null;
+    data.requires_approval = !!data.requires_approval;
+    if (!data.requires_approval) data.approver_role = null;
+    data.requires_approval_2 = !!data.requires_approval_2;
+    if (!data.requires_approval_2) data.approver_role_2 = null;
+    return data;
+}
+
+function deleteMilestone(id, label) {
+    document.getElementById('deleteMilestoneId').value = id;
+    document.getElementById('deleteMilestoneLabel').textContent = label;
+    document.getElementById('keepUploadedYes').checked = true;
+    new bootstrap.Modal(document.getElementById('deleteMilestoneModal')).show();
+}
+
+document.getElementById('addMilestoneForm').addEventListener('submit', function(e) {
+    e.preventDefault();
+    const data = normalizeConfig(Object.fromEntries(new FormData(this)));
+    data.applyToExisting = !!data.applyToExisting;
+
+    fetch(`/api/years/${selectedYearId}/milestones`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data)
+    })
+    .then(r => r.json())
+    .then(d => {
+        if (d.success) location.reload();
+        else alert('Fehler: ' + (d.message || 'Unbekannt'));
+    })
+    .catch(err => { console.error(err); alert('Fehler beim Hinzufügen'); });
+});
+
+document.getElementById('editMilestoneForm').addEventListener('submit', function(e) {
+    e.preventDefault();
+    const data = normalizeConfig(Object.fromEntries(new FormData(this)));
+    data.applyToExisting = !!data.applyToExisting;
+    const id = data.id; delete data.id;
+
+    fetch(`/api/milestones/${id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data)
+    })
+    .then(r => r.json())
+    .then(d => {
+        if (d.success) location.reload();
+        else alert('Fehler: ' + (d.message || 'Unbekannt'));
+    })
+    .catch(err => { console.error(err); alert('Fehler beim Speichern'); });
+});
+
+document.getElementById('deleteMilestoneForm').addEventListener('submit', function(e) {
+    e.preventDefault();
+    const id = document.getElementById('deleteMilestoneId').value;
+    const keepUploaded = document.querySelector('input[name="keepUploaded"]:checked').value === 'true';
+
+    fetch(`/api/milestones/${id}?keepUploaded=${keepUploaded}`, {
+        method: 'DELETE'
+    })
+    .then(r => r.json())
+    .then(d => {
+        if (d.success) location.reload();
+        else alert('Fehler: ' + (d.message || 'Unbekannt'));
+    })
+    .catch(err => { console.error(err); alert('Fehler beim Löschen'); });
+});
+
+loadEvaluationForms();
+</script>
+
+<%- include('../partials/footer') %>
