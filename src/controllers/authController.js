@@ -1,4 +1,5 @@
 const { User, Year } = require('../models');
+const { Op, fn, col, where } = require('sequelize');
 
 const showLogin = async (req, res) => {
   try {
@@ -19,7 +20,16 @@ const processLogin = async (req, res) => {
       return res.redirect('/login');
     }
 
-    const user = await User.findOne({ where: { username } });
+    // Anmeldung mit Benutzername ODER E-Mail-Adresse (E-Mail case-insensitiv).
+    const ident = String(username).trim();
+    const user = await User.findOne({
+      where: {
+        [Op.or]: [
+          { username: ident },
+          where(fn('lower', col('email')), ident.toLowerCase()),
+        ]
+      }
+    });
 
     if (!user) {
       req.flash('error', 'Benutzername oder Passwort ungültig');

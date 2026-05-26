@@ -615,7 +615,12 @@ const createStudentRecord = async ({ name, firstname, email, gender, department 
   const existsEmail = await User.findOne({ where: { email } });
   if (existsEmail) throw new Error('E-Mail existiert bereits: ' + email);
 
-  const username = await generateUsername(email);
+  // Studierende melden sich mit ihrer E-Mail an -> Benutzername = E-Mail (sofern Länge passt
+  // und frei), sonst aus dem lokalen Teil generiert.
+  let username = email;
+  if (email.length > 50 || await User.findOne({ where: { username: email } })) {
+    username = await generateUsername(email);
+  }
   const user = await User.create({
     username, password: STUDENT_DEFAULT_PASSWORD, name, firstname, email, role: 'student', gender,
   });
@@ -1186,8 +1191,12 @@ const getThesisMilestones = async (req, res) => {
     const access = await userHasThesisAccess(userId, userRole, thesisId);
     if (!access) return res.status(403).json({ success: false, message: 'Sie haben keine Berechtigung, diese Diplomarbeit anzusehen' });
 
+    // Studierende sehen nur freigegebene Meilensteine.
+    const where = { thesis_id: thesisId };
+    if (userRole === 'student') where.released = true;
+
     const milestones = await ThesisMilestone.findAll({
-      where: { thesis_id: thesisId },
+      where,
       include: [
         {
           model: ThesisMilestoneDocument,

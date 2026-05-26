@@ -1,4 +1,5 @@
 const { User, Thesis, Department, Year, Milestone, ThesisMilestone, ThesisMilestoneDocument, ThesisLog, EvaluationForm, ThesisEvaluation, ThesisEvaluationGroup } = require('../models');
+const { Op } = require('sequelize');
 
 const showDashboard = async (req, res) => {
   try {
@@ -60,6 +61,11 @@ const showDashboard = async (req, res) => {
       if (departmentFilter) whereClause.department_id = departmentFilter;
 
       theses = await Thesis.findAll({ where: whereClause, include: baseInclude, order: [['title', 'ASC']] });
+    }
+
+    // Studierende landen direkt auf der Detailansicht ihrer Diplomarbeit des gewählten Diplomjahres.
+    if (userRole === 'student' && theses.length > 0) {
+      return res.redirect('/dashboard/thesis/' + theses[0].id);
     }
 
     const dashboardData = {
@@ -131,8 +137,12 @@ const showThesisDetail = async (req, res) => {
       return res.redirect('/dashboard');
     }
 
+    // Studierende sehen nur freigegebene Meilensteine.
+    const milestoneWhere = { thesis_id: thesisId };
+    if (userRole === 'student') milestoneWhere.released = true;
+
     const milestones = await ThesisMilestone.findAll({
-      where: { thesis_id: thesisId },
+      where: milestoneWhere,
       include: [
         {
           model: ThesisMilestoneDocument,
@@ -154,8 +164,14 @@ const showThesisDetail = async (req, res) => {
       order: [['due_at', 'ASC'], [{ model: ThesisMilestoneDocument, as: 'documents' }, 'version', 'DESC']]
     });
 
+    // Log: für Studierende nur Einträge zu freigegebenen Meilensteinen (oder ohne Meilensteinbezug).
+    const logWhere = { thesis_id: thesisId };
+    if (userRole === 'student') {
+      const visibleIds = milestones.map(m => m.id);
+      logWhere[Op.or] = [{ thesis_milestone_id: null }, { thesis_milestone_id: visibleIds }];
+    }
     const logs = await ThesisLog.findAll({
-      where: { thesis_id: thesisId },
+      where: logWhere,
       include: [{ model: User, as: 'user', attributes: ['id', 'firstname', 'name', 'role'] }],
       order: [['createdAt', 'DESC']],
       limit: 100

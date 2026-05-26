@@ -62,7 +62,7 @@
                             <% }); %>
                         </select>
                     </div>
-                    <div class="form-text" id="studentFormHint">Benutzername und Standardpasswort werden automatisch erzeugt.</div>
+                    <div class="form-text" id="studentFormHint">Die Anmeldung erfolgt mit der E-Mail-Adresse und dem Standardpasswort <code>password123</code>.</div>
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Abbrechen</button>
@@ -86,6 +86,7 @@
                     <p class="small mb-1">Pro Zeile eine/n Studierende/n. Spalten (Trenner <code>;</code> oder <code>,</code>):</p>
                     <p class="small"><strong>Name; Vorname; E-Mail; Geschlecht (m/w/d); Fachbereich</strong></p>
                     <p class="small text-muted">Gültige Fachbereiche: <%= (departments || []).map(function(d){ return d.name; }).join(', ') %></p>
+                    <p class="small text-muted">Anmeldung der Studierenden mit E-Mail-Adresse und Standardpasswort <code>password123</code>.</p>
                     <textarea class="form-control" id="importCsv" rows="10" placeholder="Muster; Max; max.muster@hftm.ch; m; Informatik"></textarea>
                     <div id="importResult" class="mt-3"></div>
                 </div>
