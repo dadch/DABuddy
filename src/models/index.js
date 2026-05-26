@@ -140,8 +140,8 @@ EvaluationForm.hasMany(Milestone, { foreignKey: 'evaluation_form_id', as: 'miles
 Milestone.belongsTo(EvaluationForm, { foreignKey: 'evaluation_form_id', as: 'evaluationForm' });
 ThesisMilestone.belongsTo(EvaluationForm, { foreignKey: 'evaluation_form_id', as: 'evaluationForm' });
 
-// Thesis evaluation snapshot
-ThesisMilestone.hasOne(ThesisEvaluation, { foreignKey: 'thesis_milestone_id', as: 'thesisEvaluation', onDelete: 'CASCADE' });
+// Thesis evaluation snapshot (1 = single, oder first/second/final bei Doppelbewertung)
+ThesisMilestone.hasMany(ThesisEvaluation, { foreignKey: 'thesis_milestone_id', as: 'thesisEvaluations', onDelete: 'CASCADE' });
 ThesisEvaluation.belongsTo(ThesisMilestone, { foreignKey: 'thesis_milestone_id', as: 'thesisMilestone' });
 ThesisEvaluation.hasMany(ThesisEvaluationGroup, { foreignKey: 'thesis_evaluation_id', as: 'groups', onDelete: 'CASCADE' });
 ThesisEvaluationGroup.belongsTo(ThesisEvaluation, { foreignKey: 'thesis_evaluation_id', as: 'evaluation' });

@@ -2,7 +2,7 @@
 
 <%
 const ROLE_LABELS = { student: 'Student', coach: 'Coach', expert: 'ExpertIn', admin: 'Administrator', department_lead: 'FachbereichsleiterIn', field_project_coach: 'Field Project Coach' };
-const ACTION_LABELS = { document_upload: 'Dokument hochgeladen', document_update: 'Dokument aktualisiert', document_delete: 'Dokument gelöscht', evaluation_create: 'Bewertung erfasst', evaluation_update: 'Bewertung aktualisiert', milestone_approved: 'Meilenstein freigegeben', milestone_revoked: 'Freigabe zurückgezogen' };
+const ACTION_LABELS = { document_upload: 'Dokument hochgeladen', document_update: 'Dokument aktualisiert', document_delete: 'Dokument gelöscht', evaluation_create: 'Bewertung erfasst', evaluation_update: 'Bewertung aktualisiert', milestone_approved: 'Dokument-Freigabe erteilt', milestone_revoked: 'Dokument-Freigabe zurückgezogen', milestone_released: 'Meilenstein freigegeben (gestartet)', milestone_locked: 'Meilenstein gesperrt' };
 const isAdmin = user.role === 'admin';
 const fmtDateTime = (d) => new Date(d).toLocaleDateString('de-CH') + ' ' + new Date(d).toLocaleTimeString('de-CH', { hour: '2-digit', minute: '2-digit' });
 %>
@@ -135,8 +135,15 @@ const fmtDateTime = (d) => new Date(d).toLocaleDateString('de-CH') + ' ' + new D
                         const hasDocs = docs.length > 0;
                         const currentDoc = docs.find(d => d.is_current) || (hasDocs ? docs[0] : null);
                         const isResponsible = (user.role === m.responsible_role) || isAdmin;
-                        const showUpload = m.allow_upload && isResponsible && (!hasDocs || m.allow_update);
+                        const isCoachOfThesis = (thesis.coaches || []).some(c => c.id === user.id);
+                        const canRelease = isAdmin || (user.role === 'coach' && isCoachOfThesis);
+                        const showUpload = m.allow_upload && isResponsible && (!hasDocs || m.allow_update) && (m.released || isAdmin);
                         const canEvaluate = m.requires_evaluation && (user.role === m.evaluator_role || isAdmin);
+                        const evalByKind = {};
+                        (m.thesisEvaluations || []).forEach(e => { evalByKind[e.kind] = e; });
+                        const finalExists = !!evalByKind['final'];
+                        const isEvaluator1 = (user.role === m.evaluator_role) || isAdmin;
+                        const isEvaluator2 = (user.role === m.evaluator_role_2) || isAdmin;
                         const approvalSlots = [];
                         if (m.requires_approval) approvalSlots.push({ n: 1, role: m.approver_role, approvedAt: m.approved_at, approver: m.approver });
                         if (m.requires_approval_2) approvalSlots.push({ n: 2, role: m.approver_role_2, approvedAt: m.approved_at_2, approver: m.approver2 });
@@ -158,16 +165,30 @@ const fmtDateTime = (d) => new Date(d).toLocaleDateString('de-CH') + ' ' + new D
                                             </button>
                                         <% } %>
                                         <span class="badge bg-secondary ms-2">Verantwortlich: <%= ROLE_LABELS[m.responsible_role] || m.responsible_role %></span>
+                                        <% if (m.released) { %>
+                                            <span class="badge bg-success"><i class="bi bi-unlock"></i> Freigegeben</span>
+                                        <% } else { %>
+                                            <span class="badge bg-secondary"><i class="bi bi-lock"></i> Gesperrt</span>
+                                        <% } %>
                                         <% if (m.requires_evaluation) { %>
                                             <span class="badge bg-warning text-dark">Bewertung: <%= ROLE_LABELS[m.evaluator_role] || m.evaluator_role %></span>
                                         <% } %>
                                     </div>
                                 </div>
-                                <div>
+                                <div class="text-end">
+                                    <% if (canRelease) { %>
+                                        <% if (!m.released) { %>
+                                            <button class="btn btn-success btn-sm" onclick="setMilestoneReleased(<%= m.id %>, true)"><i class="bi bi-unlock"></i> Freigeben</button>
+                                        <% } else { %>
+                                            <button class="btn btn-outline-secondary btn-sm" onclick="setMilestoneReleased(<%= m.id %>, false)"><i class="bi bi-lock"></i> Sperren</button>
+                                        <% } %>
+                                    <% } %>
                                     <% if (showUpload) { %>
                                         <button class="btn btn-outline-primary btn-sm" onclick="openUploadModal(<%= m.id %>, '<%= m.label.replace(/'/g, "\\'") %>')">
                                             <i class="bi bi-upload"></i> <%= hasDocs ? 'Aktualisieren' : 'Hochladen' %>
                                         </button>
+                                    <% } else if (!m.released) { %>
+                                        <span class="text-muted small">Noch nicht freigegeben</span>
                                     <% } else if (!m.allow_upload) { %>
                                         <span class="text-muted small">Kein Upload vorgesehen</span>
                                     <% } else if (!hasDocs) { %>
@@ -213,7 +234,46 @@ const fmtDateTime = (d) => new Date(d).toLocaleDateString('de-CH') + ' ' + new D
                             <% } %>
 
                             <!-- Bewertung -->
-                            <% if (m.requires_evaluation) { %>
+                            <% if (m.requires_evaluation && m.double_evaluation) { %>
+                                <%
+                                const phases = [
+                                    { kind: 'first', title: 'Bewertung 1', role: m.evaluator_role, owner: isEvaluator1, ev: evalByKind['first'], canView: isAdmin || isEvaluator1 || finalExists },
+                                    { kind: 'second', title: 'Bewertung 2', role: m.evaluator_role_2, owner: isEvaluator2, ev: evalByKind['second'], canView: isAdmin || isEvaluator2 || finalExists },
+                                    { kind: 'final', title: 'Finale Bewertung', role: null, owner: (isEvaluator1 || isEvaluator2), ev: evalByKind['final'], canView: true },
+                                ];
+                                %>
+                                <div class="mt-3 bg-light rounded p-2">
+                                    <strong class="small"><i class="bi bi-people"></i> Doppelbewertung</strong>
+                                    <span class="text-muted small">· <%= ROLE_LABELS[m.evaluator_role] || m.evaluator_role %> + <%= ROLE_LABELS[m.evaluator_role_2] || m.evaluator_role_2 %></span>
+                                    <% phases.forEach(function(p) { %>
+                                        <div class="d-flex justify-content-between align-items-center py-1 small border-top">
+                                            <div>
+                                                <strong><%= p.title %></strong>
+                                                <% if (p.role) { %><span class="text-muted">· <%= ROLE_LABELS[p.role] || p.role %></span><% } %>
+                                                <% if (p.ev && p.canView && p.ev.overall_grade != null) { %>
+                                                    <span class="badge bg-success">Note <%= Number(p.ev.overall_grade).toFixed(1) %></span>
+                                                    <% if (!p.ev.completed) { %><span class="text-muted">(in Bearbeitung)</span><% } %>
+                                                <% } else if (p.ev) { %>
+                                                    <% if (p.canView) { %><span class="badge bg-warning text-dark">in Bearbeitung</span><% } else { %><span class="text-muted">verdeckt bis finale Bewertung</span><% } %>
+                                                <% } else { %>
+                                                    <span class="text-muted">noch nicht erstellt</span>
+                                                <% } %>
+                                            </div>
+                                            <div>
+                                                <% if (p.owner) { %>
+                                                    <button class="btn btn-outline-secondary btn-sm" onclick="openEvaluationForm(<%= m.id %>, '<%= p.kind %>', true)"><i class="bi bi-clipboard-check"></i> ausfüllen</button>
+                                                <% } else if (p.canView && p.ev) { %>
+                                                    <button class="btn btn-outline-secondary btn-sm" onclick="openEvaluationForm(<%= m.id %>, '<%= p.kind %>', false)"><i class="bi bi-eye"></i> ansehen</button>
+                                                <% } %>
+                                                <% if (p.ev && p.canView) { %>
+                                                    <a class="btn btn-outline-danger btn-sm" href="/api/thesis-milestones/<%= m.id %>/evaluation.pdf?kind=<%= p.kind %>" target="_blank" title="Als PDF"><i class="bi bi-file-earmark-pdf"></i> PDF</a>
+                                                <% } %>
+                                            </div>
+                                        </div>
+                                    <% }); %>
+                                </div>
+                            <% } else if (m.requires_evaluation) { %>
+                                <% const single = evalByKind['single']; %>
                                 <div class="mt-3 bg-light rounded p-2">
                                     <div class="d-flex justify-content-between align-items-center">
                                         <strong class="small">
@@ -221,29 +281,39 @@ const fmtDateTime = (d) => new Date(d).toLocaleDateString('de-CH') + ' ' + new D
                                             <% if (m.evaluation_form_id) { %><span class="badge bg-primary ms-1">Formular</span><% } %>
                                             <span class="text-muted">· <%= ROLE_LABELS[m.evaluator_role] || m.evaluator_role %></span>
                                         </strong>
+                                        <span>
                                         <% if (m.evaluation_form_id) { %>
-                                            <button class="btn btn-outline-secondary btn-sm" onclick="openEvaluationForm(<%= m.id %>, <%= canEvaluate ? 'true' : 'false' %>)">
+                                            <button class="btn btn-outline-secondary btn-sm" onclick="openEvaluationForm(<%= m.id %>, 'single', <%= canEvaluate ? 'true' : 'false' %>)">
                                                 <i class="bi bi-clipboard-check"></i> Bewertung <%= canEvaluate ? 'ausfüllen' : 'ansehen' %>
                                             </button>
-                                        <% } else if (canEvaluate) { %>
-                                            <button class="btn btn-outline-secondary btn-sm" onclick='openEvalModal(<%- JSON.stringify({ id: m.id, label: m.label, evaluation: m.evaluation || "" }) %>)'>
-                                                <i class="bi bi-pencil"></i> <%= m.evaluation ? 'Bewertung bearbeiten' : 'Bewerten' %>
-                                            </button>
+                                            <% if (single) { %>
+                                                <a class="btn btn-outline-danger btn-sm" href="/api/thesis-milestones/<%= m.id %>/evaluation.pdf?kind=single" target="_blank" title="Als PDF"><i class="bi bi-file-earmark-pdf"></i> PDF</a>
+                                            <% } %>
+                                        <% } else { %>
+                                            <% if (canEvaluate) { %>
+                                                <button class="btn btn-outline-secondary btn-sm" onclick='openEvalModal(<%- JSON.stringify({ id: m.id, label: m.label, evaluation: m.evaluation || "" }) %>)'>
+                                                    <i class="bi bi-pencil"></i> <%= m.evaluation ? 'Bewertung bearbeiten' : 'Bewerten' %>
+                                                </button>
+                                            <% } %>
+                                            <% if (m.evaluation) { %>
+                                                <a class="btn btn-outline-danger btn-sm" href="/api/thesis-milestones/<%= m.id %>/evaluation.pdf" target="_blank" title="Als PDF"><i class="bi bi-file-earmark-pdf"></i> PDF</a>
+                                            <% } %>
                                         <% } %>
+                                        </span>
                                     </div>
                                     <% if (m.evaluation_form_id) { %>
-                                        <% if (m.thesisEvaluation && m.thesisEvaluation.overall_grade != null) { %>
+                                        <% if (single && single.overall_grade != null) { %>
                                             <div class="mt-2">
-                                                Gesamtnote: <strong><%= Number(m.thesisEvaluation.overall_grade).toFixed(1) %></strong>
-                                                <% (m.thesisEvaluation.groups || []).forEach(function(g) { %>
+                                                Gesamtnote: <strong><%= Number(single.overall_grade).toFixed(1) %></strong>
+                                                <% (single.groups || []).forEach(function(g) { %>
                                                     <% if (g.grade != null) { %>
                                                         <span class="badge bg-secondary ms-1" title="<%= g.name %>"><%= g.name %>: <%= Number(g.grade).toFixed(1) %></span>
                                                     <% } %>
                                                 <% }); %>
                                                 <br><small class="text-muted">
-                                                    <%= m.thesisEvaluation.completed ? 'Abgeschlossen' : 'In Bearbeitung' %>
-                                                    <% if (m.thesisEvaluation.evaluator) { %> · von <%= m.thesisEvaluation.evaluator.firstname %> <%= m.thesisEvaluation.evaluator.name %><% } %>
-                                                    <% if (m.thesisEvaluation.evaluated_at) { %> am <%= fmtDateTime(m.thesisEvaluation.evaluated_at) %><% } %>
+                                                    <%= single.completed ? 'Abgeschlossen' : 'In Bearbeitung' %>
+                                                    <% if (single.evaluator) { %> · von <%= single.evaluator.firstname %> <%= single.evaluator.name %><% } %>
+                                                    <% if (single.evaluated_at) { %> am <%= fmtDateTime(single.evaluated_at) %><% } %>
                                                 </small>
                                             </div>
                                         <% } else { %>
@@ -514,7 +584,20 @@ document.getElementById('evalForm').addEventListener('submit', function(e) {
     .catch(err => { console.error(err); alert('Fehler beim Speichern der Bewertung'); });
 });
 
-// ---- Freigabe ----
+// ---- Meilenstein-Freigabe (Start) ----
+function setMilestoneReleased(tmId, released) {
+    const msg = released ? 'Diesen Meilenstein freigeben (starten)?' : 'Freigabe dieses Meilensteins zurücknehmen (sperren)?';
+    if (!confirm(msg)) return;
+    fetch(`/api/thesis-milestones/${tmId}/release`, {
+        method: 'PUT', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ released })
+    })
+    .then(r => r.json())
+    .then(d => { if (d.success) location.reload(); else alert('Fehler: ' + (d.message || 'Unbekannt')); })
+    .catch(e => { console.error(e); alert('Fehler bei der Freigabe'); });
+}
+
+// ---- Dokument-Freigabe (Sign-off) ----
 function setApproval(tmId, slot, approved) {
     const msg = approved ? ('Freigabe ' + slot + ' erteilen?') : ('Freigabe ' + slot + ' wirklich zurückziehen?');
     if (!confirm(msg)) return;
@@ -533,20 +616,23 @@ let evalFormState = { tmId: null, editable: false, evaluation: null };
 function escapeHtml(s){ return (s||'').replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
 function roundTenth(x){ return Math.round(x*10)/10; }
 
-function openEvaluationForm(tmId, editable) {
-    evalFormState = { tmId, editable, evaluation: null };
+function openEvaluationForm(tmId, kind, editable) {
+    evalFormState = { tmId, kind: kind || 'single', editable, evaluation: null };
     document.getElementById('evalFormBody').innerHTML = '<p class="text-muted">Wird geladen…</p>';
     document.getElementById('evalFormOverall').innerHTML = '';
-    document.getElementById('evalFormSaveBtn').classList.toggle('d-none', !editable);
+    document.getElementById('evalFormSaveBtn').classList.add('d-none');
     new bootstrap.Modal(document.getElementById('evalFormModal')).show();
 
-    fetch(`/api/thesis-milestones/${tmId}/evaluation-form`)
+    fetch(`/api/thesis-milestones/${tmId}/evaluation-form?kind=${encodeURIComponent(evalFormState.kind)}`)
         .then(r => r.json())
         .then(d => {
             if (!d.success) { document.getElementById('evalFormBody').innerHTML = '<div class="alert alert-danger">'+(d.message||'Fehler')+'</div>'; return; }
             if (!d.hasForm) { document.getElementById('evalFormBody').innerHTML = '<div class="alert alert-info">Kein Formular zugewiesen.</div>'; return; }
+            if (d.hidden) { document.getElementById('evalFormBody').innerHTML = '<div class="alert alert-info">Diese Einzelbewertung ist verdeckt, bis die finale Bewertung erstellt wurde.</div>'; return; }
             if (!d.started) { document.getElementById('evalFormBody').innerHTML = '<div class="alert alert-info">Die Bewertung wurde noch nicht gestartet (nur die bewertende Rolle kann sie starten).</div>'; return; }
+            evalFormState.editable = !!d.editable;
             evalFormState.evaluation = d.evaluation;
+            document.getElementById('evalFormSaveBtn').classList.toggle('d-none', !evalFormState.editable);
             renderEvaluationForm();
         })
         .catch(e => { console.error(e); document.getElementById('evalFormBody').innerHTML = '<div class="alert alert-danger">Fehler beim Laden</div>'; });
@@ -556,7 +642,9 @@ function renderEvaluationForm() {
     const ev = evalFormState.evaluation;
     const editable = evalFormState.editable;
     const groups = (ev.groups || []).slice().sort((a,b)=>a.position-b.position);
-    document.getElementById('evalFormTitle').textContent = 'Bewertung — ' + ev.form_title;
+    const phaseLabels = { first: 'Bewertung 1', second: 'Bewertung 2', final: 'Finale Bewertung' };
+    const phasePrefix = phaseLabels[evalFormState.kind] ? (phaseLabels[evalFormState.kind] + ' — ') : '';
+    document.getElementById('evalFormTitle').textContent = phasePrefix + 'Bewertung — ' + ev.form_title;
 
     let html = '';
     groups.forEach(g => {
@@ -680,7 +768,7 @@ function saveEvaluationForm() {
     btn.disabled = true;
     fetch(`/api/thesis-milestones/${evalFormState.tmId}/evaluation-form`, {
         method: 'PUT', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ criteria })
+        body: JSON.stringify({ criteria, kind: evalFormState.kind })
     })
     .then(r => r.json())
     .then(d => {

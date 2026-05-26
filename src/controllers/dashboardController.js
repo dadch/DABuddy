@@ -144,7 +144,7 @@ const showThesisDetail = async (req, res) => {
         { model: User, as: 'approver2', attributes: ['id', 'firstname', 'name', 'role'] },
         {
           model: ThesisEvaluation,
-          as: 'thesisEvaluation',
+          as: 'thesisEvaluations',
           include: [
             { model: ThesisEvaluationGroup, as: 'groups' },
             { model: User, as: 'evaluator', attributes: ['id', 'firstname', 'name'] }

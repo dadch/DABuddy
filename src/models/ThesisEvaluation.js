@@ -12,9 +12,20 @@ const ThesisEvaluation = sequelize.define('ThesisEvaluation', {
   thesis_milestone_id: {
     type: DataTypes.INTEGER,
     allowNull: false,
-    unique: true,
     references: { model: 'thesis_milestones', key: 'id' },
     onDelete: 'CASCADE',
+  },
+  // single = normale Einzelbewertung; first/second = Einzelbewertungen der Doppelbewertung;
+  // final = finale (zusammengeführte) Bewertung der Doppelbewertung
+  kind: {
+    type: DataTypes.ENUM('single', 'first', 'second', 'final'),
+    allowNull: false,
+    defaultValue: 'single',
+  },
+  // Rolle, der diese (Einzel-)Bewertung gehört (null bei 'final' = beide Rollen)
+  evaluator_role: {
+    type: DataTypes.ENUM('student', 'coach', 'expert', 'admin', 'department_lead', 'field_project_coach'),
+    allowNull: true,
   },
   // Ursprüngliche Formularvorlage (nur als Referenz)
   source_form_id: {
@@ -56,7 +67,10 @@ const ThesisEvaluation = sequelize.define('ThesisEvaluation', {
   },
 }, {
   tableName: 'thesis_evaluations',
-  indexes: [{ fields: ['thesis_milestone_id'] }],
+  indexes: [
+    { fields: ['thesis_milestone_id'] },
+    { unique: true, fields: ['thesis_milestone_id', 'kind'] },
+  ],
 });
 
 module.exports = ThesisEvaluation;

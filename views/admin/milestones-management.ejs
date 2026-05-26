@@ -84,6 +84,11 @@ const ROLE_LABELS = { student: 'Student', coach: 'Coach', expert: 'ExpertIn', ad
                                         <% } else { %>
                                             <span class="badge bg-light text-muted">Freitext</span>
                                         <% } %>
+                                        <% if (m.double_evaluation) { %>
+                                            <span class="badge bg-primary" title="Doppelbewertung durch <%= ROLE_LABELS[m.evaluator_role] || m.evaluator_role %> und <%= ROLE_LABELS[m.evaluator_role_2] || m.evaluator_role_2 %>">
+                                                <i class="bi bi-people"></i> Doppelbewertung: <%= ROLE_LABELS[m.evaluator_role] || m.evaluator_role %> + <%= ROLE_LABELS[m.evaluator_role_2] || m.evaluator_role_2 %>
+                                            </span>
+                                        <% } %>
                                     <% } %>
                                     <% if (m.requires_approval) { %>
                                         <span class="badge bg-dark" title="Freigabe 1 durch <%= ROLE_LABELS[m.approver_role] || m.approver_role %>">
@@ -174,6 +179,22 @@ const ROLE_LABELS = { student: 'Student', coach: 'Coach', expert: 'ExpertIn', ad
                         <select class="form-select" name="evaluation_form_id" id="addEvalForm">
                             <option value="">Freitext-Bewertung (kein Formular)</option>
                         </select>
+                    </div>
+                    <div class="form-check mb-2 d-none" id="addDoubleEvalWrap">
+                        <input type="checkbox" class="form-check-input" name="double_evaluation" id="addDoubleEval" onchange="toggleDoubleEval('add')">
+                        <label class="form-check-label" for="addDoubleEval">Doppelbewertung (zwei Rollen + finale Bewertung)</label>
+                    </div>
+                    <div class="mb-3 d-none" id="addEvalRole2Wrap">
+                        <label class="form-label">Zweite bewertende Rolle</label>
+                        <select class="form-select" name="evaluator_role_2" id="addEvalRole2">
+                            <option value="">Rolle auswählen...</option>
+                            <option value="coach">Coach</option>
+                            <option value="expert">ExpertIn</option>
+                            <option value="department_lead">FachbereichsleiterIn</option>
+                            <option value="field_project_coach">Field Project Coach</option>
+                            <option value="admin">Administrator</option>
+                        </select>
+                        <div class="form-text">Die erste bewertende Rolle ist oben gewählt. Beide Rollen müssen unterschiedlich sein.</div>
                     </div>
                     <hr>
                     <div class="form-check mb-2">
@@ -286,6 +307,22 @@ const ROLE_LABELS = { student: 'Student', coach: 'Coach', expert: 'ExpertIn', ad
                         <select class="form-select" name="evaluation_form_id" id="editEvalForm">
                             <option value="">Freitext-Bewertung (kein Formular)</option>
                         </select>
+                    </div>
+                    <div class="form-check mb-2 d-none" id="editDoubleEvalWrap">
+                        <input type="checkbox" class="form-check-input" name="double_evaluation" id="editDoubleEval" onchange="toggleDoubleEval('edit')">
+                        <label class="form-check-label" for="editDoubleEval">Doppelbewertung (zwei Rollen + finale Bewertung)</label>
+                    </div>
+                    <div class="mb-3 d-none" id="editEvalRole2Wrap">
+                        <label class="form-label">Zweite bewertende Rolle</label>
+                        <select class="form-select" name="evaluator_role_2" id="editEvalRole2">
+                            <option value="">Rolle auswählen...</option>
+                            <option value="coach">Coach</option>
+                            <option value="expert">ExpertIn</option>
+                            <option value="department_lead">FachbereichsleiterIn</option>
+                            <option value="field_project_coach">Field Project Coach</option>
+                            <option value="admin">Administrator</option>
+                        </select>
+                        <div class="form-text">Die erste bewertende Rolle ist oben gewählt. Beide Rollen müssen unterschiedlich sein.</div>
                     </div>
                     <hr>
                     <div class="form-check mb-2">
@@ -411,6 +448,15 @@ function toggleEvalRole(prefix) {
     const checked = document.getElementById(prefix + 'RequiresEval').checked;
     document.getElementById(prefix + 'EvalRoleWrap').classList.toggle('d-none', !checked);
     document.getElementById(prefix + 'EvalFormWrap').classList.toggle('d-none', !checked);
+    document.getElementById(prefix + 'DoubleEvalWrap').classList.toggle('d-none', !checked);
+    if (!checked) { document.getElementById(prefix + 'DoubleEval').checked = false; }
+    toggleDoubleEval(prefix);
+}
+
+function toggleDoubleEval(prefix) {
+    const reqEval = document.getElementById(prefix + 'RequiresEval').checked;
+    const dbl = document.getElementById(prefix + 'DoubleEval').checked;
+    document.getElementById(prefix + 'EvalRole2Wrap').classList.toggle('d-none', !(reqEval && dbl));
 }
 
 function toggleApprover(prefix) {
@@ -442,6 +488,8 @@ function editMilestone(m) {
     document.getElementById('editRequiresEval').checked = !!m.requires_evaluation;
     document.getElementById('editEvalRole').value = m.evaluator_role || '';
     document.getElementById('editEvalForm').value = m.evaluation_form_id || '';
+    document.getElementById('editDoubleEval').checked = !!m.double_evaluation;
+    document.getElementById('editEvalRole2').value = m.evaluator_role_2 || '';
     document.getElementById('editRequiresApproval').checked = !!m.requires_approval;
     document.getElementById('editApproverRole').value = m.approver_role || '';
     document.getElementById('editRequiresApproval2').checked = !!m.requires_approval_2;
@@ -461,6 +509,8 @@ function normalizeConfig(data) {
     data.requires_evaluation = !!data.requires_evaluation;
     if (!data.requires_evaluation) { data.evaluator_role = null; data.evaluation_form_id = null; }
     if (data.evaluation_form_id === '') data.evaluation_form_id = null;
+    data.double_evaluation = !!data.double_evaluation && data.requires_evaluation;
+    if (!data.double_evaluation) data.evaluator_role_2 = null;
     data.requires_approval = !!data.requires_approval;
     if (!data.requires_approval) data.approver_role = null;
     data.requires_approval_2 = !!data.requires_approval_2;

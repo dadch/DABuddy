@@ -57,6 +57,11 @@ const User = sequelize.define('User', {
       notEmpty: true,
     },
   },
+  // Geschlecht: m = männlich, w = weiblich, d = divers (v.a. für Studierende)
+  gender: {
+    type: DataTypes.ENUM('m', 'w', 'd'),
+    allowNull: true,
+  },
 }, {
   tableName: 'users',
   hooks: {

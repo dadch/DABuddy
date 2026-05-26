@@ -2,8 +2,25 @@
 
 <div class="d-flex justify-content-between align-items-center mb-4">
     <h1>Diplomarbeit-Verwaltung</h1>
-    <div class="text-muted">
-        <i class="bi bi-calendar"></i> Diplomjahr: <%= selectedYear %>
+    <div class="d-flex align-items-center gap-3">
+        <span class="text-muted">
+            <i class="bi bi-calendar"></i> Diplomjahr: <%= selectedYear %>
+        </span>
+        <div class="dropdown">
+            <button class="btn btn-primary" type="button" id="dashboardActionsMenu" data-bs-toggle="dropdown" aria-expanded="false" title="Aktionen">
+                <i class="bi bi-three-dots-vertical"></i>
+            </button>
+            <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="dashboardActionsMenu">
+                <li><button class="dropdown-item" type="button" onclick="openAddThesisModal()"><i class="bi bi-plus"></i> Diplomarbeit hinzufügen</button></li>
+                <li><hr class="dropdown-divider"></li>
+                <li><a class="dropdown-item" href="/dashboard/admin/milestones"><i class="bi bi-flag"></i> Meilensteine</a></li>
+                <li><a class="dropdown-item" href="/dashboard/admin/evaluation-forms"><i class="bi bi-clipboard-check"></i> Bewertungsformulare</a></li>
+                <li><hr class="dropdown-divider"></li>
+                <li><button class="dropdown-item" type="button" onclick="openUserManagementModal()"><i class="bi bi-person-gear"></i> Benutzer verwalten</button></li>
+                <li><button class="dropdown-item" type="button" onclick="openStudentManagement()"><i class="bi bi-mortarboard"></i> Studierende verwalten</button></li>
+                <li><button class="dropdown-item" type="button" onclick="openDepartmentManagementModal()"><i class="bi bi-building"></i> Fachbereiche verwalten</button></li>
+            </ul>
+        </div>
     </div>
 </div>
 
@@ -15,32 +32,6 @@
                     <i class="bi bi-mortarboard"></i> Diplomarbeiten gesamt
                 </h5>
                 <h3 class="text-primary"><%= theses.length %></h3>
-            </div>
-        </div>
-    </div>
-    <div class="col-md-6">
-        <div class="card">
-            <div class="card-body">
-                <h5 class="card-title">
-                    <i class="bi bi-people"></i> Aktionen
-                </h5>
-                <div class="btn-group" role="group">
-                    <button type="button" class="btn btn-success" onclick="openAddThesisModal()">
-                        <i class="bi bi-plus"></i> Diplomarbeit hinzufügen
-                    </button>
-                    <a href="/dashboard/admin/milestones" class="btn btn-outline-primary">
-                        <i class="bi bi-flag"></i> Meilensteine
-                    </a>
-                    <a href="/dashboard/admin/evaluation-forms" class="btn btn-outline-primary">
-                        <i class="bi bi-clipboard-check"></i> Bewertungsformulare
-                    </a>
-                    <button type="button" class="btn btn-info" onclick="openUserManagementModal()">
-                        <i class="bi bi-person-gear"></i> Benutzer verwalten
-                    </button>
-                    <button type="button" class="btn btn-warning" onclick="openDepartmentManagementModal()">
-                        <i class="bi bi-building"></i> Fachbereiche verwalten
-                    </button>
-                </div>
             </div>
         </div>
     </div>
@@ -1202,5 +1193,7 @@ document.getElementById('userUsername').addEventListener('blur', function() {
 });
 
 </script>
+
+<%- include('../partials/student-management') %>
 
 <%- include('../partials/footer') %>

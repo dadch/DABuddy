@@ -49,8 +49,19 @@ const Milestone = sequelize.define('Milestone', {
     allowNull: false,
     defaultValue: false,
   },
-  // Welche Rolle die Bewertung vornimmt
+  // Welche Rolle die Bewertung vornimmt (bei Doppelbewertung: erste Rolle)
   evaluator_role: {
+    type: DataTypes.ENUM('student', 'coach', 'expert', 'admin', 'department_lead', 'field_project_coach'),
+    allowNull: true,
+  },
+  // Doppelbewertung: zwei Rollen bewerten unabhängig, danach finale Bewertung
+  double_evaluation: {
+    type: DataTypes.BOOLEAN,
+    allowNull: false,
+    defaultValue: false,
+  },
+  // Zweite bewertende Rolle (nur bei Doppelbewertung)
+  evaluator_role_2: {
     type: DataTypes.ENUM('student', 'coach', 'expert', 'admin', 'department_lead', 'field_project_coach'),
     allowNull: true,
   },

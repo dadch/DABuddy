@@ -38,6 +38,13 @@ const ThesisMilestone = sequelize.define('ThesisMilestone', {
     type: DataTypes.DATE,
     allowNull: false,
   },
+  // Freigabe zum Starten: erst nach Freigabe (durch Coach/Admin) kann am Meilenstein
+  // gearbeitet werden (Upload). Der erste Meilenstein ist immer freigegeben.
+  released: {
+    type: DataTypes.BOOLEAN,
+    allowNull: false,
+    defaultValue: false,
+  },
   responsible_role: {
     type: DataTypes.ENUM('student', 'coach', 'expert', 'admin', 'department_lead', 'field_project_coach'),
     allowNull: false,
@@ -59,6 +66,15 @@ const ThesisMilestone = sequelize.define('ThesisMilestone', {
     defaultValue: false,
   },
   evaluator_role: {
+    type: DataTypes.ENUM('student', 'coach', 'expert', 'admin', 'department_lead', 'field_project_coach'),
+    allowNull: true,
+  },
+  double_evaluation: {
+    type: DataTypes.BOOLEAN,
+    allowNull: false,
+    defaultValue: false,
+  },
+  evaluator_role_2: {
     type: DataTypes.ENUM('student', 'coach', 'expert', 'admin', 'department_lead', 'field_project_coach'),
     allowNull: true,
   },

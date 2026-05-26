@@ -1,0 +1,216 @@
+<!-- Studierenden-Verwaltung (Admin + FachbereichsleiterIn). Erwartet `departments` im Render-Kontext. -->
+<div class="modal fade" id="studentManagementModal" tabindex="-1">
+    <div class="modal-dialog modal-xl">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Studierende verwalten</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="d-flex gap-2 mb-3">
+                    <button type="button" class="btn btn-success" onclick="openAddStudent()">
+                        <i class="bi bi-person-plus"></i> Studierende/n hinzufügen
+                    </button>
+                    <button type="button" class="btn btn-outline-primary" onclick="openImportStudents()">
+                        <i class="bi bi-upload"></i> CSV-Import
+                    </button>
+                </div>
+                <div id="studentsList"><p class="text-muted">Wird geladen…</p></div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Hinzufügen / Bearbeiten -->
+<div class="modal fade" id="studentFormModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="studentFormTitle">Studierende/n hinzufügen</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form id="studentForm">
+                <div class="modal-body">
+                    <input type="hidden" id="studentId">
+                    <div class="mb-3">
+                        <label class="form-label">Name</label>
+                        <input type="text" class="form-control" id="studentName" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Vorname</label>
+                        <input type="text" class="form-control" id="studentFirstname" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">E-Mail</label>
+                        <input type="email" class="form-control" id="studentEmail" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Geschlecht</label>
+                        <select class="form-select" id="studentGender" required>
+                            <option value="">Auswählen...</option>
+                            <option value="m">männlich (m)</option>
+                            <option value="w">weiblich (w)</option>
+                            <option value="d">divers (d)</option>
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Fachbereich</label>
+                        <select class="form-select" id="studentDepartment" required>
+                            <option value="">Auswählen...</option>
+                            <% (departments || []).forEach(function(dept) { %>
+                                <option value="<%= dept.id %>"><%= dept.name %></option>
+                            <% }); %>
+                        </select>
+                    </div>
+                    <div class="form-text" id="studentFormHint">Benutzername und Standardpasswort werden automatisch erzeugt.</div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Abbrechen</button>
+                    <button type="submit" class="btn btn-primary">Speichern</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- CSV-Import -->
+<div class="modal fade" id="importStudentModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Studierende importieren (CSV)</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form id="importStudentForm">
+                <div class="modal-body">
+                    <p class="small mb-1">Pro Zeile eine/n Studierende/n. Spalten (Trenner <code>;</code> oder <code>,</code>):</p>
+                    <p class="small"><strong>Name; Vorname; E-Mail; Geschlecht (m/w/d); Fachbereich</strong></p>
+                    <p class="small text-muted">Gültige Fachbereiche: <%= (departments || []).map(function(d){ return d.name; }).join(', ') %></p>
+                    <textarea class="form-control" id="importCsv" rows="10" placeholder="Muster; Max; max.muster@hftm.ch; m; Informatik"></textarea>
+                    <div id="importResult" class="mt-3"></div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Schliessen</button>
+                    <button type="submit" class="btn btn-primary">Importieren</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script>
+const GENDER_LABELS = { m: 'männlich', w: 'weiblich', d: 'divers' };
+function stuEscape(s){ return (s||'').replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
+
+function openStudentManagement() {
+    loadStudentList();
+    new bootstrap.Modal(document.getElementById('studentManagementModal')).show();
+}
+
+function loadStudentList() {
+    fetch('/api/students')
+        .then(r => r.json())
+        .then(students => {
+            const el = document.getElementById('studentsList');
+            if (!students.length) { el.innerHTML = '<p class="text-muted mb-0">Noch keine Studierenden erfasst.</p>'; return; }
+            el.innerHTML = `
+                <div class="table-responsive"><table class="table table-striped">
+                    <thead><tr><th>Name</th><th>Vorname</th><th>E-Mail</th><th>Geschlecht</th><th>Fachbereich</th><th>Benutzername</th><th>Aktionen</th></tr></thead>
+                    <tbody>
+                        ${students.map(s => `
+                            <tr>
+                                <td>${stuEscape(s.name)}</td>
+                                <td>${stuEscape(s.firstname)}</td>
+                                <td>${stuEscape(s.email)}</td>
+                                <td>${GENDER_LABELS[s.gender] || '–'}</td>
+                                <td>${(s.departments||[]).map(d => `<span class="badge bg-info me-1">${stuEscape(d.name)}</span>`).join('') || '<span class="text-muted">–</span>'}</td>
+                                <td><small class="text-muted">${stuEscape(s.username)}</small></td>
+                                <td>
+                                    <button class="btn btn-outline-primary btn-sm" onclick='editStudentOpen(${JSON.stringify(s).replace(/'/g, "&#39;")})'><i class="bi bi-pencil"></i></button>
+                                    <button class="btn btn-outline-danger btn-sm" onclick="deleteStudentRow(${s.id}, '${stuEscape(s.firstname + ' ' + s.name).replace(/'/g, "\\'")}')"><i class="bi bi-trash"></i></button>
+                                </td>
+                            </tr>`).join('')}
+                    </tbody>
+                </table></div>`;
+        })
+        .catch(e => { console.error(e); document.getElementById('studentsList').innerHTML = '<div class="alert alert-danger">Fehler beim Laden</div>'; });
+}
+
+function openAddStudent() {
+    document.getElementById('studentForm').reset();
+    document.getElementById('studentId').value = '';
+    document.getElementById('studentFormTitle').textContent = 'Studierende/n hinzufügen';
+    document.getElementById('studentFormHint').classList.remove('d-none');
+    new bootstrap.Modal(document.getElementById('studentFormModal')).show();
+}
+
+function editStudentOpen(s) {
+    document.getElementById('studentForm').reset();
+    document.getElementById('studentId').value = s.id;
+    document.getElementById('studentFormTitle').textContent = 'Studierende/n bearbeiten';
+    document.getElementById('studentName').value = s.name || '';
+    document.getElementById('studentFirstname').value = s.firstname || '';
+    document.getElementById('studentEmail').value = s.email || '';
+    document.getElementById('studentGender').value = s.gender || '';
+    document.getElementById('studentDepartment').value = (s.departments && s.departments[0]) ? s.departments[0].id : '';
+    document.getElementById('studentFormHint').classList.add('d-none');
+    new bootstrap.Modal(document.getElementById('studentFormModal')).show();
+}
+
+document.getElementById('studentForm').addEventListener('submit', function(e) {
+    e.preventDefault();
+    const id = document.getElementById('studentId').value;
+    const data = {
+        name: document.getElementById('studentName').value,
+        firstname: document.getElementById('studentFirstname').value,
+        email: document.getElementById('studentEmail').value,
+        gender: document.getElementById('studentGender').value,
+        department: document.getElementById('studentDepartment').value,
+    };
+    const url = id ? '/api/students/' + id : '/api/students';
+    fetch(url, { method: id ? 'PUT' : 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data) })
+        .then(r => r.json())
+        .then(d => {
+            if (d.success) {
+                bootstrap.Modal.getInstance(document.getElementById('studentFormModal')).hide();
+                loadStudentList();
+            } else alert('Fehler: ' + (d.message || 'Unbekannt'));
+        })
+        .catch(e => { console.error(e); alert('Fehler beim Speichern'); });
+});
+
+function deleteStudentRow(id, label) {
+    if (!confirm(`Studierende/n "${label}" wirklich löschen?`)) return;
+    fetch('/api/students/' + id, { method: 'DELETE' })
+        .then(r => r.json())
+        .then(d => { if (d.success) loadStudentList(); else alert('Fehler: ' + (d.message || 'Unbekannt')); })
+        .catch(e => { console.error(e); alert('Fehler beim Löschen'); });
+}
+
+function openImportStudents() {
+    document.getElementById('importStudentForm').reset();
+    document.getElementById('importResult').innerHTML = '';
+    new bootstrap.Modal(document.getElementById('importStudentModal')).show();
+}
+
+document.getElementById('importStudentForm').addEventListener('submit', function(e) {
+    e.preventDefault();
+    const csv = document.getElementById('importCsv').value;
+    const btn = this.querySelector('button[type="submit"]');
+    btn.disabled = true;
+    fetch('/api/students/import', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ csv }) })
+        .then(r => r.json())
+        .then(d => {
+            btn.disabled = false;
+            if (!d.success) { document.getElementById('importResult').innerHTML = '<div class="alert alert-danger">' + (d.message || 'Fehler') + '</div>'; return; }
+            let html = `<div class="alert alert-success">${d.created} Studierende importiert.</div>`;
+            if (d.errors && d.errors.length) {
+                html += '<div class="alert alert-warning"><strong>' + d.errors.length + ' Zeile(n) übersprungen:</strong><ul class="mb-0">' +
+                    d.errors.map(er => `<li>Zeile ${er.line}: ${stuEscape(er.message)}</li>`).join('') + '</ul></div>';
+            }
+            document.getElementById('importResult').innerHTML = html;
+            loadStudentList();
+        })
+        .catch(e => { btn.disabled = false; console.error(e); alert('Fehler beim Import'); });
+});
+</script>

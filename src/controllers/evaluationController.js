@@ -1,11 +1,12 @@
 const {
   sequelize,
-  Milestone, ThesisMilestone, Thesis, ThesisLog,
+  Milestone, ThesisMilestone, Thesis, ThesisLog, User, Year, Department,
   EvaluationForm, EvaluationGroup, EvaluationCriterion,
   ThesisEvaluation, ThesisEvaluationGroup, ThesisEvaluationCriterion,
 } = require('../models');
 const { computeGroupGrade, computeOverallGrade } = require('../utils/grading');
 const { userHasThesisAccess } = require('../utils/thesisAccess');
+const { streamEvaluationPdf } = require('../utils/evaluationPdf');
 
 const emptyLevels = () => ['', '', '', '', '', ''];
 
@@ -227,7 +228,8 @@ const reorderCriteria = async (req, res) => {
 // ---------- Thesis evaluation (snapshot + fill) ----------
 
 // Build a thesis-scoped snapshot of the assigned form in the thesis language.
-async function buildSnapshot(thesisMilestone, language) {
+// kind: 'single' | 'first' | 'second' | 'final'; evaluatorRole = owning role (null for final/single uses milestone role).
+async function buildSnapshot(thesisMilestone, language, kind, evaluatorRole) {
   const form = await EvaluationForm.findByPk(thesisMilestone.evaluation_form_id, {
     include: [{ model: EvaluationGroup, as: 'groups', include: [{ model: EvaluationCriterion, as: 'criteria' }] }],
     order: [
@@ -242,6 +244,8 @@ async function buildSnapshot(thesisMilestone, language) {
       thesis_milestone_id: thesisMilestone.id,
       source_form_id: form.id,
       language,
+      kind: kind || 'single',
+      evaluator_role: evaluatorRole || null,
       form_title: language === 'fr' ? form.title_fr : form.title_de,
     }, { transaction: t });
 
@@ -278,13 +282,100 @@ const loadFullEvaluation = (evaluationId) => ThesisEvaluation.findByPk(evaluatio
   ]
 });
 
-// GET the structured evaluation for a thesis milestone.
-// Creates the snapshot lazily when the evaluator/admin opens it.
+// Flatten an evaluation's criteria in stable (group position, criterion position) order.
+const flattenCriteria = (evaluation) => {
+  const out = [];
+  (evaluation.groups || []).slice().sort((a, b) => a.position - b.position).forEach(g => {
+    (g.criteria || []).slice().sort((a, b) => a.position - b.position).forEach(c => out.push(c));
+  });
+  return out;
+};
+
+// Recompute group + overall grades and completed flag for an evaluation.
+const recomputeEvaluationGrades = async (evaluationId, userId, t) => {
+  const fresh = await ThesisEvaluation.findByPk(evaluationId, {
+    include: [{ model: ThesisEvaluationGroup, as: 'groups', include: [{ model: ThesisEvaluationCriterion, as: 'criteria' }] }],
+    transaction: t,
+  });
+  const groupGrades = [];
+  for (const g of fresh.groups) {
+    const grade = computeGroupGrade(g.criteria.map(c => ({ score: c.score, weight: c.weight })));
+    await ThesisEvaluationGroup.update({ grade }, { where: { id: g.id }, transaction: t });
+    groupGrades.push({ grade, weight: g.weight });
+  }
+  const overall = computeOverallGrade(groupGrades);
+  const allScored = fresh.groups.every(g => g.criteria.every(c => c.score !== null && c.score !== undefined));
+  const patch = { overall_grade: overall, completed: allScored };
+  if (userId !== undefined) { patch.evaluated_by = userId; patch.evaluated_at = new Date(); }
+  await ThesisEvaluation.update(patch, { where: { id: evaluationId }, transaction: t });
+};
+
+// Pre-fill a freshly built final evaluation with the ceil-average per criterion
+// and the concatenated remarks from the two individual evaluations.
+const applyFinalProposal = async (finalEvalId, firstEval, secondEval) => {
+  const finalEval = await loadFullEvaluation(finalEvalId);
+  const finalCrits = flattenCriteria(finalEval);
+  const firstCrits = firstEval ? flattenCriteria(firstEval) : [];
+  const secondCrits = secondEval ? flattenCriteria(secondEval) : [];
+
+  await sequelize.transaction(async (t) => {
+    for (let i = 0; i < finalCrits.length; i++) {
+      const a = firstCrits[i] ? firstCrits[i].score : null;
+      const b = secondCrits[i] ? secondCrits[i].score : null;
+      let score = null;
+      if (a !== null && a !== undefined && b !== null && b !== undefined) score = Math.ceil((Number(a) + Number(b)) / 2);
+      else if (a !== null && a !== undefined) score = Number(a);
+      else if (b !== null && b !== undefined) score = Number(b);
+
+      const parts = [];
+      if (firstCrits[i] && firstCrits[i].remark) parts.push('[Bewertung 1] ' + firstCrits[i].remark);
+      if (secondCrits[i] && secondCrits[i].remark) parts.push('[Bewertung 2] ' + secondCrits[i].remark);
+      const remark = parts.length ? parts.join('\n\n') : null;
+
+      await ThesisEvaluationCriterion.update({ score, remark }, { where: { id: finalCrits[i].id }, transaction: t });
+    }
+    await recomputeEvaluationGrades(finalEvalId, undefined, t);
+  });
+};
+
+// Determine config (roles per kind) for a thesis milestone.
+const evaluationKinds = (tm) => {
+  if (tm.double_evaluation) {
+    return {
+      first: { role: tm.evaluator_role },
+      second: { role: tm.evaluator_role_2 },
+      final: { role: null }, // either role 1 or 2
+    };
+  }
+  return { single: { role: tm.evaluator_role } };
+};
+
+const canEditKind = (tm, kind, userRole) => {
+  if (userRole === 'admin') return true;
+  if (kind === 'final') return userRole === tm.evaluator_role || userRole === tm.evaluator_role_2;
+  if (kind === 'first') return userRole === tm.evaluator_role;
+  if (kind === 'second') return userRole === tm.evaluator_role_2;
+  return userRole === tm.evaluator_role; // single
+};
+
+// View rules: hidden-until-final for the two individual evaluations.
+const canViewKind = (tm, kind, userRole, finalExists) => {
+  if (userRole === 'admin') return true;
+  if (!tm.double_evaluation) return true; // single: all thesis participants may view
+  if (kind === 'final') return true;
+  if (kind === 'first') return userRole === tm.evaluator_role || finalExists;
+  if (kind === 'second') return userRole === tm.evaluator_role_2 || finalExists;
+  return true;
+};
+
+// GET the structured evaluation for a thesis milestone (optionally for a specific kind).
+// Creates the snapshot lazily when an authorized evaluator/admin opens it.
 const getThesisEvaluation = async (req, res) => {
   try {
     const tmId = req.params.id;
     const userId = req.session.userId;
     const userRole = req.session.userRole;
+    let kind = req.query.kind;
 
     const tm = await ThesisMilestone.findByPk(tmId);
     if (!tm) return res.status(404).json({ success: false, message: 'Meilenstein nicht gefunden' });
@@ -296,29 +387,51 @@ const getThesisEvaluation = async (req, res) => {
       return res.json({ success: true, hasForm: false });
     }
 
-    let evaluation = await ThesisEvaluation.findOne({ where: { thesis_milestone_id: tm.id } });
+    const kinds = evaluationKinds(tm);
+    if (!kind || !kinds[kind]) kind = tm.double_evaluation ? 'final' : 'single';
 
-    if (!evaluation) {
-      const isEvaluator = userRole === 'admin' || userRole === tm.evaluator_role;
-      if (!isEvaluator) {
+    const finalExists = tm.double_evaluation
+      ? !!(await ThesisEvaluation.findOne({ where: { thesis_milestone_id: tm.id, kind: 'final' } }))
+      : false;
+
+    if (!canViewKind(tm, kind, userRole, finalExists)) {
+      return res.json({ success: true, hasForm: true, started: false, hidden: true });
+    }
+
+    let existing = await ThesisEvaluation.findOne({ where: { thesis_milestone_id: tm.id, kind } });
+
+    if (!existing) {
+      // Lazy create only when an authorized editor opens it.
+      if (!canEditKind(tm, kind, userRole)) {
         return res.json({ success: true, hasForm: true, started: false });
       }
       const thesis = await Thesis.findByPk(tm.thesis_id, { attributes: ['id', 'language'] });
-      const evalId = await buildSnapshot(tm, thesis ? thesis.language : 'de');
+      const language = thesis ? thesis.language : 'de';
+      const evalId = await buildSnapshot(tm, language, kind, kinds[kind].role);
       if (!evalId) return res.status(400).json({ success: false, message: 'Zugewiesenes Formular nicht gefunden' });
-      evaluation = await loadFullEvaluation(evalId);
-    } else {
-      evaluation = await loadFullEvaluation(evaluation.id);
+
+      if (kind === 'final') {
+        const firstEval = await ThesisEvaluation.findOne({ where: { thesis_milestone_id: tm.id, kind: 'first' } });
+        const secondEval = await ThesisEvaluation.findOne({ where: { thesis_milestone_id: tm.id, kind: 'second' } });
+        await applyFinalProposal(
+          evalId,
+          firstEval ? await loadFullEvaluation(firstEval.id) : null,
+          secondEval ? await loadFullEvaluation(secondEval.id) : null
+        );
+      }
+      existing = { id: evalId };
     }
 
-    res.json({ success: true, hasForm: true, started: true, evaluation });
+    const evaluation = await loadFullEvaluation(existing.id);
+    const editable = canEditKind(tm, kind, userRole);
+    res.json({ success: true, hasForm: true, started: true, kind, editable, evaluation });
   } catch (e) {
     console.error('Error getting thesis evaluation:', e);
     res.status(500).json({ success: false, message: 'Interner Serverfehler' });
   }
 };
 
-// Save scores + remarks; validate, recompute grades, log.
+// Save scores + remarks for a given kind; validate, recompute grades, log.
 const saveThesisEvaluation = async (req, res) => {
   try {
     const tmId = req.params.id;
@@ -332,20 +445,21 @@ const saveThesisEvaluation = async (req, res) => {
     const access = await userHasThesisAccess(userId, userRole, tm.thesis_id);
     if (!access) return res.status(403).json({ success: false, message: 'Keine Berechtigung' });
 
-    if (userRole !== 'admin' && userRole !== tm.evaluator_role) {
+    const kinds = evaluationKinds(tm);
+    let kind = req.body.kind;
+    if (!kind || !kinds[kind]) kind = tm.double_evaluation ? 'final' : 'single';
+
+    if (!canEditKind(tm, kind, userRole)) {
       return res.status(403).json({ success: false, message: 'Ihre Rolle ist nicht berechtigt, diese Bewertung vorzunehmen' });
     }
 
-    const evaluation = await loadFullEvaluation(
-      (await ThesisEvaluation.findOne({ where: { thesis_milestone_id: tm.id } }) || {}).id
-    );
-    if (!evaluation) return res.status(404).json({ success: false, message: 'Bewertung wurde noch nicht initialisiert' });
+    const existing = await ThesisEvaluation.findOne({ where: { thesis_milestone_id: tm.id, kind } });
+    if (!existing) return res.status(404).json({ success: false, message: 'Bewertung wurde noch nicht initialisiert' });
+    const evaluation = await loadFullEvaluation(existing.id);
 
-    // Index incoming answers
     const answers = {};
     (criteria || []).forEach(a => { answers[a.id] = a; });
 
-    // Validate
     const allCriteria = [];
     evaluation.groups.forEach(g => g.criteria.forEach(c => allCriteria.push(c)));
     for (const c of allCriteria) {
@@ -366,7 +480,6 @@ const saveThesisEvaluation = async (req, res) => {
     }
 
     await sequelize.transaction(async (t) => {
-      // Persist answers
       for (const c of allCriteria) {
         const a = answers[c.id];
         if (!a) continue;
@@ -376,35 +489,16 @@ const saveThesisEvaluation = async (req, res) => {
           { where: { id: c.id }, transaction: t }
         );
       }
-
-      // Recompute group grades
-      const fresh = await ThesisEvaluation.findByPk(evaluation.id, {
-        include: [{ model: ThesisEvaluationGroup, as: 'groups', include: [{ model: ThesisEvaluationCriterion, as: 'criteria' }] }],
-        transaction: t,
-      });
-      const groupGrades = [];
-      for (const g of fresh.groups) {
-        const grade = computeGroupGrade(g.criteria.map(c => ({ score: c.score, weight: c.weight })));
-        await ThesisEvaluationGroup.update({ grade }, { where: { id: g.id }, transaction: t });
-        groupGrades.push({ grade, weight: g.weight });
-      }
-      const overall = computeOverallGrade(groupGrades);
-
-      // Completed = every criterion scored
-      const allScored = fresh.groups.every(g => g.criteria.every(c => c.score !== null && c.score !== undefined));
-
-      await ThesisEvaluation.update(
-        { overall_grade: overall, completed: allScored, evaluated_by: userId, evaluated_at: new Date() },
-        { where: { id: evaluation.id }, transaction: t }
-      );
+      await recomputeEvaluationGrades(evaluation.id, userId, t);
     });
 
+    const phaseLabel = kind === 'first' ? 'Bewertung 1' : kind === 'second' ? 'Bewertung 2' : kind === 'final' ? 'Finale Bewertung' : 'Bewertung';
     await ThesisLog.create({
       thesis_id: tm.thesis_id,
       thesis_milestone_id: tm.id,
       user_id: userId,
       action: 'evaluation_update',
-      detail: `${tm.label}: Bewertung gespeichert`,
+      detail: `${tm.label}: ${phaseLabel} gespeichert`,
     });
 
     const updated = await loadFullEvaluation(evaluation.id);
@@ -415,9 +509,69 @@ const saveThesisEvaluation = async (req, res) => {
   }
 };
 
+// GET a printable PDF of an evaluation (free text or form, optional kind).
+const printThesisEvaluation = async (req, res) => {
+  try {
+    const tmId = req.params.id;
+    const userId = req.session.userId;
+    const userRole = req.session.userRole;
+
+    const tm = await ThesisMilestone.findByPk(tmId);
+    if (!tm) return res.status(404).send('Meilenstein nicht gefunden');
+
+    const access = await userHasThesisAccess(userId, userRole, tm.thesis_id);
+    if (!access) return res.status(403).send('Keine Berechtigung');
+
+    const thesis = await Thesis.findByPk(tm.thesis_id, {
+      include: [
+        { model: Year, as: 'year', attributes: ['year'] },
+        { model: Department, as: 'department', attributes: ['name'] },
+        { model: User, as: 'students', attributes: ['firstname', 'name'] },
+      ]
+    });
+
+    const title = 'Bewertung ' + (tm.label || '');
+    const safeName = ('Bewertung_' + (tm.label || 'Meilenstein')).replace(/[^a-zA-Z0-9_-]+/g, '_');
+
+    // Freitext-Bewertung
+    if (!tm.evaluation_form_id) {
+      res.setHeader('Content-Type', 'application/pdf');
+      res.setHeader('Content-Disposition', `inline; filename="${safeName}.pdf"`);
+      return streamEvaluationPdf(res, { thesis, milestone: tm, title, freeText: tm.evaluation });
+    }
+
+    // Formular-Bewertung – passende kind bestimmen + Sichtbarkeit prüfen
+    const kinds = evaluationKinds(tm);
+    let kind = req.query.kind;
+    if (!kind || !kinds[kind]) kind = tm.double_evaluation ? 'final' : 'single';
+
+    const finalExists = tm.double_evaluation
+      ? !!(await ThesisEvaluation.findOne({ where: { thesis_milestone_id: tm.id, kind: 'final' } }))
+      : false;
+    if (!canViewKind(tm, kind, userRole, finalExists)) {
+      return res.status(403).send('Diese Einzelbewertung ist verdeckt, bis die finale Bewertung erstellt wurde.');
+    }
+
+    const existing = await ThesisEvaluation.findOne({ where: { thesis_milestone_id: tm.id, kind } });
+    if (!existing) return res.status(404).send('Für diese Bewertung wurde noch nichts erfasst.');
+    const evaluation = await loadFullEvaluation(existing.id);
+
+    const phaseLabels = { first: ' (Bewertung 1)', second: ' (Bewertung 2)', final: ' (Finale Bewertung)' };
+    const docTitle = title + (phaseLabels[kind] || '');
+    const fileSuffix = kind && kind !== 'single' ? ('_' + kind) : '';
+
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', `inline; filename="${safeName}${fileSuffix}.pdf"`);
+    streamEvaluationPdf(res, { thesis, milestone: tm, title: docTitle, evaluation });
+  } catch (e) {
+    console.error('Error printing thesis evaluation:', e);
+    if (!res.headersSent) res.status(500).send('Interner Serverfehler');
+  }
+};
+
 module.exports = {
   listForms, getForm, createForm, updateForm, deleteForm,
   createGroup, updateGroup, deleteGroup,
   createCriterion, updateCriterion, deleteCriterion, reorderCriteria,
-  getThesisEvaluation, saveThesisEvaluation,
+  getThesisEvaluation, saveThesisEvaluation, printThesisEvaluation,
 };

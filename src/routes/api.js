@@ -17,6 +17,11 @@ const {
   assignUserToDepartment,
   removeUserFromDepartment,
   updateUserDepartments,
+  getStudents,
+  createStudent,
+  updateStudent,
+  deleteStudent,
+  importStudents,
   getDepartmentLeadUsers,
   createDepartmentLeadUser,
   updateDepartmentLeadUser,
@@ -29,6 +34,7 @@ const {
   getThesisMilestones,
   updateThesisMilestoneDueAt,
   setThesisMilestoneApproval,
+  setThesisMilestoneReleased,
   uploadThesisMilestoneDocument,
   deleteThesisMilestoneDocument,
   downloadThesisMilestoneDocument,
@@ -58,6 +64,13 @@ router.post('/departments', requireRole(['admin']), createDepartment);
 router.put('/departments/:id', requireRole(['admin']), updateDepartment);
 router.delete('/departments/:id', requireRole(['admin']), deleteDepartment);
 
+// Student management (admin + department_lead)
+router.get('/students', requireRole(['admin', 'department_lead']), getStudents);
+router.post('/students', requireRole(['admin', 'department_lead']), createStudent);
+router.post('/students/import', requireRole(['admin', 'department_lead']), importStudents);
+router.put('/students/:id', requireRole(['admin', 'department_lead']), updateStudent);
+router.delete('/students/:id', requireRole(['admin', 'department_lead']), deleteStudent);
+
 // User-Department assignment (admin only)
 router.post('/users/assign-department', requireRole(['admin']), assignUserToDepartment);
 router.post('/users/remove-department', requireRole(['admin']), removeUserFromDepartment);
@@ -80,6 +93,7 @@ router.delete('/milestones/:id', requireRole(['admin']), deleteMilestone);
 router.get('/theses/:id/milestones', getThesisMilestones);
 router.put('/thesis-milestones/:id/due-at', updateThesisMilestoneDueAt);
 router.put('/thesis-milestones/:id/approval', setThesisMilestoneApproval);
+router.put('/thesis-milestones/:id/release', setThesisMilestoneReleased);
 router.post('/thesis-milestones/:id/document', uploadThesisMilestoneDocument);
 router.put('/thesis-milestones/:id/evaluation', evaluateThesisMilestone);
 
@@ -104,5 +118,6 @@ router.delete('/evaluation-criteria/:criterionId', requireRole(['admin']), evalC
 // Structured thesis evaluation (per thesis milestone)
 router.get('/thesis-milestones/:id/evaluation-form', evalCtrl.getThesisEvaluation);
 router.put('/thesis-milestones/:id/evaluation-form', evalCtrl.saveThesisEvaluation);
+router.get('/thesis-milestones/:id/evaluation.pdf', evalCtrl.printThesisEvaluation);
 
 module.exports = router;
