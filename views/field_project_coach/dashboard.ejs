@@ -2,8 +2,9 @@
 
 <div class="d-flex justify-content-between align-items-center mb-4">
     <h1>Meine Diplomarbeiten (Field Project Coach)</h1>
-    <div class="text-muted">
-        <i class="bi bi-calendar"></i> Diplomjahr: <%= selectedYear %>
+    <div class="d-flex align-items-center gap-3">
+        <span class="text-muted"><i class="bi bi-calendar"></i> Diplomjahr: <%= selectedYear %></span>
+        <%- include('../partials/role-switcher', { availableRoles: availableRoles, currentRole: currentRole }) %>
     </div>
 </div>
 
@@ -29,17 +30,17 @@
                             <h6>Studenten:</h6>
                             <% thesis.students.forEach(function(s) { %>
                                 <div class="mb-2">
-                                    <i class="bi bi-person-fill"></i> <%= s.firstname %> <%= s.name %>
+                                    <i class="bi bi-person-fill"></i> <%= s.name %>, <%= s.firstname %>
                                     <br><small class="text-muted"><%= s.email %></small>
                                 </div>
                             <% }); %>
                         </div>
                         <% if (thesis.coaches.length > 0) { %>
                             <div class="mt-3">
-                                <h6>Coaches:</h6>
+                                <h6>Dozent/innen:</h6>
                                 <% thesis.coaches.forEach(function(c) { %>
                                     <div class="mb-2">
-                                        <i class="bi bi-person-badge"></i> <%= c.firstname %> <%= c.name %>
+                                        <i class="bi bi-person-badge"></i> <%= c.name %>, <%= c.firstname %>
                                         <br><small class="text-muted"><%= c.email %></small>
                                     </div>
                                 <% }); %>

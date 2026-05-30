@@ -21,16 +21,6 @@
                         <input type="password" class="form-control" id="password" name="password" required>
                     </div>
 
-                    <div class="mb-3">
-                        <label for="year" class="form-label">Diplomjahr</label>
-                        <select class="form-select" id="year" name="year" required>
-                            <option value="">Diplomjahr auswählen...</option>
-                            <% years.forEach(function(year) { %>
-                                <option value="<%= year.id %>"><%= year.year %></option>
-                            <% }); %>
-                        </select>
-                    </div>
-
                     <div class="d-grid">
                         <button type="submit" class="btn btn-primary">
                             <i class="bi bi-box-arrow-in-right"></i> Anmelden

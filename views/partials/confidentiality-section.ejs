@@ -1,0 +1,152 @@
+<!-- Geheimhaltungs-Abschnitt. Erwartet `thesis` und `user`. Wird nur gerendert, wenn
+     thesis.is_confidential = true. Aktionen (PDF erzeugen, Upload, Löschen) sind auf
+     Admin und FachbereichsleiterIn beschränkt; alle anderen sehen Status und können
+     ein hinterlegtes Dokument herunterladen. -->
+<% if (thesis.is_confidential) { %>
+<div class="card mb-4" style="background-color: #ffe5e5; border-color: #f5b1b1;">
+    <div class="card-header" style="background-color: #f9c8c8; border-bottom-color: #f5b1b1;">
+        <h5 class="mb-0"><i class="bi bi-lock-fill text-danger"></i> Geheimhaltung</h5>
+    </div>
+    <div class="card-body">
+        <p class="mb-3 text-danger-emphasis">
+            <i class="bi bi-exclamation-triangle-fill"></i>
+            Diese Diplomarbeit unterliegt einer Geheimhaltungsvereinbarung.
+        </p>
+
+        <% if (thesis.confidentiality_document_filename) { %>
+            <div class="alert alert-success mb-3">
+                <i class="bi bi-check-circle"></i>
+                Unterzeichnetes Dokument hinterlegt:
+                <a href="/api/theses/<%= thesis.id %>/confidentiality-document" class="alert-link">
+                    <i class="bi bi-file-earmark-pdf"></i> <%= thesis.confidentiality_document_filename %>
+                </a>
+                <% if (['admin','department_lead'].includes(user.role)) { %>
+                    <button class="btn btn-sm btn-outline-danger ms-2" onclick="deleteConfidentialityDocument()">
+                        <i class="bi bi-trash"></i> Löschen
+                    </button>
+                <% } %>
+            </div>
+        <% } else { %>
+            <div class="alert alert-warning mb-3">
+                <i class="bi bi-exclamation-triangle"></i>
+                Noch kein unterzeichnetes Dokument hinterlegt.
+            </div>
+        <% } %>
+
+        <% if (['admin','department_lead'].includes(user.role)) { %>
+            <div class="d-flex gap-2 flex-wrap">
+                <button class="btn btn-outline-danger" onclick="openGenerateConfidentialityModal()">
+                    <i class="bi bi-file-earmark-pdf"></i> Vorausgefülltes PDF erstellen
+                </button>
+                <label class="btn btn-outline-danger mb-0">
+                    <i class="bi bi-upload"></i> Unterschriebenes PDF hochladen
+                    <input type="file" accept="application/pdf" hidden id="confidentialityUploadInput"
+                           onchange="uploadConfidentialityDocument(this.files[0])">
+                </label>
+            </div>
+        <% } %>
+    </div>
+</div>
+
+<% if (['admin','department_lead'].includes(user.role)) { %>
+<!-- Modal: vorausgefülltes PDF erzeugen -->
+<div class="modal fade" id="generateConfidentialityModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Geheimhaltungsvereinbarung erstellen</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form id="generateConfidentialityForm">
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label for="confUnternehmen" class="form-label">Unternehmen</label>
+                        <input type="text" class="form-control" id="confUnternehmen" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="confStudent" class="form-label">Student/in</label>
+                        <input type="text" class="form-control" id="confStudent" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="confThema" class="form-label">Thema der Diplomarbeit</label>
+                        <input type="text" class="form-control" id="confThema" required>
+                    </div>
+                    <p class="form-text mb-0">
+                        Die Felder werden direkt in das PDF eingefügt. Unterschriften, Ort und Datum
+                        bleiben leer und werden handschriftlich ergänzt.
+                    </p>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Abbrechen</button>
+                    <button type="submit" class="btn btn-primary"><i class="bi bi-download"></i> PDF erzeugen</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+<% } %>
+
+<script>
+(function() {
+    const THESIS_ID = <%= thesis.id %>;
+    const STUDENT_NAMES = <%- JSON.stringify((thesis.students || []).map(s => `${s.name}, ${s.firstname}`)) %>;
+    const THESIS_TITLE = <%- JSON.stringify(thesis.title || '') %>;
+    const THESIS_SPONSOR = <%- JSON.stringify(thesis.sponsor || '') %>;
+
+    window.openGenerateConfidentialityModal = function() {
+        document.getElementById('confUnternehmen').value = THESIS_SPONSOR;
+        document.getElementById('confStudent').value = STUDENT_NAMES.join(' / ');
+        document.getElementById('confThema').value = THESIS_TITLE;
+        new bootstrap.Modal(document.getElementById('generateConfidentialityModal')).show();
+    };
+
+    const form = document.getElementById('generateConfidentialityForm');
+    if (form) {
+        form.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const body = {
+                unternehmen: document.getElementById('confUnternehmen').value.trim(),
+                student: document.getElementById('confStudent').value.trim(),
+                thema: document.getElementById('confThema').value.trim(),
+            };
+            const res = await fetch(`/api/theses/${THESIS_ID}/confidentiality-pdf`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(body),
+            });
+            if (!res.ok) {
+                const d = await res.json().catch(() => ({}));
+                alert('Fehler: ' + (d.message || 'PDF konnte nicht erzeugt werden'));
+                return;
+            }
+            const blob = await res.blob();
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `Geheimhaltungsvereinbarung_DA_${THESIS_ID}.pdf`;
+            document.body.appendChild(a); a.click(); a.remove();
+            URL.revokeObjectURL(url);
+            bootstrap.Modal.getInstance(document.getElementById('generateConfidentialityModal')).hide();
+        });
+    }
+
+    window.uploadConfidentialityDocument = async function(file) {
+        if (!file) return;
+        if (file.type !== 'application/pdf') { alert('Bitte eine PDF-Datei auswählen.'); return; }
+        const fd = new FormData(); fd.append('document', file);
+        const res = await fetch(`/api/theses/${THESIS_ID}/confidentiality-document`, { method: 'POST', body: fd });
+        const d = await res.json().catch(() => ({}));
+        if (d.success) location.reload();
+        else alert('Fehler: ' + (d.message || 'Upload fehlgeschlagen'));
+    };
+
+    window.deleteConfidentialityDocument = async function() {
+        if (!confirm('Unterzeichnetes Dokument wirklich löschen?')) return;
+        const res = await fetch(`/api/theses/${THESIS_ID}/confidentiality-document`, { method: 'DELETE' });
+        const d = await res.json().catch(() => ({}));
+        if (d.success) location.reload();
+        else alert('Fehler: ' + (d.message || 'Löschen fehlgeschlagen'));
+    };
+})();
+</script>
+<% } %>

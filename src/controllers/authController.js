@@ -1,21 +1,47 @@
-const { User, Year } = require('../models');
+const { User, UserRole, Year } = require('../models');
 const { Op, fn, col, where } = require('sequelize');
 
+// Liefert alle Rollen eines Users (Primär + Zusatzrollen, dedupliziert).
+async function getUserRoles(userId) {
+  const rows = await UserRole.findAll({ where: { user_id: userId }, attributes: ['role'] });
+  return Array.from(new Set(rows.map(r => r.role)));
+}
+
+// Wählt die beim Login aktive Rolle: bevorzugt last_active_role (falls noch zugewiesen),
+// sonst die Primärrolle aus users.role.
+async function pickRoleForUser(user) {
+  const roles = await getUserRoles(user.id);
+  if (user.last_active_role && roles.includes(user.last_active_role)) return user.last_active_role;
+  if (roles.includes(user.role)) return user.role;
+  return roles[0] || user.role;
+}
+
 const showLogin = async (req, res) => {
-  try {
-    const years = await Year.findAll({ order: [['year', 'DESC']] });
-    res.render('login', { years, messages: req.flash() });
-  } catch (error) {
-    console.error('Error loading login page:', error);
-    res.render('login', { years: [], messages: { error: ['Diplomjahre konnten nicht geladen werden'] } });
-  }
+  // Das Diplomjahr wird beim Login nicht mehr gewählt; es ist die globale
+  // Admin-Einstellung bzw. die letzte Auswahl von Admin/FachbereichsleiterIn.
+  res.render('login', { messages: req.flash() });
 };
 
+// Wählt für einen User das Diplomjahr beim Login:
+//   - Admin / FachbereichsleiterIn: zuletzt gewählt (wenn noch vorhanden), sonst aktuell
+//   - alle anderen Rollen: immer das aktuelle Jahr
+// Fallback: jüngstes vorhandenes Jahr.
+async function pickYearForUser(user) {
+  const switchableRoles = ['admin', 'department_lead'];
+  if (switchableRoles.includes(user.role) && user.last_selected_year_id) {
+    const remembered = await Year.findByPk(user.last_selected_year_id);
+    if (remembered) return remembered;
+  }
+  const current = await Year.findOne({ where: { is_current: true } });
+  if (current) return current;
+  return Year.findOne({ order: [['year', 'DESC']] });
+}
+
 const processLogin = async (req, res) => {
-  const { username, password, year } = req.body;
+  const { username, password } = req.body;
 
   try {
-    if (!username || !password || !year) {
+    if (!username || !password) {
       req.flash('error', 'Bitte füllen Sie alle Felder aus');
       return res.redirect('/login');
     }
@@ -43,24 +69,19 @@ const processLogin = async (req, res) => {
       return res.redirect('/login');
     }
 
-    const selectedYear = await Year.findByPk(year);
+    const selectedYear = await pickYearForUser(user);
     if (!selectedYear) {
-      req.flash('error', 'Ungültiges Diplomjahr ausgewählt');
+      req.flash('error', 'Es ist kein Diplomjahr verfügbar. Bitte kontaktieren Sie den Administrator.');
       return res.redirect('/login');
     }
 
+    const activeRole = await pickRoleForUser(user);
+
     req.session.userId = user.id;
-    req.session.userRole = user.role;
+    req.session.userRole = activeRole;
     req.session.selectedYear = selectedYear.id;
     req.session.username = user.username;
-    req.session.fullName = `${user.firstname} ${user.name}`;
-
-    console.log('Login successful - Session set:', {
-      userId: req.session.userId,
-      userRole: req.session.userRole,
-      selectedYear: req.session.selectedYear,
-      fullName: req.session.fullName
-    });
+    req.session.fullName = `${user.name}, ${user.firstname}`;
 
     req.flash('success', `Willkommen zurück, ${user.firstname}!`);
     res.redirect('/dashboard');
@@ -87,4 +108,5 @@ module.exports = {
   showLogin,
   processLogin,
   logout,
+  getUserRoles,
 };

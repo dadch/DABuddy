@@ -1,0 +1,244 @@
+<%- include('partials/header', { title: 'Chat - ' + thesis.title, user: user }) %>
+
+<%
+const ROLE_LABELS = {
+    student: 'Student',
+    coach: 'Dozent/in',
+    expert: 'ExpertIn',
+    admin: 'Administrator',
+    department_lead: 'FachbereichsleiterIn',
+    field_project_coach: 'Field Project Coach',
+};
+const ROLE_BADGE = {
+    student: 'bg-primary',
+    coach: 'bg-success',
+    expert: 'bg-info',
+    admin: 'bg-dark',
+    department_lead: 'bg-warning text-dark',
+    field_project_coach: 'bg-secondary',
+};
+%>
+
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <div>
+        <nav aria-label="breadcrumb">
+            <ol class="breadcrumb mb-1">
+                <li class="breadcrumb-item"><a href="/dashboard">Dashboard</a></li>
+                <li class="breadcrumb-item"><a href="/dashboard/thesis/<%= thesis.id %>">Diplomarbeit</a></li>
+                <li class="breadcrumb-item active">Chat</li>
+            </ol>
+        </nav>
+        <h1 class="h4 mb-0"><i class="bi bi-chat-dots"></i> Chat: <%= thesis.title %></h1>
+    </div>
+    <a href="/dashboard/thesis/<%= thesis.id %>" class="btn btn-outline-secondary">
+        <i class="bi bi-arrow-left"></i> Zur Diplomarbeit
+    </a>
+</div>
+
+<div class="card" style="height: calc(100vh - 240px); display: flex;">
+    <div id="chatMessages" class="card-body overflow-auto" style="flex: 1;">
+        <p class="text-muted text-center">Wird geladen…</p>
+    </div>
+    <div class="card-footer">
+        <form id="chatForm" enctype="multipart/form-data">
+            <div class="d-flex align-items-end gap-2">
+                <div class="flex-grow-1">
+                    <textarea class="form-control" id="chatContent" rows="2"
+                              placeholder="Nachricht schreiben… (Shift+Enter für neue Zeile)"></textarea>
+                    <div id="chatFilePreview" class="form-text mt-1"></div>
+                </div>
+                <div class="d-flex flex-column gap-1">
+                    <label class="btn btn-outline-secondary btn-sm mb-0" title="Datei anhängen">
+                        <i class="bi bi-paperclip"></i>
+                        <input type="file" id="chatFile" hidden onchange="updateChatFilePreview()">
+                    </label>
+                    <button type="submit" class="btn btn-primary" id="chatSendBtn">
+                        <i class="bi bi-send"></i> Senden
+                    </button>
+                </div>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+(function() {
+    const THESIS_ID = <%= thesis.id %>;
+    const ME_ID = <%= user.id %>;
+    const ROLE_LABELS = <%- JSON.stringify(ROLE_LABELS) %>;
+    const ROLE_BADGE = <%- JSON.stringify(ROLE_BADGE) %>;
+    let lastSeenId = 0;
+    let pollTimer = null;
+
+    function esc(s) {
+        return String(s == null ? '' : s).replace(/[&<>"']/g, c => ({
+            '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'
+        }[c]));
+    }
+    function fmtTime(iso) {
+        const d = new Date(iso);
+        if (isNaN(d)) return '';
+        const pad = n => String(n).padStart(2, '0');
+        return `${pad(d.getDate())}.${pad(d.getMonth()+1)}.${d.getFullYear()} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
+    }
+    function fmtSize(bytes) {
+        if (!bytes && bytes !== 0) return '';
+        const units = ['B','KB','MB','GB'];
+        let i = 0; let n = bytes;
+        while (n >= 1024 && i < units.length - 1) { n /= 1024; i++; }
+        return n.toFixed(n >= 10 ? 0 : 1) + ' ' + units[i];
+    }
+
+    function renderMessage(m) {
+        const own = m.sender && m.sender.id === ME_ID;
+        const senderName = m.sender ? `${esc(m.sender.name)}, ${esc(m.sender.firstname)}` : '<em>unbekannt</em>';
+        const roleLabel = m.sender ? ROLE_LABELS[m.sender.role] || m.sender.role : '';
+        const roleBadgeClass = m.sender ? (ROLE_BADGE[m.sender.role] || 'bg-secondary') : 'bg-secondary';
+        const bubbleColor = own ? '#d0ebff' : '#f1f3f5';
+
+        const contentHtml = m.content
+            ? esc(m.content).replace(/\n/g, '<br>')
+            : '';
+        const attachmentHtml = m.document_filename
+            ? `<div class="mt-2">
+                  <a href="/api/chat-messages/${m.id}/attachment" class="text-decoration-none">
+                      <i class="bi bi-paperclip"></i> ${esc(m.document_filename)}
+                      <small class="text-muted">(${fmtSize(m.document_size)})</small>
+                  </a>
+               </div>`
+            : '';
+
+        // Lese-Indikator: kleines Häkchen + Tooltip mit Namen
+        let readMarker = '';
+        if (own) {
+            const readers = (m.read_by || []).filter(r => r.id !== ME_ID);
+            if (readers.length === 0) {
+                readMarker = '<i class="bi bi-check text-muted ms-1" title="Noch nicht gelesen"></i>';
+            } else {
+                const names = readers.map(r => `${r.name}, ${r.firstname}`).join('\n');
+                readMarker = `<i class="bi bi-check2-all text-primary ms-1" title="Gelesen von:\n${esc(names)}"></i>`;
+            }
+        }
+
+        return `
+            <div class="d-flex mb-3 ${own ? 'justify-content-end' : ''}">
+                <div style="max-width: 80%;">
+                    <div class="small text-muted mb-1 ${own ? 'text-end' : ''}">
+                        <strong>${senderName}</strong>
+                        <span class="badge ${roleBadgeClass} ms-1">${esc(roleLabel)}</span>
+                        <span class="ms-2">${fmtTime(m.created_at)}</span>
+                        ${readMarker}
+                    </div>
+                    <div class="p-2 rounded" style="background-color: ${bubbleColor};">
+                        ${contentHtml}${attachmentHtml}
+                    </div>
+                </div>
+            </div>`;
+    }
+
+    function appendMessages(messages) {
+        if (!messages.length) return;
+        const el = document.getElementById('chatMessages');
+        const wasAtBottom = el.scrollHeight - el.scrollTop - el.clientHeight < 80;
+        // Clear placeholder on first batch
+        if (lastSeenId === 0) el.innerHTML = '';
+        const html = messages.map(renderMessage).join('');
+        el.insertAdjacentHTML('beforeend', html);
+        messages.forEach(m => { if (m.id > lastSeenId) lastSeenId = m.id; });
+        if (wasAtBottom) el.scrollTop = el.scrollHeight;
+    }
+
+    async function loadMessages() {
+        try {
+            const url = lastSeenId === 0
+                ? `/api/theses/${THESIS_ID}/chat`
+                : `/api/theses/${THESIS_ID}/chat?since=${lastSeenId}`;
+            const res = await fetch(url);
+            if (!res.ok) return;
+            const data = await res.json();
+            if (lastSeenId === 0 && data.length === 0) {
+                document.getElementById('chatMessages').innerHTML =
+                    '<p class="text-muted text-center mt-4"><i class="bi bi-chat-dots"></i> Noch keine Nachrichten. Schreiben Sie die erste!</p>';
+                return;
+            }
+            // Bei Polling (since>0): nur die NEUEN anhängen.
+            // Bei initialem Laden: kompletter Ersatz.
+            if (lastSeenId === 0) {
+                document.getElementById('chatMessages').innerHTML = '';
+                appendMessages(data);
+            } else if (data.length > 0) {
+                appendMessages(data);
+            } else {
+                // Nichts Neues: trotzdem Read-Receipts der eigenen Nachrichten
+                // aktualisieren — dafür kompletter Reload nötig.
+                // (Vereinfachung: alle 30 s einen Full-Refresh)
+                if (Date.now() - lastFullRefresh > 30000) doFullRefresh();
+            }
+        } catch (e) { console.error(e); }
+    }
+
+    let lastFullRefresh = Date.now();
+    async function doFullRefresh() {
+        lastFullRefresh = Date.now();
+        const el = document.getElementById('chatMessages');
+        const wasAtBottom = el.scrollHeight - el.scrollTop - el.clientHeight < 80;
+        const res = await fetch(`/api/theses/${THESIS_ID}/chat`);
+        if (!res.ok) return;
+        const data = await res.json();
+        el.innerHTML = '';
+        lastSeenId = 0;
+        appendMessages(data);
+        if (wasAtBottom) el.scrollTop = el.scrollHeight;
+    }
+
+    window.updateChatFilePreview = function() {
+        const f = document.getElementById('chatFile').files[0];
+        const el = document.getElementById('chatFilePreview');
+        el.innerHTML = f ? `<i class="bi bi-paperclip"></i> ${esc(f.name)} (${fmtSize(f.size)}) <a href="#" onclick="clearChatFile(); return false;">entfernen</a>` : '';
+    };
+    window.clearChatFile = function() {
+        document.getElementById('chatFile').value = '';
+        document.getElementById('chatFilePreview').innerHTML = '';
+    };
+
+    document.getElementById('chatForm').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const content = document.getElementById('chatContent').value.trim();
+        const file = document.getElementById('chatFile').files[0];
+        if (!content && !file) return;
+        const btn = document.getElementById('chatSendBtn');
+        btn.disabled = true;
+        const fd = new FormData();
+        if (content) fd.append('content', content);
+        if (file) fd.append('document', file);
+        try {
+            const res = await fetch(`/api/theses/${THESIS_ID}/chat`, { method: 'POST', body: fd });
+            const d = await res.json().catch(() => ({}));
+            if (!d.success) { alert('Fehler: ' + (d.message || 'Senden fehlgeschlagen')); return; }
+            document.getElementById('chatContent').value = '';
+            clearChatFile();
+            await loadMessages();
+        } catch (e) {
+            alert('Senden fehlgeschlagen');
+        } finally {
+            btn.disabled = false;
+            document.getElementById('chatContent').focus();
+        }
+    });
+
+    // Enter sendet, Shift+Enter macht Zeilenumbruch.
+    document.getElementById('chatContent').addEventListener('keydown', (e) => {
+        if (e.key === 'Enter' && !e.shiftKey) {
+            e.preventDefault();
+            document.getElementById('chatForm').requestSubmit();
+        }
+    });
+
+    loadMessages().then(() => {
+        // Polling
+        pollTimer = setInterval(loadMessages, 5000);
+    });
+})();
+</script>
+
+<%- include('partials/footer') %>

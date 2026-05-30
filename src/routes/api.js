@@ -2,6 +2,12 @@ const express = require('express');
 const { requireAuth, requireRole } = require('../middleware/auth');
 const evalCtrl = require('../controllers/evaluationController');
 const {
+  getYears,
+  createYear,
+  setCurrentYear,
+  deleteYear,
+  switchSelectedYear,
+  switchActiveRole,
   getThesis,
   createThesis,
   updateThesis,
@@ -39,12 +45,29 @@ const {
   deleteThesisMilestoneDocument,
   downloadThesisMilestoneDocument,
   evaluateThesisMilestone,
+  generateConfidentialityPdf,
+  uploadConfidentialityDocument,
+  downloadConfidentialityDocument,
+  deleteConfidentialityDocument,
+  getChatMessages,
+  postChatMessage,
+  downloadChatAttachment,
 } = require('../controllers/apiController');
 
 
 const router = express.Router();
 
 router.use(requireAuth);
+
+// Year management (Diplomjahre, admin only) + Switcher (admin/department_lead)
+router.get('/years', requireRole(['admin']), getYears);
+router.post('/years', requireRole(['admin']), createYear);
+router.put('/years/:id/current', requireRole(['admin']), setCurrentYear);
+router.delete('/years/:id', requireRole(['admin']), deleteYear);
+router.post('/year/switch', requireRole(['admin', 'department_lead']), switchSelectedYear);
+
+// Rollen-Switcher (nur sinnvoll für User mit mehreren Rollen; Berechtigung wird im Controller geprüft)
+router.post('/role/switch', switchActiveRole);
 
 // Thesis management
 router.get('/theses/:id', requireRole(['admin', 'department_lead']), getThesis);
@@ -100,6 +123,17 @@ router.put('/thesis-milestones/:id/evaluation', evaluateThesisMilestone);
 // Versioned milestone documents
 router.get('/thesis-milestone-documents/:docId/download', downloadThesisMilestoneDocument);
 router.delete('/thesis-milestone-documents/:docId', requireRole(['admin']), deleteThesisMilestoneDocument);
+
+// Geheimhaltung (Confidentiality)
+router.post('/theses/:id/confidentiality-pdf', requireRole(['admin', 'department_lead']), generateConfidentialityPdf);
+router.post('/theses/:id/confidentiality-document', requireRole(['admin', 'department_lead']), uploadConfidentialityDocument);
+router.get('/theses/:id/confidentiality-document', downloadConfidentialityDocument);
+router.delete('/theses/:id/confidentiality-document', requireRole(['admin', 'department_lead']), deleteConfidentialityDocument);
+
+// Chat (Berechtigung wird im Controller via userHasThesisAccess geprüft)
+router.get('/theses/:id/chat', getChatMessages);
+router.post('/theses/:id/chat', postChatMessage);
+router.get('/chat-messages/:msgId/attachment', downloadChatAttachment);
 
 // Evaluation form templates (admin)
 router.get('/evaluation-forms', requireRole(['admin']), evalCtrl.listForms);

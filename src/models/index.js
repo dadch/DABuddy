@@ -1,5 +1,6 @@
 const sequelize = require('../config/database');
 const User = require('./User');
+const UserRole = require('./UserRole');
 const Department = require('./Department');
 const Year = require('./Year');
 const Thesis = require('./Thesis');
@@ -13,6 +14,12 @@ const EvaluationCriterion = require('./EvaluationCriterion');
 const ThesisEvaluation = require('./ThesisEvaluation');
 const ThesisEvaluationGroup = require('./ThesisEvaluationGroup');
 const ThesisEvaluationCriterion = require('./ThesisEvaluationCriterion');
+const ChatMessage = require('./ChatMessage');
+const ChatReadReceipt = require('./ChatReadReceipt');
+
+// Mehrfachrollen: 1:n von User zu UserRole
+User.hasMany(UserRole, { foreignKey: 'user_id', as: 'extraRoles', onDelete: 'CASCADE' });
+UserRole.belongsTo(User, { foreignKey: 'user_id' });
 
 User.belongsToMany(Thesis, {
   through: 'thesis_students',
@@ -149,9 +156,20 @@ ThesisEvaluationGroup.hasMany(ThesisEvaluationCriterion, { foreignKey: 'thesis_e
 ThesisEvaluationCriterion.belongsTo(ThesisEvaluationGroup, { foreignKey: 'thesis_evaluation_group_id', as: 'group' });
 ThesisEvaluation.belongsTo(User, { foreignKey: 'evaluated_by', as: 'evaluator' });
 
+// Chat
+Thesis.hasMany(ChatMessage, { foreignKey: 'thesis_id', as: 'chatMessages', onDelete: 'CASCADE' });
+ChatMessage.belongsTo(Thesis, { foreignKey: 'thesis_id', as: 'thesis' });
+User.hasMany(ChatMessage, { foreignKey: 'user_id', as: 'chatMessages' });
+ChatMessage.belongsTo(User, { foreignKey: 'user_id', as: 'sender' });
+ChatMessage.hasMany(ChatReadReceipt, { foreignKey: 'message_id', as: 'readReceipts', onDelete: 'CASCADE' });
+ChatReadReceipt.belongsTo(ChatMessage, { foreignKey: 'message_id', as: 'message' });
+ChatReadReceipt.belongsTo(User, { foreignKey: 'user_id', as: 'user' });
+User.hasMany(ChatReadReceipt, { foreignKey: 'user_id', as: 'chatReadReceipts' });
+
 module.exports = {
   sequelize,
   User,
+  UserRole,
   Department,
   Year,
   Thesis,
@@ -165,4 +183,6 @@ module.exports = {
   ThesisEvaluation,
   ThesisEvaluationGroup,
   ThesisEvaluationCriterion,
+  ChatMessage,
+  ChatReadReceipt,
 };

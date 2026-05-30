@@ -28,11 +28,19 @@ async function seedDatabase() {
       if (created) console.log(`  + Fachbereich "${name}" angelegt.`);
     }
 
-    const [, yearCreated] = await Year.findOrCreate({
+    const [year2026, yearCreated] = await Year.findOrCreate({
       where: { year: 2026 },
-      defaults: { year: 2026 },
+      defaults: { year: 2026, is_current: true },
     });
-    if (yearCreated) console.log('  + Diplomjahr 2026 angelegt.');
+    if (yearCreated) console.log('  + Diplomjahr 2026 angelegt (als aktuell markiert).');
+
+    // Falls noch kein Jahr als aktuell markiert ist, 2026 nehmen.
+    const currentCount = await Year.count({ where: { is_current: true } });
+    if (currentCount === 0) {
+      year2026.is_current = true;
+      await year2026.save();
+      console.log('  + Diplomjahr 2026 nachträglich als aktuell markiert.');
+    }
 
     const [, adminCreated] = await User.findOrCreate({
       where: { username: 'admin' },

@@ -3,9 +3,8 @@
 <div class="d-flex justify-content-between align-items-center mb-4">
     <h1>Diplomarbeit-Verwaltung</h1>
     <div class="d-flex align-items-center gap-3">
-        <span class="text-muted">
-            <i class="bi bi-calendar"></i> Diplomjahr: <%= selectedYear %>
-        </span>
+        <%- include('../partials/year-switcher', { availableYears: availableYears, selectedYearId: selectedYearId }) %>
+        <%- include('../partials/role-switcher', { availableRoles: availableRoles, currentRole: currentRole }) %>
         <div class="dropdown">
             <button class="btn btn-primary" type="button" id="dashboardActionsMenu" data-bs-toggle="dropdown" aria-expanded="false" title="Aktionen">
                 <i class="bi bi-three-dots-vertical"></i>
@@ -13,6 +12,7 @@
             <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="dashboardActionsMenu">
                 <li><button class="dropdown-item" type="button" onclick="openAddThesisModal()"><i class="bi bi-plus"></i> Diplomarbeit hinzufügen</button></li>
                 <li><hr class="dropdown-divider"></li>
+                <li><a class="dropdown-item" href="/dashboard/admin/years"><i class="bi bi-calendar"></i> Diplomjahre</a></li>
                 <li><a class="dropdown-item" href="/dashboard/admin/milestones"><i class="bi bi-flag"></i> Meilensteine</a></li>
                 <li><a class="dropdown-item" href="/dashboard/admin/evaluation-forms"><i class="bi bi-clipboard-check"></i> Bewertungsformulare</a></li>
                 <li><hr class="dropdown-divider"></li>
@@ -68,7 +68,7 @@
                     <th>Titel der Diplomarbeit</th>
                     <th>Fachbereich</th>
                     <th>Studenten</th>
-                    <th>Coaches</th>
+                    <th>Dozent/innen</th>
                     <th>Field Project Coaches</th>
                     <th>Experten</th>
                     <th>Auftraggeber</th>
@@ -85,7 +85,7 @@
                         <td>
                             <% if (thesis.students.length > 0) { %>
                                 <% thesis.students.forEach(function(student, index) { %>
-                                    <span class="badge bg-primary me-1"><%= student.firstname %> <%= student.name %></span>
+                                    <span class="badge bg-primary me-1"><%= student.name %>, <%= student.firstname %></span>
                                 <% }); %>
                             <% } else { %>
                                 <span class="text-muted">Keine Studenten zugewiesen</span>
@@ -94,16 +94,16 @@
                         <td>
                             <% if (thesis.coaches.length > 0) { %>
                                 <% thesis.coaches.forEach(function(coach, index) { %>
-                                    <span class="badge bg-success me-1"><%= coach.firstname %> <%= coach.name %></span>
+                                    <span class="badge bg-success me-1"><%= coach.name %>, <%= coach.firstname %></span>
                                 <% }); %>
                             <% } else { %>
-                                <span class="text-muted">Keine Coaches zugewiesen</span>
+                                <span class="text-muted">Keine Dozent/innen zugewiesen</span>
                             <% } %>
                         </td>
                         <td>
                             <% if (thesis.fieldProjectCoaches && thesis.fieldProjectCoaches.length > 0) { %>
                                 <% thesis.fieldProjectCoaches.forEach(function(fpc, index) { %>
-                                    <span class="badge bg-warning text-dark me-1"><%= fpc.firstname %> <%= fpc.name %></span>
+                                    <span class="badge bg-warning text-dark me-1"><%= fpc.name %>, <%= fpc.firstname %></span>
                                 <% }); %>
                             <% } else { %>
                                 <span class="text-muted">Keine zugewiesen</span>
@@ -112,7 +112,7 @@
                         <td>
                             <% if (thesis.experts.length > 0) { %>
                                 <% thesis.experts.forEach(function(expert, index) { %>
-                                    <span class="badge bg-info me-1"><%= expert.firstname %> <%= expert.name %></span>
+                                    <span class="badge bg-info me-1"><%= expert.name %>, <%= expert.firstname %></span>
                                 <% }); %>
                             <% } else { %>
                                 <span class="text-muted">Keine Experten zugewiesen</span>
@@ -173,6 +173,12 @@
                             <option value="fr">Französisch</option>
                         </select>
                     </div>
+                    <div class="mb-3 form-check">
+                        <input type="checkbox" class="form-check-input" id="thesisIsConfidential" name="is_confidential">
+                        <label class="form-check-label" for="thesisIsConfidential">
+                            <i class="bi bi-lock"></i> Geheimhaltung (vertrauliche Diplomarbeit)
+                        </label>
+                    </div>
                     <div class="mb-3">
                         <label for="thesisStudents" class="form-label">Studenten (max. 1-2)</label>
                         <select class="form-select" id="thesisStudents" name="students" multiple size="4">
@@ -181,15 +187,15 @@
                         <div class="form-text">Strg/Cmd halten, um mehrere Studenten auszuwählen (maximal 2)</div>
                     </div>
                     <div class="mb-3">
-                        <label for="thesisCoach" class="form-label">Coach</label>
+                        <label for="thesisCoach" class="form-label">Dozent/in</label>
                         <select class="form-select" id="thesisCoach" name="coach">
-                            <option value="">Coach auswählen...</option>
+                            <option value="">Dozent/in auswählen...</option>
                         </select>
                     </div>
                     <div class="mb-3">
                         <label for="thesisFieldProjectCoach" class="form-label">Field Project Coach</label>
                         <select class="form-select" id="thesisFieldProjectCoach" name="field_project_coach">
-                            <option value="">Field Project Coach auswählen...</option>
+                            <option value="">Field Project Dozent/in auswählen...</option>
                         </select>
                     </div>
                     <div class="mb-3">
@@ -243,6 +249,12 @@
                             <option value="fr">Französisch</option>
                         </select>
                     </div>
+                    <div class="mb-3 form-check">
+                        <input type="checkbox" class="form-check-input" id="editThesisIsConfidential" name="is_confidential">
+                        <label class="form-check-label" for="editThesisIsConfidential">
+                            <i class="bi bi-lock"></i> Geheimhaltung (vertrauliche Diplomarbeit)
+                        </label>
+                    </div>
                     <div class="mb-3">
                         <label for="editThesisStudents" class="form-label">Studenten (max. 1-2)</label>
                         <select class="form-select" id="editThesisStudents" name="students" multiple size="4">
@@ -251,15 +263,15 @@
                         <div class="form-text">Strg/Cmd halten, um mehrere Studenten auszuwählen (maximal 2)</div>
                     </div>
                     <div class="mb-3">
-                        <label for="editThesisCoach" class="form-label">Coach</label>
+                        <label for="editThesisCoach" class="form-label">Dozent/in</label>
                         <select class="form-select" id="editThesisCoach" name="coach">
-                            <option value="">Coach auswählen...</option>
+                            <option value="">Dozent/in auswählen...</option>
                         </select>
                     </div>
                     <div class="mb-3">
                         <label for="editThesisFieldProjectCoach" class="form-label">Field Project Coach</label>
                         <select class="form-select" id="editThesisFieldProjectCoach" name="field_project_coach">
-                            <option value="">Field Project Coach auswählen...</option>
+                            <option value="">Field Project Dozent/in auswählen...</option>
                         </select>
                     </div>
                     <div class="mb-3">
@@ -333,16 +345,29 @@
                         <input type="email" class="form-control" id="userEmail" name="email" required>
                     </div>
                     <div class="mb-3">
-                        <label for="userRole" class="form-label">Rolle</label>
+                        <label for="userRole" class="form-label">Primärrolle</label>
                         <select class="form-select" id="userRole" name="role" required>
                             <option value="">Rolle auswählen</option>
                             <option value="student">Student</option>
-                            <option value="coach">Coach</option>
+                            <option value="coach">Dozent/in</option>
                             <option value="expert">ExpertIn</option>
                             <option value="admin">Administrator</option>
                             <option value="department_lead">FachbereichsleiterIn</option>
                             <option value="field_project_coach">Field Project Coach</option>
                         </select>
+                        <div class="form-text">Login-Standard-Rolle. Weitere Rollen optional unten.</div>
+                    </div>
+                    <div class="mb-3">
+                        <label for="userAdditionalRoles" class="form-label">Weitere Rollen</label>
+                        <select class="form-select" id="userAdditionalRoles" name="additional_roles" multiple size="4">
+                            <option value="student">Student</option>
+                            <option value="coach">Dozent/in</option>
+                            <option value="expert">ExpertIn</option>
+                            <option value="admin">Administrator</option>
+                            <option value="department_lead">FachbereichsleiterIn</option>
+                            <option value="field_project_coach">Field Project Coach</option>
+                        </select>
+                        <div class="form-text">Strg/Cmd halten, um mehrere zusätzliche Rollen auszuwählen. Die Primärrolle muss hier nicht erneut markiert werden.</div>
                     </div>
                     <div class="mb-3">
                         <label for="userDepartments" class="form-label">Fachbereiche</label>
@@ -393,16 +418,28 @@
                         <input type="email" class="form-control" id="editUserEmail" name="email" required>
                     </div>
                     <div class="mb-3">
-                        <label for="editUserRole" class="form-label">Rolle</label>
+                        <label for="editUserRole" class="form-label">Primärrolle</label>
                         <select class="form-select" id="editUserRole" name="role" required>
                             <option value="">Rolle auswählen</option>
                             <option value="student">Student</option>
-                            <option value="coach">Coach</option>
+                            <option value="coach">Dozent/in</option>
                             <option value="expert">ExpertIn</option>
                             <option value="admin">Administrator</option>
                             <option value="department_lead">FachbereichsleiterIn</option>
                             <option value="field_project_coach">Field Project Coach</option>
                         </select>
+                    </div>
+                    <div class="mb-3">
+                        <label for="editUserAdditionalRoles" class="form-label">Weitere Rollen</label>
+                        <select class="form-select" id="editUserAdditionalRoles" name="additional_roles" multiple size="4">
+                            <option value="student">Student</option>
+                            <option value="coach">Dozent/in</option>
+                            <option value="expert">ExpertIn</option>
+                            <option value="admin">Administrator</option>
+                            <option value="department_lead">FachbereichsleiterIn</option>
+                            <option value="field_project_coach">Field Project Coach</option>
+                        </select>
+                        <div class="form-text">Strg/Cmd halten, um mehrere zusätzliche Rollen auszuwählen.</div>
                     </div>
                     <div class="mb-3">
                         <label for="editUserDepartments" class="form-label">Fachbereiche</label>
@@ -543,6 +580,7 @@ function editThesis(id) {
             document.getElementById('editThesisDepartment').value = thesis.department_id;
             document.getElementById('editThesisSponsor').value = thesis.sponsor || '';
             document.getElementById('editThesisLanguage').value = thesis.language || 'de';
+            document.getElementById('editThesisIsConfidential').checked = !!thesis.is_confidential;
 
             return loadUserOptions(thesis.department_id).then(() => {
                 const studentsSelect = document.getElementById('editThesisStudents');
@@ -632,7 +670,7 @@ function loadUserOptions(departmentId = null) {
                     students.forEach(student => {
                         const option = document.createElement('option');
                         option.value = student.id;
-                        option.textContent = `${student.firstname} ${student.name}`;
+                        option.textContent = `${student.name}, ${student.firstname}`;
                         select.appendChild(option);
                     });
                 }
@@ -641,11 +679,11 @@ function loadUserOptions(departmentId = null) {
             ['thesisCoach', 'editThesisCoach'].forEach(selectId => {
                 const select = document.getElementById(selectId);
                 if (select) {
-                    select.innerHTML = '<option value="">Coach auswählen...</option>';
+                    select.innerHTML = '<option value="">Dozent/in auswählen...</option>';
                     coaches.forEach(coach => {
                         const option = document.createElement('option');
                         option.value = coach.id;
-                        option.textContent = `${coach.firstname} ${coach.name}`;
+                        option.textContent = `${coach.name}, ${coach.firstname}`;
                         select.appendChild(option);
                     });
                 }
@@ -658,7 +696,7 @@ function loadUserOptions(departmentId = null) {
                     experts.forEach(expert => {
                         const option = document.createElement('option');
                         option.value = expert.id;
-                        option.textContent = `${expert.firstname} ${expert.name}`;
+                        option.textContent = `${expert.name}, ${expert.firstname}`;
                         select.appendChild(option);
                     });
                 }
@@ -667,11 +705,11 @@ function loadUserOptions(departmentId = null) {
             ['thesisFieldProjectCoach', 'editThesisFieldProjectCoach'].forEach(selectId => {
                 const select = document.getElementById(selectId);
                 if (select) {
-                    select.innerHTML = '<option value="">Field Project Coach auswählen...</option>';
+                    select.innerHTML = '<option value="">Field Project Dozent/in auswählen...</option>';
                     fieldProjectCoaches.forEach(fpc => {
                         const option = document.createElement('option');
                         option.value = fpc.id;
-                        option.textContent = `${fpc.firstname} ${fpc.name}`;
+                        option.textContent = `${fpc.name}, ${fpc.firstname}`;
                         select.appendChild(option);
                     });
                 }
@@ -685,7 +723,7 @@ function loadUserOptions(departmentId = null) {
 function roleLabel(role) {
     const labels = {
         student: 'Student',
-        coach: 'Coach',
+        coach: 'Dozent/in',
         expert: 'ExpertIn',
         admin: 'Administrator',
         department_lead: 'FachbereichsleiterIn',
@@ -716,7 +754,7 @@ function loadUsers() {
                             ${users.map(user => `
                                 <tr>
                                     <td>${user.username}</td>
-                                    <td>${user.firstname} ${user.name}</td>
+                                    <td>${user.name}, ${user.firstname}</td>
                                     <td>${user.email}</td>
                                     <td><span class="badge bg-secondary">${roleLabel(user.role)}</span></td>
                                     <td>
@@ -758,6 +796,12 @@ function editUser(userId) {
                 document.getElementById('editUserEmail').value = user.email;
                 document.getElementById('editUserRole').value = user.role;
                 document.getElementById('editUserPassword').value = '';
+
+                const additionalSelect = document.getElementById('editUserAdditionalRoles');
+                const additional = new Set(user.additional_roles || []);
+                Array.from(additionalSelect.options).forEach(option => {
+                    option.selected = additional.has(option.value);
+                });
 
                 const departmentSelect = document.getElementById('editUserDepartments');
                 if (departmentSelect && user.departments) {
@@ -815,7 +859,7 @@ function loadDepartments() {
                                 <tr>
                                     <td>${dept.name}</td>
                                     <td>${dept.departmentLead ?
-                                        `<span class="badge bg-info">${dept.departmentLead.firstname} ${dept.departmentLead.name}</span>` :
+                                        `<span class="badge bg-info">${dept.departmentLead.name}, ${dept.departmentLead.firstname}</span>` :
                                         '<span class="text-muted">Keine LeiterIn zugewiesen</span>'}</td>
                                     <td>
                                         <button class="btn btn-outline-primary btn-sm" onclick="editDepartment(${dept.id})">
@@ -851,7 +895,7 @@ function loadDepartmentLeads() {
                     departmentLeads.forEach(lead => {
                         const option = document.createElement('option');
                         option.value = lead.id;
-                        option.textContent = `${lead.firstname} ${lead.name}`;
+                        option.textContent = `${lead.name}, ${lead.firstname}`;
                         select.appendChild(option);
                     });
                 }
@@ -946,6 +990,7 @@ document.getElementById('addThesisForm').addEventListener('submit', function(e) 
     data.coach = document.getElementById('thesisCoach').value || null;
     data.expert = document.getElementById('thesisExpert').value || null;
     data.field_project_coach = document.getElementById('thesisFieldProjectCoach').value || null;
+    data.is_confidential = document.getElementById('thesisIsConfidential').checked;
 
     fetch('/api/theses', {
         method: 'POST',
@@ -986,6 +1031,7 @@ document.getElementById('editThesisForm').addEventListener('submit', function(e)
     data.coach = document.getElementById('editThesisCoach').value || null;
     data.expert = document.getElementById('editThesisExpert').value || null;
     data.field_project_coach = document.getElementById('editThesisFieldProjectCoach').value || null;
+    data.is_confidential = document.getElementById('editThesisIsConfidential').checked;
 
     fetch(`/api/theses/${data.id}`, {
         method: 'PUT',
@@ -1016,6 +1062,7 @@ document.getElementById('addUserForm').addEventListener('submit', function(e) {
     const departmentSelect = document.getElementById('userDepartments');
     const selectedDepartments = Array.from(departmentSelect.selectedOptions).map(option => option.value);
     data.departments = selectedDepartments;
+    data.additional_roles = Array.from(document.getElementById('userAdditionalRoles').selectedOptions).map(o => o.value);
 
     fetch('/api/users', {
         method: 'POST',
@@ -1049,6 +1096,7 @@ document.getElementById('editUserForm').addEventListener('submit', function(e) {
     const departmentSelect = document.getElementById('editUserDepartments');
     const selectedDepartments = Array.from(departmentSelect.selectedOptions).map(option => option.value);
     data.departments = selectedDepartments;
+    data.additional_roles = Array.from(document.getElementById('editUserAdditionalRoles').selectedOptions).map(o => o.value);
 
     fetch(`/api/users/${userId}`, {
         method: 'PUT',

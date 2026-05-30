@@ -2,8 +2,9 @@
 
 <div class="d-flex justify-content-between align-items-center mb-4">
     <h1>Meine Diplomarbeit</h1>
-    <div class="text-muted">
-        <i class="bi bi-calendar"></i> Diplomjahr: <%= selectedYear %>
+    <div class="d-flex align-items-center gap-3">
+        <span class="text-muted"><i class="bi bi-calendar"></i> Diplomjahr: <%= selectedYear %></span>
+        <%- include('../partials/role-switcher', { availableRoles: availableRoles, currentRole: currentRole }) %>
     </div>
 </div>
 
@@ -40,26 +41,26 @@
                     <div class="col-md-4">
                         <h6><i class="bi bi-people"></i> Studenten:</h6>
                         <% thesis.students.forEach(function(s) { %>
-                            <div class="mb-2"><i class="bi bi-person-fill"></i> <%= s.firstname %> <%= s.name %><% if (s.id === user.id) { %> <span class="badge bg-info ms-1">Sie</span><% } %></div>
+                            <div class="mb-2"><i class="bi bi-person-fill"></i> <%= s.name %>, <%= s.firstname %><% if (s.id === user.id) { %> <span class="badge bg-info ms-1">Sie</span><% } %></div>
                         <% }); %>
                     </div>
                     <div class="col-md-4">
-                        <h6><i class="bi bi-person-badge"></i> Coaches:</h6>
+                        <h6><i class="bi bi-person-badge"></i> Dozent/innen:</h6>
                         <% thesis.coaches.forEach(function(c) { %>
-                            <div class="mb-2"><i class="bi bi-person-fill"></i> <%= c.firstname %> <%= c.name %></div>
+                            <div class="mb-2"><i class="bi bi-person-fill"></i> <%= c.name %>, <%= c.firstname %></div>
                         <% }); %>
                     </div>
                     <div class="col-md-4">
                         <h6><i class="bi bi-award"></i> ExpertInnen:</h6>
                         <% thesis.experts.forEach(function(e) { %>
-                            <div class="mb-2"><i class="bi bi-person-fill"></i> <%= e.firstname %> <%= e.name %></div>
+                            <div class="mb-2"><i class="bi bi-person-fill"></i> <%= e.name %>, <%= e.firstname %></div>
                         <% }); %>
                     </div>
                     <% if (thesis.fieldProjectCoaches && thesis.fieldProjectCoaches.length > 0) { %>
                     <div class="col-md-4 mt-3">
                         <h6><i class="bi bi-person-workspace"></i> Field Project Coaches:</h6>
                         <% thesis.fieldProjectCoaches.forEach(function(f) { %>
-                            <div class="mb-2"><i class="bi bi-person-fill"></i> <%= f.firstname %> <%= f.name %></div>
+                            <div class="mb-2"><i class="bi bi-person-fill"></i> <%= f.name %>, <%= f.firstname %></div>
                         <% }); %>
                     </div>
                     <% } %>

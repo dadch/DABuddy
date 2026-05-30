@@ -47,7 +47,9 @@ const ThesisLog = sequelize.define('ThesisLog', {
       'milestone_approved',
       'milestone_revoked',
       'milestone_released',
-      'milestone_locked'
+      'milestone_locked',
+      'confidentiality_uploaded',
+      'confidentiality_deleted'
     ),
     allowNull: false,
   },

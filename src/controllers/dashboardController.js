@@ -1,4 +1,4 @@
-const { User, Thesis, Department, Year, Milestone, ThesisMilestone, ThesisMilestoneDocument, ThesisLog, EvaluationForm, ThesisEvaluation, ThesisEvaluationGroup } = require('../models');
+const { User, UserRole, Thesis, Department, Year, Milestone, ThesisMilestone, ThesisMilestoneDocument, ThesisLog, EvaluationForm, ThesisEvaluation, ThesisEvaluationGroup } = require('../models');
 const { Op } = require('sequelize');
 
 const showDashboard = async (req, res) => {
@@ -68,6 +68,10 @@ const showDashboard = async (req, res) => {
       return res.redirect('/dashboard/thesis/' + theses[0].id);
     }
 
+    // Mehrfachrollen (Primär + Zusatzrollen) — wird vom Role-Switcher-Partial benötigt.
+    const roleRows = await UserRole.findAll({ where: { user_id: userId }, attributes: ['role'], raw: true });
+    const availableRoles = Array.from(new Set(roleRows.map(r => r.role)));
+
     const dashboardData = {
       user: {
         fullName: req.session.fullName,
@@ -75,6 +79,8 @@ const showDashboard = async (req, res) => {
       },
       selectedYear: selectedYear.year,
       selectedYearId: selectedYear.id,
+      availableRoles,
+      currentRole: userRole,
       theses,
       messages: req.flash(),
     };
@@ -82,10 +88,14 @@ const showDashboard = async (req, res) => {
     if (userRole === 'admin') {
       dashboardData.departments = await Department.findAll({ order: [['name', 'ASC']] });
       dashboardData.selectedDepartment = req.query.department;
+      dashboardData.availableYears = await Year.findAll({ order: [['year', 'DESC']], attributes: ['id', 'year'] });
     } else if (userRole === 'department_lead') {
       const ledDepartments = await Department.findAll({ where: { department_lead_id: userId }, order: [['name', 'ASC']] });
       dashboardData.departments = ledDepartments;
       dashboardData.selectedDepartment = req.query.department;
+      dashboardData.availableYears = await Year.findAll({ order: [['year', 'DESC']], attributes: ['id', 'year'] });
+    } else {
+      dashboardData.availableYears = [];
     }
 
     res.render(`${userRole}/dashboard`, dashboardData);
@@ -242,6 +252,74 @@ const showMilestonesManagement = async (req, res) => {
   }
 };
 
+// Chat-Seite einer Diplomarbeit. Sichtbar für alle DA-Beteiligten + Admin/FBL.
+const showThesisChat = async (req, res) => {
+  try {
+    const userId = req.session.userId;
+    const userRole = req.session.userRole;
+    const thesisId = req.params.id;
+
+    if (!userId || !userRole) {
+      req.flash('error', 'Sitzung abgelaufen. Bitte erneut anmelden.');
+      return res.redirect('/login');
+    }
+
+    const thesis = await Thesis.findByPk(thesisId, {
+      include: [
+        { model: Department, as: 'department' },
+        { model: User, as: 'students', attributes: ['id'] },
+        { model: User, as: 'coaches', attributes: ['id'] },
+        { model: User, as: 'experts', attributes: ['id'] },
+        { model: User, as: 'fieldProjectCoaches', attributes: ['id'] },
+      ]
+    });
+    if (!thesis) {
+      req.flash('error', 'Diplomarbeit nicht gefunden');
+      return res.redirect('/dashboard');
+    }
+
+    const isInvolved =
+      userRole === 'admin' ||
+      thesis.students.some(s => s.id === userId) ||
+      thesis.coaches.some(c => c.id === userId) ||
+      thesis.experts.some(e => e.id === userId) ||
+      thesis.fieldProjectCoaches.some(f => f.id === userId) ||
+      (userRole === 'department_lead' && (await Department.findByPk(thesis.department_id))?.department_lead_id === userId);
+
+    if (!isInvolved) {
+      req.flash('error', 'Sie haben keine Berechtigung für diesen Chat');
+      return res.redirect('/dashboard');
+    }
+
+    res.render('chat', {
+      user: { id: userId, fullName: req.session.fullName, role: userRole },
+      thesis: { id: thesis.id, title: thesis.title },
+      messages: req.flash(),
+    });
+  } catch (error) {
+    console.error('Chat error:', error);
+    req.flash('error', 'Chat konnte nicht geladen werden');
+    res.redirect('/dashboard');
+  }
+};
+
+const showYearsManagement = async (req, res) => {
+  try {
+    if (req.session.userRole !== 'admin') {
+      req.flash('error', 'Zugriff verweigert. Nur Administratoren können Diplomjahre verwalten.');
+      return res.redirect('/dashboard');
+    }
+    res.render('admin/years-management', {
+      user: { fullName: req.session.fullName, role: req.session.userRole },
+      messages: req.flash(),
+    });
+  } catch (error) {
+    console.error('Error in showYearsManagement:', error);
+    req.flash('error', 'Beim Laden der Diplomjahr-Verwaltung ist ein Fehler aufgetreten.');
+    res.redirect('/dashboard');
+  }
+};
+
 const showEvaluationForms = async (req, res) => {
   try {
     if (req.session.userRole !== 'admin') {
@@ -280,6 +358,8 @@ const showEvaluationFormEditor = async (req, res) => {
 module.exports = {
   showDashboard,
   showThesisDetail,
+  showThesisChat,
+  showYearsManagement,
   showMilestonesManagement,
   showEvaluationForms,
   showEvaluationFormEditor,

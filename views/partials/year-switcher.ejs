@@ -1,0 +1,31 @@
+<!-- Diplomjahr-Switcher für Admin/FachbereichsleiterIn. Erwartet:
+       - availableYears: Array von { id, year }
+       - selectedYearId:   id des aktuell gewählten Jahres -->
+<div class="d-flex align-items-center gap-2">
+    <i class="bi bi-calendar text-muted"></i>
+    <% if ((availableYears || []).length > 1) { %>
+        <select class="form-select form-select-sm" style="width:auto;" id="yearSwitcher"
+                onchange="switchDiplomjahr(this.value)" aria-label="Diplomjahr wechseln">
+            <% availableYears.forEach(function(y) { %>
+                <option value="<%= y.id %>" <%= y.id === selectedYearId ? 'selected' : '' %>><%= y.year %></option>
+            <% }); %>
+        </select>
+    <% } else if ((availableYears || []).length === 1) { %>
+        <span class="text-muted">Diplomjahr: <strong><%= availableYears[0].year %></strong></span>
+    <% } %>
+</div>
+<script>
+function switchDiplomjahr(yearId) {
+    fetch('/api/year/switch', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ yearId: parseInt(yearId, 10) })
+    })
+    .then(r => r.json())
+    .then(d => {
+        if (d.success) location.href = '/dashboard';
+        else alert('Fehler: ' + (d.message || 'Unbekannt'));
+    })
+    .catch(err => { console.error(err); alert('Fehler beim Wechseln'); });
+}
+</script>

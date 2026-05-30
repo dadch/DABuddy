@@ -1,7 +1,7 @@
 <%- include('../partials/header', { title: 'Meilenstein-Verwaltung - DABuddy', user: user }) %>
 
 <%
-const ROLE_LABELS = { student: 'Student', coach: 'Coach', expert: 'ExpertIn', admin: 'Administrator', department_lead: 'FachbereichsleiterIn', field_project_coach: 'Field Project Coach' };
+const ROLE_LABELS = { student: 'Student', coach: 'Dozent/in', expert: 'ExpertIn', admin: 'Administrator', department_lead: 'FachbereichsleiterIn', field_project_coach: 'Field Project Coach' };
 %>
 
 <div class="d-flex justify-content-between align-items-center mb-4">
@@ -143,7 +143,7 @@ const ROLE_LABELS = { student: 'Student', coach: 'Coach', expert: 'ExpertIn', ad
                         <select class="form-select" name="responsible_role" required>
                             <option value="">Rolle auswählen...</option>
                             <option value="student">Student</option>
-                            <option value="coach">Coach</option>
+                            <option value="coach">Dozent/in</option>
                             <option value="expert">ExpertIn</option>
                             <option value="department_lead">FachbereichsleiterIn</option>
                             <option value="field_project_coach">Field Project Coach</option>
@@ -167,7 +167,7 @@ const ROLE_LABELS = { student: 'Student', coach: 'Coach', expert: 'ExpertIn', ad
                         <label class="form-label">Bewertende Rolle</label>
                         <select class="form-select" name="evaluator_role" id="addEvalRole">
                             <option value="">Rolle auswählen...</option>
-                            <option value="coach">Coach</option>
+                            <option value="coach">Dozent/in</option>
                             <option value="expert">ExpertIn</option>
                             <option value="department_lead">FachbereichsleiterIn</option>
                             <option value="field_project_coach">Field Project Coach</option>
@@ -188,7 +188,7 @@ const ROLE_LABELS = { student: 'Student', coach: 'Coach', expert: 'ExpertIn', ad
                         <label class="form-label">Zweite bewertende Rolle</label>
                         <select class="form-select" name="evaluator_role_2" id="addEvalRole2">
                             <option value="">Rolle auswählen...</option>
-                            <option value="coach">Coach</option>
+                            <option value="coach">Dozent/in</option>
                             <option value="expert">ExpertIn</option>
                             <option value="department_lead">FachbereichsleiterIn</option>
                             <option value="field_project_coach">Field Project Coach</option>
@@ -206,7 +206,7 @@ const ROLE_LABELS = { student: 'Student', coach: 'Coach', expert: 'ExpertIn', ad
                         <select class="form-select" name="approver_role" id="addApproverRole">
                             <option value="">Rolle auswählen...</option>
                             <option value="student">Student</option>
-                            <option value="coach">Coach</option>
+                            <option value="coach">Dozent/in</option>
                             <option value="expert">ExpertIn</option>
                             <option value="department_lead">FachbereichsleiterIn</option>
                             <option value="field_project_coach">Field Project Coach</option>
@@ -222,7 +222,7 @@ const ROLE_LABELS = { student: 'Student', coach: 'Coach', expert: 'ExpertIn', ad
                         <select class="form-select" name="approver_role_2" id="addApproverRole2">
                             <option value="">Rolle auswählen...</option>
                             <option value="student">Student</option>
-                            <option value="coach">Coach</option>
+                            <option value="coach">Dozent/in</option>
                             <option value="expert">ExpertIn</option>
                             <option value="department_lead">FachbereichsleiterIn</option>
                             <option value="field_project_coach">Field Project Coach</option>
@@ -271,7 +271,7 @@ const ROLE_LABELS = { student: 'Student', coach: 'Coach', expert: 'ExpertIn', ad
                         <label class="form-label">Verantwortliche Rolle</label>
                         <select class="form-select" name="responsible_role" id="editMilestoneRole" required>
                             <option value="student">Student</option>
-                            <option value="coach">Coach</option>
+                            <option value="coach">Dozent/in</option>
                             <option value="expert">ExpertIn</option>
                             <option value="department_lead">FachbereichsleiterIn</option>
                             <option value="field_project_coach">Field Project Coach</option>
@@ -295,7 +295,7 @@ const ROLE_LABELS = { student: 'Student', coach: 'Coach', expert: 'ExpertIn', ad
                         <label class="form-label">Bewertende Rolle</label>
                         <select class="form-select" name="evaluator_role" id="editEvalRole">
                             <option value="">Rolle auswählen...</option>
-                            <option value="coach">Coach</option>
+                            <option value="coach">Dozent/in</option>
                             <option value="expert">ExpertIn</option>
                             <option value="department_lead">FachbereichsleiterIn</option>
                             <option value="field_project_coach">Field Project Coach</option>
@@ -316,7 +316,7 @@ const ROLE_LABELS = { student: 'Student', coach: 'Coach', expert: 'ExpertIn', ad
                         <label class="form-label">Zweite bewertende Rolle</label>
                         <select class="form-select" name="evaluator_role_2" id="editEvalRole2">
                             <option value="">Rolle auswählen...</option>
-                            <option value="coach">Coach</option>
+                            <option value="coach">Dozent/in</option>
                             <option value="expert">ExpertIn</option>
                             <option value="department_lead">FachbereichsleiterIn</option>
                             <option value="field_project_coach">Field Project Coach</option>
@@ -334,7 +334,7 @@ const ROLE_LABELS = { student: 'Student', coach: 'Coach', expert: 'ExpertIn', ad
                         <select class="form-select" name="approver_role" id="editApproverRole">
                             <option value="">Rolle auswählen...</option>
                             <option value="student">Student</option>
-                            <option value="coach">Coach</option>
+                            <option value="coach">Dozent/in</option>
                             <option value="expert">ExpertIn</option>
                             <option value="department_lead">FachbereichsleiterIn</option>
                             <option value="field_project_coach">Field Project Coach</option>
@@ -350,7 +350,7 @@ const ROLE_LABELS = { student: 'Student', coach: 'Coach', expert: 'ExpertIn', ad
                         <select class="form-select" name="approver_role_2" id="editApproverRole2">
                             <option value="">Rolle auswählen...</option>
                             <option value="student">Student</option>
-                            <option value="coach">Coach</option>
+                            <option value="coach">Dozent/in</option>
                             <option value="expert">ExpertIn</option>
                             <option value="department_lead">FachbereichsleiterIn</option>
                             <option value="field_project_coach">Field Project Coach</option>
@@ -419,7 +419,7 @@ const ROLE_LABELS = { student: 'Student', coach: 'Coach', expert: 'ExpertIn', ad
 const selectedYearId = <%= selectedYear.id %>;
 
 function roleLabel(role) {
-    const m = { student: 'Student', coach: 'Coach', expert: 'ExpertIn', admin: 'Administrator', department_lead: 'FachbereichsleiterIn' };
+    const m = { student: 'Student', coach: 'Dozent/in', expert: 'ExpertIn', admin: 'Administrator', department_lead: 'FachbereichsleiterIn' };
     return m[role] || role;
 }
 

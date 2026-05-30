@@ -1,0 +1,141 @@
+<%- include('../partials/header', { title: 'Diplomjahr-Verwaltung - DABuddy', user: user }) %>
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+        <nav aria-label="breadcrumb">
+            <ol class="breadcrumb">
+                <li class="breadcrumb-item"><a href="/dashboard">Dashboard</a></li>
+                <li class="breadcrumb-item active" aria-current="page">Diplomjahre</li>
+            </ol>
+        </nav>
+        <h1>Diplomjahr-Verwaltung</h1>
+    </div>
+</div>
+
+<div class="card mb-4">
+    <div class="card-header d-flex justify-content-between align-items-center">
+        <h5 class="mb-0"><i class="bi bi-calendar"></i> Diplomjahre</h5>
+        <button class="btn btn-success" onclick="openAddYearModal()">
+            <i class="bi bi-plus"></i> Diplomjahr hinzufügen
+        </button>
+    </div>
+    <div class="card-body">
+        <div class="alert alert-info">
+            <i class="bi bi-info-circle"></i>
+            Das als <strong>aktuell</strong> markierte Diplomjahr wird neuen Benutzern beim Login automatisch ausgewählt.
+            Administratoren und FachbereichsleiterInnen können im Dashboard zwischen den Diplomjahren wechseln.
+        </div>
+        <div id="yearsList"><p class="text-muted">Wird geladen…</p></div>
+    </div>
+</div>
+
+<!-- Hinzufügen -->
+<div class="modal fade" id="addYearModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Diplomjahr hinzufügen</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form id="addYearForm">
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label for="newYearInput" class="form-label">Jahr (z. B. 2027)</label>
+                        <input type="number" class="form-control" id="newYearInput" min="2000" max="2100" required>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Abbrechen</button>
+                    <button type="submit" class="btn btn-primary">Anlegen</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script>
+function loadYears() {
+    fetch('/api/years')
+        .then(r => r.json())
+        .then(years => {
+            const el = document.getElementById('yearsList');
+            if (!Array.isArray(years) || years.length === 0) {
+                el.innerHTML = '<p class="text-muted mb-0">Noch keine Diplomjahre erfasst.</p>';
+                return;
+            }
+            el.innerHTML = `
+                <div class="table-responsive"><table class="table table-striped">
+                    <thead><tr>
+                        <th>Jahr</th>
+                        <th>Status</th>
+                        <th>Diplomarbeiten</th>
+                        <th>Meilenstein-Vorlagen</th>
+                        <th>Aktionen</th>
+                    </tr></thead>
+                    <tbody>
+                        ${years.map(y => `
+                            <tr>
+                                <td><strong>${y.year}</strong></td>
+                                <td>${y.is_current
+                                    ? '<span class="badge bg-success"><i class="bi bi-check-circle"></i> Aktuell</span>'
+                                    : '<span class="badge bg-secondary">—</span>'}</td>
+                                <td>${y.thesesCount}</td>
+                                <td>${y.milestonesCount}</td>
+                                <td>
+                                    ${y.is_current
+                                      ? ''
+                                      : `<button class="btn btn-outline-success btn-sm me-1" onclick="setYearCurrent(${y.id})"><i class="bi bi-check2-circle"></i> Als aktuell setzen</button>`}
+                                    ${y.is_current || y.thesesCount > 0 || y.milestonesCount > 0
+                                      ? ''
+                                      : `<button class="btn btn-outline-danger btn-sm" onclick="deleteYear(${y.id}, ${y.year})"><i class="bi bi-trash"></i></button>`}
+                                </td>
+                            </tr>
+                        `).join('')}
+                    </tbody>
+                </table></div>`;
+        })
+        .catch(err => {
+            console.error(err);
+            document.getElementById('yearsList').innerHTML = '<div class="alert alert-danger">Fehler beim Laden</div>';
+        });
+}
+
+function openAddYearModal() {
+    document.getElementById('addYearForm').reset();
+    new bootstrap.Modal(document.getElementById('addYearModal')).show();
+}
+
+document.getElementById('addYearForm').addEventListener('submit', function(e) {
+    e.preventDefault();
+    const year = parseInt(document.getElementById('newYearInput').value, 10);
+    fetch('/api/years', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ year }) })
+        .then(r => r.json())
+        .then(d => {
+            if (d.success) {
+                bootstrap.Modal.getInstance(document.getElementById('addYearModal')).hide();
+                loadYears();
+            } else alert('Fehler: ' + (d.message || 'Unbekannt'));
+        })
+        .catch(err => { console.error(err); alert('Fehler beim Anlegen'); });
+});
+
+function setYearCurrent(id) {
+    if (!confirm('Dieses Diplomjahr global als aktuell setzen?')) return;
+    fetch('/api/years/' + id + '/current', { method: 'PUT' })
+        .then(r => r.json())
+        .then(d => { if (d.success) loadYears(); else alert('Fehler: ' + (d.message || 'Unbekannt')); })
+        .catch(err => { console.error(err); alert('Fehler beim Setzen'); });
+}
+
+function deleteYear(id, label) {
+    if (!confirm(`Diplomjahr ${label} wirklich löschen?`)) return;
+    fetch('/api/years/' + id, { method: 'DELETE' })
+        .then(r => r.json())
+        .then(d => { if (d.success) loadYears(); else alert('Fehler: ' + (d.message || 'Unbekannt')); })
+        .catch(err => { console.error(err); alert('Fehler beim Löschen'); });
+}
+
+loadYears();
+</script>
+
+<%- include('../partials/footer') %>

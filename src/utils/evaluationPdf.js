@@ -3,7 +3,7 @@ const PDFDocument = require('pdfkit');
 // ---------- Helpers ----------
 
 const ROLE_LABELS = {
-  student: 'Student', coach: 'Coach', expert: 'ExpertIn',
+  student: 'Student', coach: 'Dozent/in', expert: 'ExpertIn',
   admin: 'Administrator', department_lead: 'FachbereichsleiterIn', field_project_coach: 'Field Project Coach'
 };
 
@@ -33,7 +33,7 @@ const mdToPlain = (text) => {
 };
 
 const studentsText = (thesis) => {
-  const list = (thesis.students || []).map(s => `${s.firstname} ${s.name}`);
+  const list = (thesis.students || []).map(s => `${s.name}, ${s.firstname}`);
   return list.length ? list.join(', ') : '—';
 };
 

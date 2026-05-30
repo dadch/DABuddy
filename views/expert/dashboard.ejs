@@ -2,8 +2,9 @@
 
 <div class="d-flex justify-content-between align-items-center mb-4">
     <h1>Diplomarbeiten zur Begutachtung</h1>
-    <div class="text-muted">
-        <i class="bi bi-calendar"></i> Diplomjahr: <%= selectedYear %>
+    <div class="d-flex align-items-center gap-3">
+        <span class="text-muted"><i class="bi bi-calendar"></i> Diplomjahr: <%= selectedYear %></span>
+        <%- include('../partials/role-switcher', { availableRoles: availableRoles, currentRole: currentRole }) %>
     </div>
 </div>
 
@@ -20,7 +21,7 @@
                     <th>Titel der Diplomarbeit</th>
                     <th>Fachbereich</th>
                     <th>Studenten</th>
-                    <th>Coach</th>
+                    <th>Dozent/in</th>
                     <th>Field Project Coach</th>
                     <th>Auftraggeber</th>
                     <th>Aktionen</th>
@@ -33,18 +34,18 @@
                         <td><%= thesis.department.name %></td>
                         <td>
                             <% thesis.students.forEach(function(s, i) { %>
-                                <%= s.firstname %> <%= s.name %><% if (i < thesis.students.length - 1) { %>, <% } %>
+                                <%= s.name %>, <%= s.firstname %><% if (i < thesis.students.length - 1) { %>, <% } %>
                             <% }); %>
                         </td>
                         <td>
                             <% thesis.coaches.forEach(function(c, i) { %>
-                                <%= c.firstname %> <%= c.name %><% if (i < thesis.coaches.length - 1) { %>, <% } %>
+                                <%= c.name %>, <%= c.firstname %><% if (i < thesis.coaches.length - 1) { %>, <% } %>
                             <% }); %>
                         </td>
                         <td>
                             <% if (thesis.fieldProjectCoaches && thesis.fieldProjectCoaches.length > 0) { %>
                                 <% thesis.fieldProjectCoaches.forEach(function(f, i) { %>
-                                    <%= f.firstname %> <%= f.name %><% if (i < thesis.fieldProjectCoaches.length - 1) { %>, <% } %>
+                                    <%= f.name %>, <%= f.firstname %><% if (i < thesis.fieldProjectCoaches.length - 1) { %>, <% } %>
                                 <% }); %>
                             <% } else { %>-<% } %>
                         </td>

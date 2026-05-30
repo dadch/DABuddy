@@ -1,9 +1,10 @@
-<%- include('../partials/header', { title: 'Coach-Dashboard - DABuddy', user: user }) %>
+<%- include('../partials/header', { title: 'Dozent/in-Dashboard - DABuddy', user: user }) %>
 
 <div class="d-flex justify-content-between align-items-center mb-4">
     <h1>Meine betreuten Diplomarbeiten</h1>
-    <div class="text-muted">
-        <i class="bi bi-calendar"></i> Diplomjahr: <%= selectedYear %>
+    <div class="d-flex align-items-center gap-3">
+        <span class="text-muted"><i class="bi bi-calendar"></i> Diplomjahr: <%= selectedYear %></span>
+        <%- include('../partials/role-switcher', { availableRoles: availableRoles, currentRole: currentRole }) %>
     </div>
 </div>
 
@@ -29,7 +30,7 @@
                             <h6>Studenten:</h6>
                             <% thesis.students.forEach(function(s) { %>
                                 <div class="mb-2">
-                                    <i class="bi bi-person-fill"></i> <%= s.firstname %> <%= s.name %>
+                                    <i class="bi bi-person-fill"></i> <%= s.name %>, <%= s.firstname %>
                                     <br><small class="text-muted"><%= s.email %></small>
                                 </div>
                             <% }); %>
@@ -39,7 +40,7 @@
                                 <h6>ExpertInnen:</h6>
                                 <% thesis.experts.forEach(function(e) { %>
                                     <div class="mb-2">
-                                        <i class="bi bi-award"></i> <%= e.firstname %> <%= e.name %>
+                                        <i class="bi bi-award"></i> <%= e.name %>, <%= e.firstname %>
                                         <br><small class="text-muted"><%= e.email %></small>
                                     </div>
                                 <% }); %>

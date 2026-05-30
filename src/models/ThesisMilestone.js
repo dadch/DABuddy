@@ -38,7 +38,7 @@ const ThesisMilestone = sequelize.define('ThesisMilestone', {
     type: DataTypes.DATE,
     allowNull: false,
   },
-  // Freigabe zum Starten: erst nach Freigabe (durch Coach/Admin) kann am Meilenstein
+  // Freigabe zum Starten: erst nach Freigabe (durch Dozent/in oder Admin) kann am Meilenstein
   // gearbeitet werden (Upload). Der erste Meilenstein ist immer freigegeben.
   released: {
     type: DataTypes.BOOLEAN,

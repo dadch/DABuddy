@@ -1,8 +1,11 @@
-const { User, Thesis, Department, Year, Milestone, ThesisMilestone, ThesisMilestoneDocument, ThesisLog } = require('../models');
-const { Op } = require('sequelize');
+const { sequelize, User, UserRole, Thesis, Department, Year, Milestone, ThesisMilestone, ThesisMilestoneDocument, ThesisLog, ChatMessage, ChatReadReceipt } = require('../models');
+const { Op, fn, col } = require('sequelize');
 const multer = require('multer');
 const fs = require('fs');
 const path = require('path');
+const { PDFDocument } = require('pdf-lib');
+
+const CONFIDENTIALITY_TEMPLATE_PATH = path.join(__dirname, '../../beispiele/Geheimhaltungsvereinbarung.pdf');
 
 const uploadsDir = path.join(__dirname, '../../uploads');
 if (!fs.existsSync(uploadsDir)) {
@@ -21,6 +24,18 @@ const upload = multer({
     if (file.mimetype === 'application/pdf') cb(null, true);
     else cb(new Error('Es sind nur PDF-Dateien erlaubt'), false);
   },
+  limits: { fileSize: 50 * 1024 * 1024 }
+});
+
+// Chat akzeptiert beliebige Datei-Typen (50 MB Limit).
+const chatUpload = multer({
+  storage: multer.diskStorage({
+    destination: (req, file, cb) => cb(null, uploadsDir),
+    filename: (req, file, cb) => {
+      const unique = Date.now() + '-' + Math.round(Math.random() * 1e9);
+      cb(null, 'chat-' + unique + path.extname(file.originalname));
+    }
+  }),
   limits: { fileSize: 50 * 1024 * 1024 }
 });
 
@@ -104,7 +119,7 @@ const createThesisMilestoneFromTemplate = (thesisId, template, released = false)
 
 const createThesis = async (req, res) => {
   try {
-    const { title, department_id, sponsor, students, coach, expert, field_project_coach, language } = req.body;
+    const { title, department_id, sponsor, students, coach, expert, field_project_coach, language, is_confidential } = req.body;
     const selectedYearId = req.session.selectedYear;
     const userRole = req.session.userRole;
     const userId = req.session.userId;
@@ -127,6 +142,7 @@ const createThesis = async (req, res) => {
       sponsor: sponsor || null,
       year_id: selectedYearId,
       language: (language === 'fr') ? 'fr' : 'de',
+      is_confidential: !!is_confidential,
     });
 
     if (students && students.length > 0) {
@@ -174,7 +190,7 @@ const createThesis = async (req, res) => {
 const updateThesis = async (req, res) => {
   try {
     const { id } = req.params;
-    const { title, department_id, sponsor, students, coach, expert, field_project_coach, language } = req.body;
+    const { title, department_id, sponsor, students, coach, expert, field_project_coach, language, is_confidential } = req.body;
     const userRole = req.session.userRole;
     const userId = req.session.userId;
 
@@ -201,6 +217,7 @@ const updateThesis = async (req, res) => {
       department_id,
       sponsor: sponsor || null,
       language: (language === 'fr' || language === 'de') ? language : thesis.language,
+      ...(is_confidential !== undefined ? { is_confidential: !!is_confidential } : {}),
     });
 
     if (departmentChanged) {
@@ -327,6 +344,21 @@ const deleteThesis = async (req, res) => {
 
 // ---------- Users ----------
 
+// Synchronisiert die user_roles-Tabelle so, dass sie genau {Primärrolle} ∪ {additionalRoles}
+// enthält. Wird bei createUser/updateUser/createDepartmentLeadUser/updateDepartmentLeadUser
+// aufgerufen.
+const ALL_ROLES = ['student', 'coach', 'expert', 'admin', 'department_lead', 'field_project_coach'];
+const syncUserRoles = async (userId, primaryRole, additionalRoles, allowedRoles = ALL_ROLES) => {
+  const target = new Set([primaryRole]);
+  for (const r of additionalRoles || []) {
+    if (allowedRoles.includes(r)) target.add(r);
+  }
+  await UserRole.destroy({ where: { user_id: userId, role: { [Op.notIn]: Array.from(target) } } });
+  for (const r of target) {
+    await UserRole.findOrCreate({ where: { user_id: userId, role: r } });
+  }
+};
+
 const getUsers = async (req, res) => {
   try {
     const { department_id, role } = req.query;
@@ -349,11 +381,19 @@ const getUsers = async (req, res) => {
     const users = await User.findAll({
       attributes: ['id', 'username', 'name', 'firstname', 'email', 'role'],
       where: whereClause,
-      include: includeClause,
+      include: [
+        ...includeClause,
+        { model: UserRole, as: 'extraRoles', attributes: ['role'] },
+      ],
       order: [['name', 'ASC'], ['firstname', 'ASC']]
     });
 
-    res.json(users);
+    res.json(users.map(u => {
+      const json = u.toJSON();
+      json.additional_roles = (json.extraRoles || []).map(r => r.role).filter(r => r !== json.role);
+      delete json.extraRoles;
+      return json;
+    }));
   } catch (error) {
     console.error('Error fetching users:', error);
     res.status(500).json({ success: false, message: 'Interner Serverfehler' });
@@ -362,7 +402,7 @@ const getUsers = async (req, res) => {
 
 const createUser = async (req, res) => {
   try {
-    const { username, password, firstname, name, email, role, departments } = req.body;
+    const { username, password, firstname, name, email, role, departments, additional_roles } = req.body;
 
     const existing = await User.findOne({ where: { [Op.or]: [{ username }, { email }] } });
     if (existing) return res.status(400).json({ success: false, message: 'Benutzername oder E-Mail existiert bereits' });
@@ -375,6 +415,7 @@ const createUser = async (req, res) => {
     }
 
     await syncDepartmentLeadAssignments(user, departments);
+    await syncUserRoles(user.id, role, additional_roles);
 
     res.json({ success: true, user: { id: user.id, username: user.username, name: user.name, firstname: user.firstname, email: user.email, role: user.role } });
   } catch (error) {
@@ -386,7 +427,7 @@ const createUser = async (req, res) => {
 const updateUser = async (req, res) => {
   try {
     const { id } = req.params;
-    const { username, password, firstname, name, email, role, departments } = req.body;
+    const { username, password, firstname, name, email, role, departments, additional_roles } = req.body;
 
     const user = await User.findByPk(id);
     if (!user) return res.status(404).json({ success: false, message: 'Benutzer nicht gefunden' });
@@ -412,6 +453,8 @@ const updateUser = async (req, res) => {
     } else if (user.role !== 'department_lead') {
       await syncDepartmentLeadAssignments(user, []);
     }
+
+    await syncUserRoles(user.id, role, additional_roles);
 
     res.json({ success: true, user: { id: user.id, username: user.username, firstname: user.firstname, name: user.name, email: user.email, role: user.role } });
   } catch (error) {
@@ -796,23 +839,37 @@ const getDepartmentLeadUsers = async (req, res) => {
     if (ids.length === 0) return res.json([]);
 
     const users = await User.findAll({
-      include: [{ model: Department, as: 'departments', where: { id: ids }, through: { attributes: [] } }],
-      where: { role: ['student', 'coach', 'expert'] }
+      include: [
+        { model: Department, as: 'departments', where: { id: ids }, through: { attributes: [] } },
+        { model: UserRole, as: 'extraRoles', attributes: ['role'] },
+      ],
+      where: { role: ['student', 'coach', 'expert'] },
+      order: [['name', 'ASC'], ['firstname', 'ASC']],
     });
-    res.json(users);
+    res.json(users.map(u => {
+      const json = u.toJSON();
+      json.additional_roles = (json.extraRoles || []).map(r => r.role).filter(r => r !== json.role);
+      delete json.extraRoles;
+      return json;
+    }));
   } catch (error) {
     console.error('Error fetching department lead users:', error);
     res.status(500).json({ success: false, message: 'Interner Serverfehler' });
   }
 };
 
+const FBL_ALLOWED_ROLES = ['student', 'coach', 'expert'];
+
 const createDepartmentLeadUser = async (req, res) => {
   try {
-    const { username, password, firstname, name, email, role, departments } = req.body;
+    const { username, password, firstname, name, email, role, departments, additional_roles } = req.body;
     const userId = req.session.userId;
 
-    if (!['student', 'coach', 'expert'].includes(role)) {
-      return res.status(400).json({ success: false, message: 'Ungültige Rolle. FachbereichsleiterInnen können nur Studenten-, Coach- oder ExpertIn-Konten erstellen.' });
+    if (!FBL_ALLOWED_ROLES.includes(role)) {
+      return res.status(400).json({ success: false, message: 'Ungültige Rolle. FachbereichsleiterInnen können nur Studenten-, Dozent/in- oder ExpertIn-Konten erstellen.' });
+    }
+    if ((additional_roles || []).some(r => !FBL_ALLOWED_ROLES.includes(r))) {
+      return res.status(400).json({ success: false, message: 'Zusatzrollen dürfen nur Student, Dozent/in oder ExpertIn sein.' });
     }
 
     const ledDepartments = await Department.findAll({ where: { department_lead_id: userId }, attributes: ['id'] });
@@ -834,6 +891,8 @@ const createDepartmentLeadUser = async (req, res) => {
       await user.setDepartments(deptObjs);
     }
 
+    await syncUserRoles(user.id, role, additional_roles, FBL_ALLOWED_ROLES);
+
     res.json({ success: true, user: { id: user.id, username: user.username, name: user.name, firstname: user.firstname, email: user.email, role: user.role } });
   } catch (error) {
     console.error('Error creating department lead user:', error);
@@ -844,11 +903,14 @@ const createDepartmentLeadUser = async (req, res) => {
 const updateDepartmentLeadUser = async (req, res) => {
   try {
     const { id } = req.params;
-    const { username, password, firstname, name, email, role, departments } = req.body;
+    const { username, password, firstname, name, email, role, departments, additional_roles } = req.body;
     const userId = req.session.userId;
 
-    if (!['student', 'coach', 'expert'].includes(role)) {
-      return res.status(400).json({ success: false, message: 'Ungültige Rolle. FachbereichsleiterInnen können nur Studenten-, Coach- oder ExpertIn-Konten verwalten.' });
+    if (!FBL_ALLOWED_ROLES.includes(role)) {
+      return res.status(400).json({ success: false, message: 'Ungültige Rolle. FachbereichsleiterInnen können nur Studenten-, Dozent/in- oder ExpertIn-Konten verwalten.' });
+    }
+    if ((additional_roles || []).some(r => !FBL_ALLOWED_ROLES.includes(r))) {
+      return res.status(400).json({ success: false, message: 'Zusatzrollen dürfen nur Student, Dozent/in oder ExpertIn sein.' });
     }
 
     const ledDepartments = await Department.findAll({ where: { department_lead_id: userId }, attributes: ['id'] });
@@ -888,6 +950,8 @@ const updateDepartmentLeadUser = async (req, res) => {
         await user.setDepartments([]);
       }
     }
+
+    await syncUserRoles(user.id, role, additional_roles, FBL_ALLOWED_ROLES);
 
     res.json({ success: true, user: { id: user.id, username: user.username, firstname: user.firstname, name: user.name, email: user.email, role: user.role } });
   } catch (error) {
@@ -1281,7 +1345,7 @@ const setThesisMilestoneApproval = async (req, res) => {
   }
 };
 
-// Meilenstein freigeben (starten) oder sperren. Nur der Coach der Diplomarbeit oder Admin.
+// Meilenstein freigeben (starten) oder sperren. Nur der/die Dozent/in der Diplomarbeit oder Admin.
 const setThesisMilestoneReleased = async (req, res) => {
   try {
     const { id } = req.params;
@@ -1296,7 +1360,7 @@ const setThesisMilestoneReleased = async (req, res) => {
 
     const isCoachOfThesis = tm.thesis && tm.thesis.coaches.some(c => c.id === userId);
     if (userRole !== 'admin' && !(userRole === 'coach' && isCoachOfThesis)) {
-      return res.status(403).json({ success: false, message: 'Nur der Coach der Diplomarbeit (oder Admin) kann Meilensteine freigeben.' });
+      return res.status(403).json({ success: false, message: 'Nur der/die Dozent/in der Diplomarbeit (oder Admin) kann Meilensteine freigeben.' });
     }
 
     await tm.update({ released: !!released });
@@ -1462,6 +1526,279 @@ const downloadThesisMilestoneDocument = async (req, res) => {
   }
 };
 
+// ---------- Geheimhaltung ----------
+
+// Befüllt die ersten drei Felder der Geheimhaltungsvereinbarung-Vorlage und streamt das PDF.
+// Berechtigung: Admin und FachbereichsleiterIn.
+const generateConfidentialityPdf = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const userRole = req.session.userRole;
+    if (!['admin', 'department_lead'].includes(userRole)) {
+      return res.status(403).json({ success: false, message: 'Keine Berechtigung' });
+    }
+    const thesis = await Thesis.findByPk(id);
+    if (!thesis) return res.status(404).json({ success: false, message: 'Diplomarbeit nicht gefunden' });
+    if (!thesis.is_confidential) {
+      return res.status(400).json({ success: false, message: 'Diese Diplomarbeit unterliegt keiner Geheimhaltung' });
+    }
+
+    const { unternehmen, student, thema } = req.body || {};
+    if (!unternehmen || !student || !thema) {
+      return res.status(400).json({ success: false, message: 'Unternehmen, Student/in und Titel müssen angegeben werden' });
+    }
+
+    if (!fs.existsSync(CONFIDENTIALITY_TEMPLATE_PATH)) {
+      return res.status(500).json({ success: false, message: 'PDF-Vorlage nicht gefunden' });
+    }
+    const templateBytes = fs.readFileSync(CONFIDENTIALITY_TEMPLATE_PATH);
+    const pdf = await PDFDocument.load(templateBytes);
+    const form = pdf.getForm();
+    // Feldnamen exakt wie in der Vorlage:
+    form.getTextField('Unternehmen').setText(String(unternehmen));
+    form.getTextField('Student*in').setText(String(student));
+    form.getTextField('Thema Diplomarbeit').setText(String(thema));
+    // Andere Felder (Unterschriften, Datum) bleiben leer.
+
+    const out = await pdf.save();
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', `attachment; filename="Geheimhaltungsvereinbarung_DA_${thesis.id}.pdf"`);
+    res.send(Buffer.from(out));
+  } catch (err) {
+    console.error('generateConfidentialityPdf error:', err);
+    res.status(500).json({ success: false, message: 'PDF konnte nicht erzeugt werden' });
+  }
+};
+
+// Upload des unterzeichneten, gescannten PDFs. Berechtigung: Admin und FachbereichsleiterIn.
+// Eine bereits vorhandene Datei wird ersetzt (alte Datei wird gelöscht).
+const uploadConfidentialityDocument = (req, res) => {
+  upload.single('document')(req, res, async (err) => {
+    if (err) return res.status(400).json({ success: false, message: err.message });
+    const cleanup = () => { try { if (req.file) fs.unlinkSync(req.file.path); } catch (e) {} };
+    try {
+      const userRole = req.session.userRole;
+      const userId = req.session.userId;
+      if (!['admin', 'department_lead'].includes(userRole)) { cleanup(); return res.status(403).json({ success: false, message: 'Keine Berechtigung' }); }
+      if (!req.file) return res.status(400).json({ success: false, message: 'Keine Datei hochgeladen' });
+
+      const thesis = await Thesis.findByPk(req.params.id);
+      if (!thesis) { cleanup(); return res.status(404).json({ success: false, message: 'Diplomarbeit nicht gefunden' }); }
+      if (!thesis.is_confidential) { cleanup(); return res.status(400).json({ success: false, message: 'Diese Diplomarbeit unterliegt keiner Geheimhaltung' }); }
+      if (userRole === 'department_lead') {
+        const ledDepartments = await Department.findAll({ where: { department_lead_id: userId }, attributes: ['id'] });
+        if (!ledDepartments.map(d => d.id).includes(thesis.department_id)) {
+          cleanup();
+          return res.status(403).json({ success: false, message: 'Nur für Diplomarbeiten aus von Ihnen geleiteten Fachbereichen' });
+        }
+      }
+
+      if (req.file.mimetype !== 'application/pdf') {
+        cleanup();
+        return res.status(400).json({ success: false, message: 'Nur PDF-Dateien werden akzeptiert' });
+      }
+
+      // Alte Datei entfernen, falls vorhanden.
+      if (thesis.confidentiality_document_path && fs.existsSync(thesis.confidentiality_document_path)) {
+        try { fs.unlinkSync(thesis.confidentiality_document_path); } catch (e) { /* ignore */ }
+      }
+
+      await thesis.update({
+        confidentiality_document_path: req.file.path,
+        confidentiality_document_filename: req.file.originalname,
+      });
+
+      await writeThesisLog(thesis.id, null, userId, 'confidentiality_uploaded', req.file.originalname);
+      res.json({ success: true });
+    } catch (e) {
+      cleanup();
+      console.error('uploadConfidentialityDocument error:', e);
+      res.status(500).json({ success: false, message: 'Upload fehlgeschlagen' });
+    }
+  });
+};
+
+// Download des unterzeichneten Dokuments für alle, die die Diplomarbeit sehen dürfen.
+const downloadConfidentialityDocument = async (req, res) => {
+  try {
+    const userId = req.session.userId;
+    const userRole = req.session.userRole;
+    const thesis = await Thesis.findByPk(req.params.id);
+    if (!thesis) return res.status(404).json({ success: false, message: 'Diplomarbeit nicht gefunden' });
+
+    const access = await userHasThesisAccess(userId, userRole, thesis.id);
+    if (!access) return res.status(403).json({ success: false, message: 'Keine Berechtigung' });
+
+    if (!thesis.confidentiality_document_path || !fs.existsSync(thesis.confidentiality_document_path)) {
+      return res.status(404).json({ success: false, message: 'Kein Dokument hinterlegt' });
+    }
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', `attachment; filename="${thesis.confidentiality_document_filename || 'Geheimhaltung.pdf'}"`);
+    res.sendFile(path.resolve(thesis.confidentiality_document_path));
+  } catch (e) {
+    console.error('downloadConfidentialityDocument error:', e);
+    res.status(500).json({ success: false, message: 'Download fehlgeschlagen' });
+  }
+};
+
+// Löschen des unterzeichneten Dokuments. Berechtigung: Admin und FachbereichsleiterIn.
+const deleteConfidentialityDocument = async (req, res) => {
+  try {
+    const userRole = req.session.userRole;
+    const userId = req.session.userId;
+    if (!['admin', 'department_lead'].includes(userRole)) {
+      return res.status(403).json({ success: false, message: 'Keine Berechtigung' });
+    }
+    const thesis = await Thesis.findByPk(req.params.id);
+    if (!thesis) return res.status(404).json({ success: false, message: 'Diplomarbeit nicht gefunden' });
+    if (userRole === 'department_lead') {
+      const ledDepartments = await Department.findAll({ where: { department_lead_id: userId }, attributes: ['id'] });
+      if (!ledDepartments.map(d => d.id).includes(thesis.department_id)) {
+        return res.status(403).json({ success: false, message: 'Nur für Diplomarbeiten aus von Ihnen geleiteten Fachbereichen' });
+      }
+    }
+    if (!thesis.confidentiality_document_path) {
+      return res.status(404).json({ success: false, message: 'Kein Dokument hinterlegt' });
+    }
+    const oldName = thesis.confidentiality_document_filename;
+    if (fs.existsSync(thesis.confidentiality_document_path)) {
+      try { fs.unlinkSync(thesis.confidentiality_document_path); } catch (e) { /* ignore */ }
+    }
+    await thesis.update({ confidentiality_document_path: null, confidentiality_document_filename: null });
+    await writeThesisLog(thesis.id, null, userId, 'confidentiality_deleted', oldName || '');
+    res.json({ success: true });
+  } catch (e) {
+    console.error('deleteConfidentialityDocument error:', e);
+    res.status(500).json({ success: false, message: 'Löschen fehlgeschlagen' });
+  }
+};
+
+// ---------- Chat ----------
+
+// Liefert Chat-Nachrichten der DA (chronologisch) inkl. Sender und Read-Receipts.
+// Markiert beim Aufruf alle nicht-eigenen Nachrichten für den anfragenden User als gelesen.
+// Optional ?since=<id>: nur Nachrichten mit id > since (für Polling).
+const getChatMessages = async (req, res) => {
+  try {
+    const userId = req.session.userId;
+    const userRole = req.session.userRole;
+    const thesisId = parseInt(req.params.id, 10);
+
+    const access = await userHasThesisAccess(userId, userRole, thesisId);
+    if (!access) return res.status(403).json({ success: false, message: 'Keine Berechtigung' });
+
+    const where = { thesis_id: thesisId };
+    if (req.query.since) {
+      const sinceId = parseInt(req.query.since, 10);
+      if (Number.isInteger(sinceId)) where.id = { [Op.gt]: sinceId };
+    }
+
+    const messages = await ChatMessage.findAll({
+      where,
+      include: [
+        { model: User, as: 'sender', attributes: ['id', 'firstname', 'name', 'role'] },
+        {
+          model: ChatReadReceipt,
+          as: 'readReceipts',
+          include: [{ model: User, as: 'user', attributes: ['id', 'firstname', 'name'] }]
+        }
+      ],
+      order: [['id', 'ASC']],
+    });
+
+    // Nicht-eigene Nachrichten als gelesen markieren (idempotent durch PK).
+    const toMark = messages.filter(m => m.user_id && m.user_id !== userId).map(m => m.id);
+    if (toMark.length > 0) {
+      const now = new Date();
+      const rows = toMark.map(mid => ({ message_id: mid, user_id: userId, read_at: now }));
+      await ChatReadReceipt.bulkCreate(rows, { ignoreDuplicates: true });
+    }
+
+    res.json(messages.map(m => ({
+      id: m.id,
+      thesis_id: m.thesis_id,
+      content: m.content,
+      document_filename: m.document_filename,
+      document_size: m.document_size,
+      created_at: m.createdAt,
+      sender: m.sender ? {
+        id: m.sender.id,
+        name: m.sender.name,
+        firstname: m.sender.firstname,
+        role: m.sender.role,
+      } : null,
+      read_by: (m.readReceipts || []).map(r => ({
+        id: r.user.id,
+        name: r.user.name,
+        firstname: r.user.firstname,
+        read_at: r.read_at,
+      })),
+    })));
+  } catch (err) {
+    console.error('getChatMessages error:', err);
+    res.status(500).json({ success: false, message: 'Chat konnte nicht geladen werden' });
+  }
+};
+
+// Neue Nachricht posten (multipart: content + optional document)
+const postChatMessage = (req, res) => {
+  chatUpload.single('document')(req, res, async (err) => {
+    if (err) return res.status(400).json({ success: false, message: err.message });
+    const cleanup = () => { try { if (req.file) fs.unlinkSync(req.file.path); } catch (e) {} };
+    try {
+      const userId = req.session.userId;
+      const userRole = req.session.userRole;
+      const thesisId = parseInt(req.params.id, 10);
+      const content = (req.body.content || '').trim();
+
+      const access = await userHasThesisAccess(userId, userRole, thesisId);
+      if (!access) { cleanup(); return res.status(403).json({ success: false, message: 'Keine Berechtigung' }); }
+
+      if (!content && !req.file) {
+        return res.status(400).json({ success: false, message: 'Nachricht oder Datei erforderlich' });
+      }
+
+      const msg = await ChatMessage.create({
+        thesis_id: thesisId,
+        user_id: userId,
+        content: content || null,
+        document_path: req.file ? req.file.path : null,
+        document_filename: req.file ? req.file.originalname : null,
+        document_mimetype: req.file ? req.file.mimetype : null,
+        document_size: req.file ? req.file.size : null,
+      });
+      res.json({ success: true, id: msg.id });
+    } catch (e) {
+      cleanup();
+      console.error('postChatMessage error:', e);
+      res.status(500).json({ success: false, message: 'Senden fehlgeschlagen' });
+    }
+  });
+};
+
+// Download eines an eine Chat-Nachricht angehängten Dokuments.
+const downloadChatAttachment = async (req, res) => {
+  try {
+    const userId = req.session.userId;
+    const userRole = req.session.userRole;
+    const msg = await ChatMessage.findByPk(req.params.msgId);
+    if (!msg) return res.status(404).json({ success: false, message: 'Nachricht nicht gefunden' });
+
+    const access = await userHasThesisAccess(userId, userRole, msg.thesis_id);
+    if (!access) return res.status(403).json({ success: false, message: 'Keine Berechtigung' });
+
+    if (!msg.document_path || !fs.existsSync(msg.document_path)) {
+      return res.status(404).json({ success: false, message: 'Datei nicht gefunden' });
+    }
+    res.setHeader('Content-Type', msg.document_mimetype || 'application/octet-stream');
+    res.setHeader('Content-Disposition', `attachment; filename="${msg.document_filename || 'attachment'}"`);
+    res.sendFile(path.resolve(msg.document_path));
+  } catch (e) {
+    console.error('downloadChatAttachment error:', e);
+    res.status(500).json({ success: false, message: 'Download fehlgeschlagen' });
+  }
+};
+
 // Create/update the evaluation (currently free text) for a thesis milestone.
 const evaluateThesisMilestone = async (req, res) => {
   try {
@@ -1505,7 +1842,149 @@ const evaluateThesisMilestone = async (req, res) => {
   }
 };
 
+// ---------- Diplomjahre (Years) ----------
+
+// Liste aller Jahre inklusive Nutzungszahlen (Diplomarbeiten und Meilenstein-Vorlagen).
+const getYears = async (req, res) => {
+  try {
+    const years = await Year.findAll({ order: [['year', 'DESC']] });
+    const ids = years.map(y => y.id);
+    if (ids.length === 0) return res.json([]);
+
+    const thesisCounts = await Thesis.findAll({
+      attributes: ['year_id', [fn('COUNT', col('id')), 'count']],
+      where: { year_id: ids },
+      group: ['year_id'],
+      raw: true,
+    });
+    const milestoneCounts = await Milestone.findAll({
+      attributes: ['year_id', [fn('COUNT', col('id')), 'count']],
+      where: { year_id: ids },
+      group: ['year_id'],
+      raw: true,
+    });
+    const tMap = Object.fromEntries(thesisCounts.map(r => [r.year_id, parseInt(r.count, 10)]));
+    const mMap = Object.fromEntries(milestoneCounts.map(r => [r.year_id, parseInt(r.count, 10)]));
+
+    res.json(years.map(y => ({
+      id: y.id,
+      year: y.year,
+      is_current: y.is_current,
+      thesesCount: tMap[y.id] || 0,
+      milestonesCount: mMap[y.id] || 0,
+    })));
+  } catch (err) {
+    console.error('getYears error:', err);
+    res.status(500).json({ success: false, message: 'Diplomjahre konnten nicht geladen werden' });
+  }
+};
+
+const createYear = async (req, res) => {
+  try {
+    const yearNum = parseInt(req.body.year, 10);
+    if (!Number.isInteger(yearNum) || yearNum < 2000 || yearNum > 2100) {
+      return res.status(400).json({ success: false, message: 'Ungültige Jahreszahl (2000–2100).' });
+    }
+    const existing = await Year.findOne({ where: { year: yearNum } });
+    if (existing) return res.status(409).json({ success: false, message: 'Dieses Diplomjahr existiert bereits.' });
+    const created = await Year.create({ year: yearNum, is_current: false });
+    res.json({ success: true, year: { id: created.id, year: created.year, is_current: created.is_current } });
+  } catch (err) {
+    console.error('createYear error:', err);
+    res.status(500).json({ success: false, message: 'Diplomjahr konnte nicht angelegt werden' });
+  }
+};
+
+// Setzt das gewählte Jahr global als aktuell; das bisher aktuelle wird zurückgesetzt.
+const setCurrentYear = async (req, res) => {
+  const t = await sequelize.transaction();
+  try {
+    const yearId = parseInt(req.params.id, 10);
+    const year = await Year.findByPk(yearId, { transaction: t });
+    if (!year) { await t.rollback(); return res.status(404).json({ success: false, message: 'Diplomjahr nicht gefunden' }); }
+    await Year.update({ is_current: false }, { where: { is_current: true }, transaction: t });
+    year.is_current = true;
+    await year.save({ transaction: t });
+    await t.commit();
+    res.json({ success: true });
+  } catch (err) {
+    await t.rollback();
+    console.error('setCurrentYear error:', err);
+    res.status(500).json({ success: false, message: 'Aktuelles Diplomjahr konnte nicht gesetzt werden' });
+  }
+};
+
+const deleteYear = async (req, res) => {
+  try {
+    const yearId = parseInt(req.params.id, 10);
+    const year = await Year.findByPk(yearId);
+    if (!year) return res.status(404).json({ success: false, message: 'Diplomjahr nicht gefunden' });
+    if (year.is_current) return res.status(400).json({ success: false, message: 'Das aktuelle Diplomjahr kann nicht gelöscht werden.' });
+
+    const thesesCount = await Thesis.count({ where: { year_id: yearId } });
+    const milestonesCount = await Milestone.count({ where: { year_id: yearId } });
+    if (thesesCount > 0 || milestonesCount > 0) {
+      return res.status(400).json({
+        success: false,
+        message: `Löschen nicht möglich: ${thesesCount} Diplomarbeit(en) und ${milestonesCount} Meilenstein-Vorlage(n) verwenden dieses Jahr.`,
+      });
+    }
+    await year.destroy();
+    res.json({ success: true });
+  } catch (err) {
+    console.error('deleteYear error:', err);
+    res.status(500).json({ success: false, message: 'Diplomjahr konnte nicht gelöscht werden' });
+  }
+};
+
+// Wechselt für den eingeloggten User die aktive Rolle (nur möglich, wenn dem User
+// die gewünschte Rolle zugewiesen ist). Merkt sich die Auswahl in users.last_active_role.
+const switchActiveRole = async (req, res) => {
+  try {
+    const userId = req.session.userId;
+    const requested = String(req.body.role || '');
+    const rows = await UserRole.findAll({ where: { user_id: userId }, attributes: ['role'], raw: true });
+    const roles = rows.map(r => r.role);
+    if (!roles.includes(requested)) {
+      return res.status(403).json({ success: false, message: 'Diese Rolle ist Ihnen nicht zugewiesen' });
+    }
+    req.session.userRole = requested;
+    await User.update({ last_active_role: requested }, { where: { id: userId } });
+    res.json({ success: true });
+  } catch (err) {
+    console.error('switchActiveRole error:', err);
+    res.status(500).json({ success: false, message: 'Rolle konnte nicht gewechselt werden' });
+  }
+};
+
+// Wechselt für den eingeloggten User das angezeigte Diplomjahr (nur Admin/FachbereichsleiterIn).
+// Merkt sich die Auswahl in users.last_selected_year_id.
+const switchSelectedYear = async (req, res) => {
+  try {
+    const role = req.session.userRole;
+    if (!['admin', 'department_lead'].includes(role)) {
+      return res.status(403).json({ success: false, message: 'Nicht berechtigt' });
+    }
+    const yearId = parseInt(req.body.yearId, 10);
+    const year = await Year.findByPk(yearId);
+    if (!year) return res.status(404).json({ success: false, message: 'Diplomjahr nicht gefunden' });
+
+    req.session.selectedYear = year.id;
+    await User.update({ last_selected_year_id: year.id }, { where: { id: req.session.userId } });
+    res.json({ success: true });
+  } catch (err) {
+    console.error('switchSelectedYear error:', err);
+    res.status(500).json({ success: false, message: 'Diplomjahr konnte nicht gewechselt werden' });
+  }
+};
+
 module.exports = {
+  getYears,
+  createYear,
+  setCurrentYear,
+  deleteYear,
+  switchSelectedYear,
+  switchActiveRole,
   getThesis,
   createThesis,
   updateThesis,
@@ -1542,5 +2021,12 @@ module.exports = {
   uploadThesisMilestoneDocument,
   deleteThesisMilestoneDocument,
   downloadThesisMilestoneDocument,
+  generateConfidentialityPdf,
+  uploadConfidentialityDocument,
+  downloadConfidentialityDocument,
+  deleteConfidentialityDocument,
+  getChatMessages,
+  postChatMessage,
+  downloadChatAttachment,
   evaluateThesisMilestone,
 };

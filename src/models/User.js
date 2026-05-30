@@ -62,6 +62,18 @@ const User = sequelize.define('User', {
     type: DataTypes.ENUM('m', 'w', 'd'),
     allowNull: true,
   },
+  // Zuletzt gewähltes Diplomjahr (nur Admin/FachbereichsleiterIn nutzen den Switcher;
+  // beim nächsten Login wird diese Auswahl wiederhergestellt).
+  last_selected_year_id: {
+    type: DataTypes.INTEGER,
+    allowNull: true,
+  },
+  // Zuletzt aktive Rolle für Mehrfachrollen-User. Beim nächsten Login wird diese
+  // Rolle wieder aktiviert, sofern sie noch zugewiesen ist; sonst Fallback auf users.role.
+  last_active_role: {
+    type: DataTypes.ENUM('student', 'coach', 'expert', 'admin', 'department_lead', 'field_project_coach'),
+    allowNull: true,
+  },
 }, {
   tableName: 'users',
   hooks: {

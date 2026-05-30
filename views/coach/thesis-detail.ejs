@@ -1,7 +1,7 @@
 <%- include('../partials/header', { title: 'Diplomarbeit-Details - DABuddy', user: user }) %>
 
 <%
-const ROLE_LABELS = { student: 'Student', coach: 'Coach', expert: 'ExpertIn', admin: 'Administrator', department_lead: 'FachbereichsleiterIn', field_project_coach: 'Field Project Coach' };
+const ROLE_LABELS = { student: 'Student', coach: 'Dozent/in', expert: 'ExpertIn', admin: 'Administrator', department_lead: 'FachbereichsleiterIn', field_project_coach: 'Field Project Coach' };
 const ACTION_LABELS = { document_upload: 'Dokument hochgeladen', document_update: 'Dokument aktualisiert', document_delete: 'Dokument gelöscht', evaluation_create: 'Bewertung erfasst', evaluation_update: 'Bewertung aktualisiert', milestone_approved: 'Dokument-Freigabe erteilt', milestone_revoked: 'Dokument-Freigabe zurückgezogen', milestone_released: 'Meilenstein freigegeben (gestartet)', milestone_locked: 'Meilenstein gesperrt' };
 const isAdmin = user.role === 'admin';
 const fmtDateTime = (d) => new Date(d).toLocaleDateString('de-CH') + ' ' + new Date(d).toLocaleTimeString('de-CH', { hour: '2-digit', minute: '2-digit' });
@@ -17,8 +17,13 @@ const fmtDateTime = (d) => new Date(d).toLocaleDateString('de-CH') + ' ' + new D
         </nav>
         <h1><%= thesis.title %></h1>
     </div>
-    <div class="text-muted">
-        <i class="bi bi-calendar"></i> Diplomjahr: <%= thesis.year.year %>
+    <div class="d-flex align-items-center gap-3">
+        <a href="/dashboard/thesis/<%= thesis.id %>/chat" class="btn btn-outline-primary btn-sm">
+            <i class="bi bi-chat-dots"></i> Chat öffnen
+        </a>
+        <span class="text-muted">
+            <i class="bi bi-calendar"></i> Diplomjahr: <%= thesis.year.year %>
+        </span>
     </div>
 </div>
 
@@ -50,7 +55,7 @@ const fmtDateTime = (d) => new Date(d).toLocaleDateString('de-CH') + ' ' + new D
                                         <%= student.firstname.charAt(0) %><%= student.name.charAt(0) %>
                                     </div>
                                     <div>
-                                        <strong><%= student.firstname %> <%= student.name %></strong>
+                                        <strong><%= student.name %>, <%= student.firstname %></strong>
                                         <% if (student.id === user.id) { %><span class="badge bg-info ms-1">Sie</span><% } %>
                                     </div>
                                 </div>
@@ -60,7 +65,7 @@ const fmtDateTime = (d) => new Date(d).toLocaleDateString('de-CH') + ' ' + new D
                         <% } %>
                     </div>
                     <div class="col-md-4">
-                        <h6><i class="bi bi-person-badge"></i> Coaches:</h6>
+                        <h6><i class="bi bi-person-badge"></i> Dozent/innen:</h6>
                         <% if (thesis.coaches.length > 0) { %>
                             <% thesis.coaches.forEach(function(coach) { %>
                                 <div class="d-flex align-items-center mb-2">
@@ -68,13 +73,13 @@ const fmtDateTime = (d) => new Date(d).toLocaleDateString('de-CH') + ' ' + new D
                                         <%= coach.firstname.charAt(0) %><%= coach.name.charAt(0) %>
                                     </div>
                                     <div>
-                                        <strong><%= coach.firstname %> <%= coach.name %></strong>
+                                        <strong><%= coach.name %>, <%= coach.firstname %></strong>
                                         <br><small class="text-muted"><%= coach.email %></small>
                                     </div>
                                 </div>
                             <% }); %>
                         <% } else { %>
-                            <p class="text-muted">Keine Coaches zugewiesen</p>
+                            <p class="text-muted">Keine Dozent/innen zugewiesen</p>
                         <% } %>
                     </div>
                     <div class="col-md-4 mt-3 mt-md-0">
@@ -86,7 +91,7 @@ const fmtDateTime = (d) => new Date(d).toLocaleDateString('de-CH') + ' ' + new D
                                         <%= fpc.firstname.charAt(0) %><%= fpc.name.charAt(0) %>
                                     </div>
                                     <div>
-                                        <strong><%= fpc.firstname %> <%= fpc.name %></strong>
+                                        <strong><%= fpc.name %>, <%= fpc.firstname %></strong>
                                         <% if (fpc.id === user.id) { %><span class="badge bg-info ms-1">Sie</span><% } %>
                                         <br><small class="text-muted"><%= fpc.email %></small>
                                     </div>
@@ -105,7 +110,7 @@ const fmtDateTime = (d) => new Date(d).toLocaleDateString('de-CH') + ' ' + new D
                                         <%= expert.firstname.charAt(0) %><%= expert.name.charAt(0) %>
                                     </div>
                                     <div>
-                                        <strong><%= expert.firstname %> <%= expert.name %></strong>
+                                        <strong><%= expert.name %>, <%= expert.firstname %></strong>
                                         <br><small class="text-muted"><%= expert.email %></small>
                                     </div>
                                 </div>
@@ -117,6 +122,8 @@ const fmtDateTime = (d) => new Date(d).toLocaleDateString('de-CH') + ' ' + new D
                 </div>
             </div>
         </div>
+
+        <%- include('../partials/confidentiality-section', { thesis: thesis, user: user }) %>
 
         <div class="card mb-4">
             <div class="card-header">
@@ -214,7 +221,7 @@ const fmtDateTime = (d) => new Date(d).toLocaleDateString('de-CH') + ' ' + new D
                                                 <br>
                                                 <small class="text-muted">
                                                     <%= formatFileSize(doc.file_size) %> · hochgeladen von
-                                                    <%= doc.uploader ? (doc.uploader.firstname + ' ' + doc.uploader.name) : 'unbekannt' %>
+                                                    <%= doc.uploader ? (doc.uploader.name + ', ' + doc.uploader.firstname) : 'unbekannt' %>
                                                     am <%= fmtDateTime(doc.uploaded_at) %>
                                                     <% if (!doc.is_current && doc.superseded_at) { %>
                                                         · ersetzt am <%= fmtDateTime(doc.superseded_at) %>
@@ -312,7 +319,7 @@ const fmtDateTime = (d) => new Date(d).toLocaleDateString('de-CH') + ' ' + new D
                                                 <% }); %>
                                                 <br><small class="text-muted">
                                                     <%= single.completed ? 'Abgeschlossen' : 'In Bearbeitung' %>
-                                                    <% if (single.evaluator) { %> · von <%= single.evaluator.firstname %> <%= single.evaluator.name %><% } %>
+                                                    <% if (single.evaluator) { %> · von <%= single.evaluator.name %>, <%= single.evaluator.firstname %><% } %>
                                                     <% if (single.evaluated_at) { %> am <%= fmtDateTime(single.evaluated_at) %><% } %>
                                                 </small>
                                             </div>
@@ -323,7 +330,7 @@ const fmtDateTime = (d) => new Date(d).toLocaleDateString('de-CH') + ' ' + new D
                                         <% if (m.evaluation) { %>
                                             <div class="mt-2" style="white-space: pre-wrap;"><%= m.evaluation %></div>
                                             <small class="text-muted">
-                                                <%= m.evaluator ? ('von ' + m.evaluator.firstname + ' ' + m.evaluator.name) : '' %>
+                                                <%= m.evaluator ? ('von ' + m.evaluator.name + ', ' + m.evaluator.firstname) : '' %>
                                                 <% if (m.evaluated_at) { %> am <%= fmtDateTime(m.evaluated_at) %><% } %>
                                             </small>
                                         <% } else { %>
@@ -349,7 +356,7 @@ const fmtDateTime = (d) => new Date(d).toLocaleDateString('de-CH') + ' ' + new D
                                                 <% if (s.approvedAt) { %>
                                                     <span class="badge bg-success"><i class="bi bi-check-circle"></i> Freigegeben</span>
                                                     <span class="text-muted">
-                                                        <% if (s.approver) { %>von <%= s.approver.firstname %> <%= s.approver.name %><% } %>
+                                                        <% if (s.approver) { %>von <%= s.approver.name %>, <%= s.approver.firstname %><% } %>
                                                         am <%= fmtDateTime(s.approvedAt) %>
                                                     </span>
                                                 <% } else { %>
@@ -398,7 +405,7 @@ const fmtDateTime = (d) => new Date(d).toLocaleDateString('de-CH') + ' ' + new D
                                 <% logs.forEach(function(log) { %>
                                     <tr>
                                         <td class="text-nowrap"><small><%= fmtDateTime(log.createdAt) %></small></td>
-                                        <td><small><%= log.user ? (log.user.firstname + ' ' + log.user.name) : 'unbekannt' %></small></td>
+                                        <td><small><%= log.user ? (log.user.name + ', ' + log.user.firstname) : 'unbekannt' %></small></td>
                                         <td><small><%= ACTION_LABELS[log.action] || log.action %></small></td>
                                         <td><small class="text-muted"><%= log.detail || '' %></small></td>
                                     </tr>

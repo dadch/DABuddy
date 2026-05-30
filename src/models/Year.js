@@ -17,6 +17,12 @@ const Year = sequelize.define('Year', {
       notEmpty: true,
     },
   },
+  // Globales "aktuelles Diplomjahr": vom Administrator gesetzt. Standardvorgabe beim Login.
+  is_current: {
+    type: DataTypes.BOOLEAN,
+    allowNull: false,
+    defaultValue: false,
+  },
 }, {
   tableName: 'years',
 });

@@ -44,6 +44,21 @@ const Thesis = sequelize.define('Thesis', {
     allowNull: false,
     defaultValue: 'de',
   },
+  // Geheimhaltungspflicht: Wenn aktiv, kann die Geheimhaltungsvereinbarung erzeugt und
+  // (unterschrieben + gescannt) hinterlegt werden.
+  is_confidential: {
+    type: DataTypes.BOOLEAN,
+    allowNull: false,
+    defaultValue: false,
+  },
+  confidentiality_document_path: {
+    type: DataTypes.STRING,
+    allowNull: true,
+  },
+  confidentiality_document_filename: {
+    type: DataTypes.STRING,
+    allowNull: true,
+  },
 }, {
   tableName: 'theses',
 });

@@ -27,6 +27,7 @@
     "express-flash": "^0.0.2",
     "express-session": "^1.18.1",
     "multer": "^2.0.1",
+    "pdf-lib": "^1.17.1",
     "pdfkit": "^0.18.0",
     "pg": "^8.16.3",
     "pg-hstore": "^2.3.4",

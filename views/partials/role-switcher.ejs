@@ -1,0 +1,39 @@
+<!-- Rollen-Switcher für User mit mehreren zugewiesenen Rollen. Erwartet:
+       - availableRoles: Array der zugewiesenen Rollen (Strings)
+       - currentRole:    aktuell aktive Rolle
+     Rendert nichts, wenn der User nur eine Rolle hat. -->
+<% if ((availableRoles || []).length > 1) {
+   const ROLE_LABELS = {
+     student: 'Student',
+     coach: 'Dozent/in',
+     expert: 'ExpertIn',
+     admin: 'Administrator',
+     department_lead: 'FachbereichsleiterIn',
+     field_project_coach: 'Field Project Coach',
+   };
+%>
+<div class="d-flex align-items-center gap-2">
+    <i class="bi bi-person-badge text-muted"></i>
+    <select class="form-select form-select-sm" style="width:auto;" id="roleSwitcher"
+            onchange="switchActiveRole(this.value)" aria-label="Rolle wechseln">
+        <% availableRoles.forEach(function(r) { %>
+            <option value="<%= r %>" <%= r === currentRole ? 'selected' : '' %>><%= ROLE_LABELS[r] || r %></option>
+        <% }); %>
+    </select>
+</div>
+<script>
+function switchActiveRole(role) {
+    fetch('/api/role/switch', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ role })
+    })
+    .then(r => r.json())
+    .then(d => {
+        if (d.success) location.href = '/dashboard';
+        else alert('Fehler: ' + (d.message || 'Unbekannt'));
+    })
+    .catch(err => { console.error(err); alert('Fehler beim Wechseln'); });
+}
+</script>
+<% } %>
