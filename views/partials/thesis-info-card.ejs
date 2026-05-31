@@ -1,0 +1,67 @@
+<!-- Informationen zur Diplomarbeit. Personen werden als Dot-Pills aufgeführt
+     (gleiches Konzept wie auf dem Dashboard) — ruhig und scannbar.
+     Erwartet: thesis, user -->
+<%
+function renderPill(p, dotClass) {
+    const meIcon = (p.id === user.id) ? ' <span class="status-pill info ms-1" style="font-size:10px;padding:1px 6px;">Sie</span>' : '';
+%>
+    <span class="name-pill <%= dotClass %>"><span class="label"><%= p.name %>, <%= p.firstname %></span><%- meIcon %></span>
+<%
+}
+%>
+<div class="card mb-4">
+    <div class="card-header">
+        <h5 class="mb-0"><i class="bi bi-file-text me-1"></i> Informationen zur Diplomarbeit</h5>
+    </div>
+    <div class="card-body">
+        <div class="row g-4">
+            <div class="col-md-4">
+                <div class="label-eyebrow mb-1">Titel</div>
+                <div><%= thesis.title %></div>
+            </div>
+            <div class="col-md-4">
+                <div class="label-eyebrow mb-1">Fachbereich</div>
+                <div><%= thesis.department.name %></div>
+            </div>
+            <div class="col-md-4">
+                <div class="label-eyebrow mb-1">Diplomjahr</div>
+                <div><%= thesis.year.year %></div>
+            </div>
+            <% if (thesis.sponsor) { %>
+                <div class="col-12">
+                    <div class="label-eyebrow mb-1">Auftraggeber</div>
+                    <div><%= thesis.sponsor %></div>
+                </div>
+            <% } %>
+        </div>
+
+        <hr class="my-4" style="border-color: var(--border);">
+
+        <div class="row g-4">
+            <div class="col-md-3">
+                <div class="label-eyebrow mb-2">Studierende</div>
+                <% if (thesis.students.length > 0) { thesis.students.forEach(s => renderPill(s, 'dot-blue')); } else { %>
+                    <span class="text-muted small">Keine zugewiesen</span>
+                <% } %>
+            </div>
+            <div class="col-md-3">
+                <div class="label-eyebrow mb-2">Dozent/in</div>
+                <% if (thesis.coaches.length > 0) { thesis.coaches.forEach(c => renderPill(c, 'dot-green')); } else { %>
+                    <span class="text-muted small">Keine zugewiesen</span>
+                <% } %>
+            </div>
+            <div class="col-md-3">
+                <div class="label-eyebrow mb-2">Field Project Coach</div>
+                <% if (thesis.fieldProjectCoaches && thesis.fieldProjectCoaches.length > 0) { thesis.fieldProjectCoaches.forEach(f => renderPill(f, 'dot-orange')); } else { %>
+                    <span class="text-muted small">Keine zugewiesen</span>
+                <% } %>
+            </div>
+            <div class="col-md-3">
+                <div class="label-eyebrow mb-2">ExpertIn</div>
+                <% if (thesis.experts.length > 0) { thesis.experts.forEach(e => renderPill(e, 'dot-teal')); } else { %>
+                    <span class="text-muted small">Keine zugewiesen</span>
+                <% } %>
+            </div>
+        </div>
+    </div>
+</div>

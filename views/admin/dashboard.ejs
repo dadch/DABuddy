@@ -1,12 +1,12 @@
 <%- include('../partials/header', { title: 'Administrator-Dashboard - DABuddy', user: user }) %>
 
-<div class="d-flex justify-content-between align-items-center mb-4">
-    <h1>Diplomarbeit-Verwaltung</h1>
-    <div class="d-flex align-items-center gap-3">
+<div class="page-header">
+    <h1 class="page-title">Diplomarbeit-Verwaltung</h1>
+    <div class="page-actions">
         <%- include('../partials/year-switcher', { availableYears: availableYears, selectedYearId: selectedYearId }) %>
         <%- include('../partials/role-switcher', { availableRoles: availableRoles, currentRole: currentRole }) %>
         <div class="dropdown">
-            <button class="btn btn-primary" type="button" id="dashboardActionsMenu" data-bs-toggle="dropdown" aria-expanded="false" title="Aktionen">
+            <button class="btn btn-primary btn-icon" type="button" id="dashboardActionsMenu" data-bs-toggle="dropdown" aria-expanded="false" title="Aktionen">
                 <i class="bi bi-three-dots-vertical"></i>
             </button>
             <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="dashboardActionsMenu">
@@ -24,17 +24,9 @@
     </div>
 </div>
 
-<div class="row mb-4">
-    <div class="col-md-6">
-        <div class="card">
-            <div class="card-body">
-                <h5 class="card-title">
-                    <i class="bi bi-mortarboard"></i> Diplomarbeiten gesamt
-                </h5>
-                <h3 class="text-primary"><%= theses.length %></h3>
-            </div>
-        </div>
-    </div>
+<div class="stat-card mb-4">
+    <div class="stat-label"><i class="bi bi-mortarboard"></i> Diplomarbeiten gesamt</div>
+    <div class="stat-value"><%= theses.length %></div>
 </div>
 
 <div class="row mb-3">

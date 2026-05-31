@@ -1,19 +1,24 @@
 <!-- Diplomjahr-Switcher für Admin/FachbereichsleiterIn. Erwartet:
        - availableYears: Array von { id, year }
-       - selectedYearId:   id des aktuell gewählten Jahres -->
-<div class="d-flex align-items-center gap-2">
-    <i class="bi bi-calendar text-muted"></i>
-    <% if ((availableYears || []).length > 1) { %>
-        <select class="form-select form-select-sm" style="width:auto;" id="yearSwitcher"
-                onchange="switchDiplomjahr(this.value)" aria-label="Diplomjahr wechseln">
+       - selectedYearId:   id des aktuell gewählten Jahres
+     Rendert eine Pill-Button-Form (mit eingebettetem Select, falls mehrere Jahre). -->
+<% if ((availableYears || []).length > 1) { %>
+    <label class="pill-btn" for="yearSwitcher">
+        <i class="bi bi-calendar3"></i>
+        <span>Diplomjahr</span>
+        <select class="form-select" id="yearSwitcher" onchange="switchDiplomjahr(this.value)" aria-label="Diplomjahr wechseln"
+                style="border:0; background:transparent; padding:0; margin-left:4px; height:auto; width:auto; font:inherit; color:inherit; outline:none; box-shadow:none;">
             <% availableYears.forEach(function(y) { %>
                 <option value="<%= y.id %>" <%= y.id === selectedYearId ? 'selected' : '' %>><%= y.year %></option>
             <% }); %>
         </select>
-    <% } else if ((availableYears || []).length === 1) { %>
-        <span class="text-muted">Diplomjahr: <strong><%= availableYears[0].year %></strong></span>
-    <% } %>
-</div>
+    </label>
+<% } else if ((availableYears || []).length === 1) { %>
+    <span class="pill-btn">
+        <i class="bi bi-calendar3"></i>
+        Diplomjahr <%= availableYears[0].year %>
+    </span>
+<% } %>
 <script>
 function switchDiplomjahr(yearId) {
     fetch('/api/year/switch', {

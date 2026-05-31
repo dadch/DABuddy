@@ -1,0 +1,44 @@
+<!-- Linke App-Sidebar. Rollenabhängige Navigation; aktiver Link via `activeNav`. -->
+<%
+const role = (typeof user !== 'undefined' && user) ? user.role : null;
+const active = (typeof activeNav !== 'undefined') ? activeNav : '';
+const initials = (typeof user !== 'undefined' && user && user.fullName)
+    ? user.fullName.split(/[\s,]+/).filter(Boolean).slice(0, 2).map(s => s[0]).join('').toUpperCase()
+    : '?';
+
+// Navigationspunkte: nur die anzeigen, die der jeweiligen Rolle zur Verfügung stehen.
+const items = [
+    { key: 'dashboard',     href: '/dashboard',                          icon: 'bi-grid',           roles: '*',                       title: 'Dashboard' },
+    { key: 'years',         href: '/dashboard/admin/years',              icon: 'bi-calendar3',      roles: ['admin'],                 title: 'Diplomjahre' },
+    { key: 'milestones',    href: '/dashboard/admin/milestones',         icon: 'bi-flag',           roles: ['admin'],                 title: 'Meilensteine' },
+    { key: 'eval-forms',    href: '/dashboard/admin/evaluation-forms',   icon: 'bi-clipboard-check',roles: ['admin'],                 title: 'Bewertungsformulare' },
+];
+function isVisible(item) {
+    if (item.roles === '*') return true;
+    return item.roles.includes(role);
+}
+%>
+<aside class="app-sidebar">
+    <a href="/dashboard" class="brand" title="DA-Buddy">
+        <span class="brand-logo">D</span>
+    </a>
+    <nav class="nav-icons">
+        <% items.filter(isVisible).forEach(function(it) { %>
+            <a href="<%= it.href %>" class="nav-icon <%= active === it.key ? 'active' : '' %>" title="<%= it.title %>" aria-label="<%= it.title %>">
+                <i class="bi <%= it.icon %>"></i>
+            </a>
+        <% }); %>
+    </nav>
+    <% if (typeof user !== 'undefined' && user) { %>
+        <div class="dropdown mt-auto pb-1" style="display:flex; justify-content:center;">
+            <a href="#" class="user-chip" data-bs-toggle="dropdown" aria-expanded="false" title="<%= user.fullName %>">
+                <%= initials %>
+            </a>
+            <ul class="dropdown-menu">
+                <li class="dropdown-item-text small text-muted px-2 py-1"><%= user.fullName %></li>
+                <li><hr class="dropdown-divider"></li>
+                <li><a class="dropdown-item" href="/logout"><i class="bi bi-box-arrow-right me-2"></i>Abmelden</a></li>
+            </ul>
+        </div>
+    <% } %>
+</aside>

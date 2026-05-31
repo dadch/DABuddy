@@ -1,0 +1,29 @@
+<!-- Page-Header der DA-Detailseite. Erwartet: thesis, user.
+     Optional: subtitle override via locals.subtitle -->
+<%
+const subtitleParts = [];
+if (thesis.department && thesis.department.name) subtitleParts.push(thesis.department.name);
+if (thesis.sponsor) subtitleParts.push(thesis.sponsor);
+const computedSubtitle = subtitleParts.join(' · ');
+%>
+<div class="page-breadcrumb mb-2">
+    <a href="/dashboard">Dashboard</a>
+    <span class="sep"></span>
+    <span>Diplomarbeit-Details</span>
+</div>
+<div class="page-header">
+    <div>
+        <h1 class="page-title"><%= thesis.title %></h1>
+        <% if (computedSubtitle) { %>
+            <div class="page-subtitle"><%= computedSubtitle %></div>
+        <% } %>
+    </div>
+    <div class="page-actions">
+        <a href="/dashboard/thesis/<%= thesis.id %>/chat" class="pill-btn">
+            <i class="bi bi-chat-dots"></i> Chat
+        </a>
+        <span class="pill-btn">
+            <i class="bi bi-calendar3"></i> Diplomjahr <%= thesis.year.year %>
+        </span>
+    </div>
+</div>
