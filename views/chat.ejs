@@ -19,20 +19,31 @@ const ROLE_BADGE = {
 };
 %>
 
-<div class="d-flex justify-content-between align-items-center mb-3">
+<div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
     <div>
-        <nav aria-label="breadcrumb">
-            <ol class="breadcrumb mb-1">
-                <li class="breadcrumb-item"><a href="/dashboard">Dashboard</a></li>
-                <li class="breadcrumb-item"><a href="/dashboard/thesis/<%= thesis.id %>">Diplomarbeit</a></li>
-                <li class="breadcrumb-item active">Chat</li>
-            </ol>
-        </nav>
+        <div class="page-breadcrumb mb-2">
+            <a href="/dashboard">Dashboard</a>
+            <span class="sep"></span>
+            <a href="/dashboard/thesis/<%= thesis.id %>">Diplomarbeit</a>
+            <span class="sep"></span>
+            <span>Chat</span>
+        </div>
         <h1 class="h4 mb-0"><i class="bi bi-chat-dots"></i> Chat: <%= thesis.title %></h1>
     </div>
-    <a href="/dashboard/thesis/<%= thesis.id %>" class="btn btn-outline-secondary">
-        <i class="bi bi-arrow-left"></i> Zur Diplomarbeit
-    </a>
+    <div class="d-flex align-items-center gap-2 flex-wrap">
+        <div class="position-relative">
+            <i class="bi bi-search position-absolute"
+               style="left: 10px; top: 50%; transform: translateY(-50%); color: var(--text-muted); pointer-events: none; font-size: 14px;"></i>
+            <input type="search" id="chatSearch" class="form-control form-control-sm"
+                   placeholder="Im Chat suchen…"
+                   style="padding-left: 30px; min-width: 220px;"
+                   autocomplete="off">
+        </div>
+        <span id="chatSearchCounter" class="text-muted small" style="min-width: 70px;"></span>
+        <a href="/dashboard/thesis/<%= thesis.id %>" class="btn btn-outline-secondary btn-sm">
+            <i class="bi bi-arrow-left"></i> Zur Diplomarbeit
+        </a>
+    </div>
 </div>
 
 <div class="card" style="height: calc(100vh - 240px); display: flex;">
@@ -120,8 +131,15 @@ const ROLE_BADGE = {
             }
         }
 
+        // Durchsuchbarer Text der Nachricht: Inhalt + Anhang-Dateiname + Sender (alles lowercase).
+        const searchHay = [
+            m.content || '',
+            m.document_filename || '',
+            m.sender ? `${m.sender.name} ${m.sender.firstname}` : '',
+        ].join(' ').toLowerCase();
+
         return `
-            <div class="d-flex mb-3 ${own ? 'justify-content-end' : ''}">
+            <div class="chat-msg d-flex mb-3 ${own ? 'justify-content-end' : ''}" data-search="${esc(searchHay)}">
                 <div style="max-width: 80%;">
                     <div class="small text-muted mb-1 ${own ? 'text-end' : ''}">
                         <strong>${senderName}</strong>
@@ -136,6 +154,43 @@ const ROLE_BADGE = {
             </div>`;
     }
 
+    // Volltextsuche: filtert die Nachrichtenliste nach dem aktuellen Term.
+    // Leerer Term => alle sichtbar.
+    let currentSearch = '';
+    function applyChatSearch() {
+        const term = currentSearch.trim().toLowerCase();
+        const items = document.querySelectorAll('#chatMessages .chat-msg');
+        const counter = document.getElementById('chatSearchCounter');
+        let noMatchBanner = document.getElementById('chatNoMatchBanner');
+        if (!term) {
+            items.forEach(el => el.classList.remove('d-none'));
+            if (counter) counter.textContent = '';
+            if (noMatchBanner) noMatchBanner.remove();
+            return;
+        }
+        let matches = 0;
+        items.forEach(el => {
+            const hay = el.getAttribute('data-search') || '';
+            const match = hay.indexOf(term) !== -1;
+            // .d-none mit Bootstrap's !important schlägt das d-flex der Bubble.
+            el.classList.toggle('d-none', !match);
+            if (match) matches++;
+        });
+        if (counter) counter.textContent = matches === 1 ? '1 Treffer' : `${matches} Treffer`;
+        // Inline-Banner, wenn keine Treffer.
+        if (matches === 0) {
+            if (!noMatchBanner) {
+                const el = document.createElement('div');
+                el.id = 'chatNoMatchBanner';
+                el.className = 'alert alert-warning text-center';
+                el.innerHTML = '<i class="bi bi-search"></i> Keine Nachrichten gefunden.';
+                document.getElementById('chatMessages').appendChild(el);
+            }
+        } else if (noMatchBanner) {
+            noMatchBanner.remove();
+        }
+    }
+
     function appendMessages(messages) {
         if (!messages.length) return;
         const el = document.getElementById('chatMessages');
@@ -145,7 +200,9 @@ const ROLE_BADGE = {
         const html = messages.map(renderMessage).join('');
         el.insertAdjacentHTML('beforeend', html);
         messages.forEach(m => { if (m.id > lastSeenId) lastSeenId = m.id; });
-        if (wasAtBottom) el.scrollTop = el.scrollHeight;
+        // Aktuellen Suchfilter auf neu gerenderte Elemente anwenden.
+        applyChatSearch();
+        if (wasAtBottom && !currentSearch.trim()) el.scrollTop = el.scrollHeight;
     }
 
     async function loadMessages() {
@@ -233,6 +290,23 @@ const ROLE_BADGE = {
             document.getElementById('chatForm').requestSubmit();
         }
     });
+
+    // Suchfeld verdrahten
+    const searchInput = document.getElementById('chatSearch');
+    if (searchInput) {
+        searchInput.addEventListener('input', (e) => {
+            currentSearch = e.target.value || '';
+            applyChatSearch();
+        });
+        // Esc leert die Suche
+        searchInput.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape') {
+                searchInput.value = '';
+                currentSearch = '';
+                applyChatSearch();
+            }
+        });
+    }
 
     loadMessages().then(() => {
         // Polling

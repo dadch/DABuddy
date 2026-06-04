@@ -147,6 +147,12 @@ const ThesisMilestone = sequelize.define('ThesisMilestone', {
     type: DataTypes.DATE,
     allowNull: true,
   },
+  // Transferprojekt-Kennzeichnung (aus der Meilenstein-Vorlage übernommen).
+  is_transfer_project: {
+    type: DataTypes.BOOLEAN,
+    allowNull: false,
+    defaultValue: false,
+  },
 }, {
   tableName: 'thesis_milestones',
   indexes: [

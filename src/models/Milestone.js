@@ -93,6 +93,12 @@ const Milestone = sequelize.define('Milestone', {
     type: DataTypes.ENUM('student', 'coach', 'expert', 'admin', 'department_lead', 'field_project_coach'),
     allowNull: true,
   },
+  // Transferprojekt-Kennzeichnung (rein deklarativ, ohne weiteres Verhalten).
+  is_transfer_project: {
+    type: DataTypes.BOOLEAN,
+    allowNull: false,
+    defaultValue: false,
+  },
 }, {
   tableName: 'milestones',
   indexes: [

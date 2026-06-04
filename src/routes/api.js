@@ -154,4 +154,7 @@ router.get('/thesis-milestones/:id/evaluation-form', evalCtrl.getThesisEvaluatio
 router.put('/thesis-milestones/:id/evaluation-form', evalCtrl.saveThesisEvaluation);
 router.get('/thesis-milestones/:id/evaluation.pdf', evalCtrl.printThesisEvaluation);
 
+// Transferprojekt-Zusammenzug (PDF, mehrere Bewertungen + Durchschnittsnote)
+router.get('/theses/:id/transfer-project.pdf', evalCtrl.printTransferProjectSummary);
+
 module.exports = router;

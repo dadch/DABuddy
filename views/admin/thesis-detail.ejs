@@ -7,7 +7,8 @@ const isAdmin = user.role === 'admin';
 const fmtDateTime = (d) => new Date(d).toLocaleDateString('de-CH') + ' ' + new Date(d).toLocaleTimeString('de-CH', { hour: '2-digit', minute: '2-digit' });
 %>
 
-<%- include('../partials/thesis-page-header', { thesis: thesis, user: user }) %>
+<% const hasTransferProject = (milestones || []).some(m => m.is_transfer_project); %>
+<%- include('../partials/thesis-page-header', { thesis: thesis, user: user, hasTransferProject: hasTransferProject }) %>
 
 <div class="row">
     <div class="col-lg-12">
@@ -46,7 +47,7 @@ const fmtDateTime = (d) => new Date(d).toLocaleDateString('de-CH') + ' ' + new D
                         const allApproved = approvalSlots.length > 0 && approvalSlots.every(s => s.approvedAt);
                         const overdue = !hasDocs && new Date(m.due_at) < new Date();
                         %>
-                        <div class="border rounded p-3 mb-3">
+                        <div class="milestone-card mb-3">
                             <div class="d-flex justify-content-between align-items-start flex-wrap">
                                 <div>
                                     <h6 class="mb-1"><%= m.label %></h6>
@@ -68,6 +69,9 @@ const fmtDateTime = (d) => new Date(d).toLocaleDateString('de-CH') + ' ' + new D
                                         <% } %>
                                         <% if (m.requires_evaluation) { %>
                                             <span class="badge bg-warning text-dark">Bewertung: <%= ROLE_LABELS[m.evaluator_role] || m.evaluator_role %></span>
+                                        <% } %>
+                                        <% if (m.is_transfer_project) { %>
+                                            <span class="badge bg-info"><i class="bi bi-arrow-left-right"></i> Transferprojekt</span>
                                         <% } %>
                                     </div>
                                 </div>
@@ -528,6 +532,7 @@ function openEvaluationForm(tmId, kind, editable) {
             if (!d.started) { document.getElementById('evalFormBody').innerHTML = '<div class="alert alert-info">Die Bewertung wurde noch nicht gestartet (nur die bewertende Rolle kann sie starten).</div>'; return; }
             evalFormState.editable = !!d.editable;
             evalFormState.evaluation = d.evaluation;
+            evalFormState.peers = d.peers || null;
             document.getElementById('evalFormSaveBtn').classList.toggle('d-none', !evalFormState.editable);
             renderEvaluationForm();
         })
@@ -537,10 +542,42 @@ function openEvaluationForm(tmId, kind, editable) {
 function renderEvaluationForm() {
     const ev = evalFormState.evaluation;
     const editable = evalFormState.editable;
+    const peers = evalFormState.peers || null;
     const groups = (ev.groups || []).slice().sort((a,b)=>a.position-b.position);
     const phaseLabels = { first: 'Bewertung 1', second: 'Bewertung 2', final: 'Finale Bewertung' };
     const phasePrefix = phaseLabels[evalFormState.kind] ? (phaseLabels[evalFormState.kind] + ' — ') : '';
     document.getElementById('evalFormTitle').textContent = phasePrefix + 'Bewertung — ' + ev.form_title;
+
+    const ROLE_LABELS = { student: 'Student', coach: 'Dozent/in', expert: 'ExpertIn', admin: 'Administrator', department_lead: 'FachbereichsleiterIn', field_project_coach: 'Field Project Coach' };
+    function roleLabel(r) { return ROLE_LABELS[r] || r || 'Bewerter'; }
+    function buildPeerBlock(critId) {
+        if (!peers || !peers[critId]) return '';
+        const p = peers[critId];
+        function row(label, peer) {
+            if (!peer) return '';
+            const hasScore = peer.score !== null && peer.score !== undefined;
+            const hasRemark = peer.remark && String(peer.remark).trim();
+            if (!hasScore && !hasRemark) return '';
+            const role = peer.role ? ' (' + escapeHtml(roleLabel(peer.role)) + ')' : '';
+            const scoreLine = hasScore
+                ? `<div class="d-flex align-items-center gap-2 mb-1">
+                       <span class="text-muted small">${escapeHtml(label)}${role}:</span>
+                       <strong>${peer.score}</strong>
+                       ${editable ? `<button type="button" class="btn btn-link btn-sm p-0 peer-take-score" data-target="${critId}" data-score="${peer.score}">Übernehmen</button>` : ''}
+                   </div>`
+                : `<div class="text-muted small">${escapeHtml(label)}${role}: — keine Punkte —</div>`;
+            const remarkLine = hasRemark
+                ? `<div class="d-flex align-items-start gap-2">
+                       <span class="text-muted small flex-shrink-0">Kommentar ${escapeHtml(label)}:</span>
+                       <span class="small">${escapeHtml(peer.remark).replace(/\n/g, '<br>')}</span>
+                       ${editable ? `<button type="button" class="btn btn-link btn-sm p-0 ms-auto peer-take-remark flex-shrink-0" data-target="${critId}" data-remark="${escapeHtml(peer.remark)}">Übernehmen</button>` : ''}
+                   </div>`
+                : '';
+            return `<div class="border rounded p-2 mb-1" style="background-color: var(--surface-2);">${scoreLine}${remarkLine}</div>`;
+        }
+        const html = row('Bewerter 1', p.first) + row('Bewerter 2', p.second);
+        return html ? `<div class="mt-2 mb-2">${html}</div>` : '';
+    }
 
     let html = '';
     groups.forEach(g => {
@@ -563,6 +600,7 @@ function renderEvaluationForm() {
             html += `<div class="mb-3 border-bottom pb-3" data-crit="${c.id}" data-weight="${c.weight}" data-group="${g.id}">
                 <div class="fw-semibold">${renderMarkdownBlock(c.label)}</div>
                 <span class="text-muted small">Gewicht ${c.weight}, max. ${(5*Number(c.weight)).toFixed(1)} Pkt.</span>
+                ${buildPeerBlock(c.id)}
                 <div class="mt-2">
                     <label class="form-label small mb-1">Punkte (0–5) — auf einen Kreis fahren für die Beschreibung</label>
                     <div class="score-circles">
@@ -580,6 +618,36 @@ function renderEvaluationForm() {
         html += `</div></div>`;
     });
     document.getElementById('evalFormBody').innerHTML = html;
+
+    // Übernehmen-Buttons für Bewerter-Vorschläge
+    document.querySelectorAll('#evalFormBody .peer-take-score').forEach(btn => {
+        btn.addEventListener('click', () => {
+            const critId = btn.dataset.target;
+            const score = btn.dataset.score;
+            const row = document.querySelector(`#evalFormBody [data-crit="${critId}"]`);
+            if (!row) return;
+            row.querySelector('.crit-score').value = score;
+            row.querySelectorAll('.score-circle').forEach(b =>
+                b.classList.toggle('active', String(b.getAttribute('data-score')) === String(score))
+            );
+            updateLevelDesc(row);
+            recomputeGrades();
+        });
+    });
+    document.querySelectorAll('#evalFormBody .peer-take-remark').forEach(btn => {
+        btn.addEventListener('click', () => {
+            const critId = btn.dataset.target;
+            const text = btn.dataset.remark || '';
+            const row = document.querySelector(`#evalFormBody [data-crit="${critId}"]`);
+            if (!row) return;
+            const ta = row.querySelector('.crit-remark');
+            if (!ta) return;
+            const current = ta.value || '';
+            // idempotent: wenn der Quelltext bereits enthalten ist, nichts tun
+            if (current.indexOf(text) !== -1) return;
+            ta.value = current.trim().length === 0 ? text : (current + '\n\n' + text);
+        });
+    });
 
     // Level description display, circle selection, live grade recompute
     document.querySelectorAll('#evalFormBody [data-crit]').forEach(row => {

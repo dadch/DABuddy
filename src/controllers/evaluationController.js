@@ -6,7 +6,7 @@ const {
 } = require('../models');
 const { computeGroupGrade, computeOverallGrade } = require('../utils/grading');
 const { userHasThesisAccess } = require('../utils/thesisAccess');
-const { streamEvaluationPdf } = require('../utils/evaluationPdf');
+const { streamEvaluationPdf, streamTransferProjectPdf } = require('../utils/evaluationPdf');
 
 const emptyLevels = () => ['', '', '', '', '', ''];
 
@@ -310,34 +310,6 @@ const recomputeEvaluationGrades = async (evaluationId, userId, t) => {
   await ThesisEvaluation.update(patch, { where: { id: evaluationId }, transaction: t });
 };
 
-// Pre-fill a freshly built final evaluation with the ceil-average per criterion
-// and the concatenated remarks from the two individual evaluations.
-const applyFinalProposal = async (finalEvalId, firstEval, secondEval) => {
-  const finalEval = await loadFullEvaluation(finalEvalId);
-  const finalCrits = flattenCriteria(finalEval);
-  const firstCrits = firstEval ? flattenCriteria(firstEval) : [];
-  const secondCrits = secondEval ? flattenCriteria(secondEval) : [];
-
-  await sequelize.transaction(async (t) => {
-    for (let i = 0; i < finalCrits.length; i++) {
-      const a = firstCrits[i] ? firstCrits[i].score : null;
-      const b = secondCrits[i] ? secondCrits[i].score : null;
-      let score = null;
-      if (a !== null && a !== undefined && b !== null && b !== undefined) score = Math.ceil((Number(a) + Number(b)) / 2);
-      else if (a !== null && a !== undefined) score = Number(a);
-      else if (b !== null && b !== undefined) score = Number(b);
-
-      const parts = [];
-      if (firstCrits[i] && firstCrits[i].remark) parts.push('[Bewertung 1] ' + firstCrits[i].remark);
-      if (secondCrits[i] && secondCrits[i].remark) parts.push('[Bewertung 2] ' + secondCrits[i].remark);
-      const remark = parts.length ? parts.join('\n\n') : null;
-
-      await ThesisEvaluationCriterion.update({ score, remark }, { where: { id: finalCrits[i].id }, transaction: t });
-    }
-    await recomputeEvaluationGrades(finalEvalId, undefined, t);
-  });
-};
-
 // Determine config (roles per kind) for a thesis milestone.
 const evaluationKinds = (tm) => {
   if (tm.double_evaluation) {
@@ -410,21 +382,37 @@ const getThesisEvaluation = async (req, res) => {
       const evalId = await buildSnapshot(tm, language, kind, kinds[kind].role);
       if (!evalId) return res.status(400).json({ success: false, message: 'Zugewiesenes Formular nicht gefunden' });
 
-      if (kind === 'final') {
-        const firstEval = await ThesisEvaluation.findOne({ where: { thesis_milestone_id: tm.id, kind: 'first' } });
-        const secondEval = await ThesisEvaluation.findOne({ where: { thesis_milestone_id: tm.id, kind: 'second' } });
-        await applyFinalProposal(
-          evalId,
-          firstEval ? await loadFullEvaluation(firstEval.id) : null,
-          secondEval ? await loadFullEvaluation(secondEval.id) : null
-        );
-      }
+      // Hinweis: Bei kind === 'final' wird die finale Bewertung bewusst LEER erzeugt.
+      // Die Vorschläge der beiden Bewerter werden im Frontend pro Kriterium angezeigt
+      // und können einzeln per "Übernehmen"-Button in die finale Bewertung übernommen
+      // werden (Score: ersetzt; Kommentar: additiv, idempotent).
       existing = { id: evalId };
     }
 
     const evaluation = await loadFullEvaluation(existing.id);
     const editable = canEditKind(tm, kind, userRole);
-    res.json({ success: true, hasForm: true, started: true, kind, editable, evaluation });
+
+    // Für die finale Bewertung die zwei Vorbewertungen pro Kriterium zur Anzeige
+    // mitliefern. Mapping: peers[finalCriterionId] = { first: {...}, second: {...} }.
+    let peers = null;
+    if (tm.double_evaluation && kind === 'final') {
+      const firstEvalRow = await ThesisEvaluation.findOne({ where: { thesis_milestone_id: tm.id, kind: 'first' } });
+      const secondEvalRow = await ThesisEvaluation.findOne({ where: { thesis_milestone_id: tm.id, kind: 'second' } });
+      const firstFull = firstEvalRow ? await loadFullEvaluation(firstEvalRow.id) : null;
+      const secondFull = secondEvalRow ? await loadFullEvaluation(secondEvalRow.id) : null;
+      const finalCrits = flattenCriteria(evaluation);
+      const firstCrits = firstFull ? flattenCriteria(firstFull) : [];
+      const secondCrits = secondFull ? flattenCriteria(secondFull) : [];
+      peers = {};
+      finalCrits.forEach((fc, i) => {
+        peers[fc.id] = {
+          first:  firstCrits[i]  ? { score: firstCrits[i].score,  remark: firstCrits[i].remark,  role: tm.evaluator_role }   : null,
+          second: secondCrits[i] ? { score: secondCrits[i].score, remark: secondCrits[i].remark, role: tm.evaluator_role_2 } : null,
+        };
+      });
+    }
+
+    res.json({ success: true, hasForm: true, started: true, kind, editable, evaluation, peers });
   } catch (e) {
     console.error('Error getting thesis evaluation:', e);
     res.status(500).json({ success: false, message: 'Interner Serverfehler' });
@@ -569,9 +557,82 @@ const printThesisEvaluation = async (req, res) => {
   }
 };
 
+// Zusammenzug aller Bewertungen der Transferprojekt-Meilensteine einer DA als PDF.
+// Sichtbarkeit: Studierende, Dozierende, FachbereichsleiterIn und Admin.
+const printTransferProjectSummary = async (req, res) => {
+  try {
+    const thesisId = req.params.id;
+    const userId = req.session.userId;
+    const userRole = req.session.userRole;
+
+    const ALLOWED = ['student', 'coach', 'department_lead', 'admin'];
+    if (!ALLOWED.includes(userRole)) return res.status(403).send('Keine Berechtigung');
+
+    const access = await userHasThesisAccess(userId, userRole, thesisId);
+    if (!access) return res.status(403).send('Keine Berechtigung');
+
+    const thesis = await Thesis.findByPk(thesisId, {
+      include: [
+        { model: Year, as: 'year', attributes: ['year'] },
+        { model: Department, as: 'department', attributes: ['name'] },
+        { model: User, as: 'students', attributes: ['firstname', 'name'] },
+      ]
+    });
+    if (!thesis) return res.status(404).send('Diplomarbeit nicht gefunden');
+
+    // Alle Transferprojekt-Meilensteine dieser DA, in Reihenfolge nach Fälligkeit.
+    const tms = await ThesisMilestone.findAll({
+      where: { thesis_id: thesisId, is_transfer_project: true },
+      order: [['due_at', 'ASC'], ['id', 'ASC']],
+    });
+
+    if (tms.length === 0) {
+      return res.status(404).send('Diese Diplomarbeit hat keine Transferprojekt-Meilensteine.');
+    }
+
+    // Pro Meilenstein die passende Bewertung lesen (final bei Doppel-, sonst single).
+    const items = [];
+    const grades = [];
+    for (const tm of tms) {
+      const item = { milestoneLabel: tm.label, evaluation: null };
+      // Bei Doppelbewertung greift die finale Bewertung, sonst die Single.
+      // Die Bewertung wird unabhängig vom aktuellen tm.evaluation_form_id geladen
+      // (der Snapshot speichert den Formular-Inhalt selbst, das Template kann sich
+      // zwischenzeitlich geändert haben).
+      const kind = tm.double_evaluation ? 'final' : 'single';
+      const evalRow = await ThesisEvaluation.findOne({ where: { thesis_milestone_id: tm.id, kind } });
+      if (evalRow) {
+        item.evaluation = await loadFullEvaluation(evalRow.id);
+        if (item.evaluation && item.evaluation.overall_grade !== null && item.evaluation.overall_grade !== undefined) {
+          grades.push(Number(item.evaluation.overall_grade));
+        }
+      }
+      items.push(item);
+    }
+
+    // Durchschnitt aller vorhandenen Gesamtnoten, auf 1 Komma gerundet.
+    let averageGrade = null;
+    if (grades.length > 0) {
+      const sum = grades.reduce((a, b) => a + b, 0);
+      averageGrade = Math.round((sum / grades.length) * 10) / 10;
+    }
+
+    const safeName = ('Transferprojekt_' + (thesis.title || 'Diplomarbeit'))
+      .replace(/[^a-zA-Z0-9_-]+/g, '_')
+      .slice(0, 80);
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', `inline; filename="${safeName}.pdf"`);
+    streamTransferProjectPdf(res, { thesis, items, averageGrade });
+  } catch (e) {
+    console.error('Error printing transfer project summary:', e);
+    if (!res.headersSent) res.status(500).send('Interner Serverfehler');
+  }
+};
+
 module.exports = {
   listForms, getForm, createForm, updateForm, deleteForm,
   createGroup, updateGroup, deleteGroup,
   createCriterion, updateCriterion, deleteCriterion, reorderCriteria,
   getThesisEvaluation, saveThesisEvaluation, printThesisEvaluation,
+  printTransferProjectSummary,
 };

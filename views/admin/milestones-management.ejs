@@ -100,6 +100,11 @@ const ROLE_LABELS = { student: 'Student', coach: 'Dozent/in', expert: 'ExpertIn'
                                             <i class="bi bi-unlock"></i> Freigabe 2: <%= ROLE_LABELS[m.approver_role_2] || m.approver_role_2 %>
                                         </span>
                                     <% } %>
+                                    <% if (m.is_transfer_project) { %>
+                                        <span class="badge bg-info" title="Transferprojekt">
+                                            <i class="bi bi-arrow-left-right"></i> Transferprojekt
+                                        </span>
+                                    <% } %>
                                 </td>
                                 <td>
                                     <div class="btn-group">
@@ -229,6 +234,10 @@ const ROLE_LABELS = { student: 'Student', coach: 'Dozent/in', expert: 'ExpertIn'
                             <option value="admin">Administrator</option>
                         </select>
                     </div>
+                    <div class="form-check mb-2">
+                        <input type="checkbox" class="form-check-input" name="is_transfer_project" id="addIsTransferProject">
+                        <label class="form-check-label" for="addIsTransferProject">Transferprojekt</label>
+                    </div>
                     <hr>
                     <% if (thesesCount > 0) { %>
                     <div class="form-check">
@@ -356,6 +365,10 @@ const ROLE_LABELS = { student: 'Student', coach: 'Dozent/in', expert: 'ExpertIn'
                             <option value="field_project_coach">Field Project Coach</option>
                             <option value="admin">Administrator</option>
                         </select>
+                    </div>
+                    <div class="form-check mb-2">
+                        <input type="checkbox" class="form-check-input" name="is_transfer_project" id="editIsTransferProject">
+                        <label class="form-check-label" for="editIsTransferProject">Transferprojekt</label>
                     </div>
                     <hr>
                     <% if (thesesCount > 0) { %>
@@ -494,6 +507,7 @@ function editMilestone(m) {
     document.getElementById('editApproverRole').value = m.approver_role || '';
     document.getElementById('editRequiresApproval2').checked = !!m.requires_approval_2;
     document.getElementById('editApproverRole2').value = m.approver_role_2 || '';
+    document.getElementById('editIsTransferProject').checked = !!m.is_transfer_project;
     toggleEvalRole('edit');
     toggleApprover('edit');
     toggleApprover2('edit');
@@ -515,6 +529,7 @@ function normalizeConfig(data) {
     if (!data.requires_approval) data.approver_role = null;
     data.requires_approval_2 = !!data.requires_approval_2;
     if (!data.requires_approval_2) data.approver_role_2 = null;
+    data.is_transfer_project = !!data.is_transfer_project;
     return data;
 }
 

@@ -157,7 +157,7 @@ a:hover { color: var(--primary); text-decoration: underline; }
     width: 36px;
     height: 36px;
     border-radius: var(--radius);
-    background-color: var(--accent-slate);
+    background-color: var(--primary);
     color: #fff;
     display: flex;
     align-items: center;
@@ -613,6 +613,14 @@ a:hover { color: var(--primary); text-decoration: underline; }
 .status-pill.danger::before  { background-color: var(--danger); }
 .status-pill.info    { background-color: var(--primary-50); color: var(--primary-600); border-color: #bfdbfe; }
 .status-pill.info::before    { background-color: var(--primary-500); }
+
+/* ---------- Milestone card (breit, primärblauer Rahmen) ---------- */
+.milestone-card {
+    border: 2px solid var(--primary);
+    border-radius: var(--radius-lg);
+    padding: 16px;
+    background-color: var(--surface);
+}
 
 /* ---------- Section bar (e.g., "Meilensteine") ---------- */
 .section-bar {

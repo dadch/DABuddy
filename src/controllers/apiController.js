@@ -115,6 +115,7 @@ const createThesisMilestoneFromTemplate = (thesisId, template, released = false)
   approver_role: template.approver_role,
   requires_approval_2: template.requires_approval_2,
   approver_role_2: template.approver_role_2,
+  is_transfer_project: template.is_transfer_project,
 });
 
 const createThesis = async (req, res) => {
@@ -1031,7 +1032,8 @@ const parseMilestoneConfig = (body) => {
   const approver_role = requires_approval ? (body.approver_role || null) : null;
   const requires_approval_2 = body.requires_approval_2 === undefined ? false : !!body.requires_approval_2;
   const approver_role_2 = requires_approval_2 ? (body.approver_role_2 || null) : null;
-  return { allow_upload, allow_update, requires_evaluation, evaluator_role, double_evaluation, evaluator_role_2, evaluation_form_id, requires_approval, approver_role, requires_approval_2, approver_role_2 };
+  const is_transfer_project = body.is_transfer_project === undefined ? false : !!body.is_transfer_project;
+  return { allow_upload, allow_update, requires_evaluation, evaluator_role, double_evaluation, evaluator_role_2, evaluation_form_id, requires_approval, approver_role, requires_approval_2, approver_role_2, is_transfer_project };
 };
 
 const createMilestone = async (req, res) => {
@@ -1175,6 +1177,7 @@ const updateMilestone = async (req, res) => {
           approver_role: milestone.approver_role,
           requires_approval_2: milestone.requires_approval_2,
           approver_role_2: milestone.approver_role_2,
+          is_transfer_project: milestone.is_transfer_project,
         },
         { where: { milestone_id: milestone.id } }
       );
