@@ -1,8 +1,11 @@
-<%- include('../partials/header', { title: 'Field Project Coach-Dashboard - DABuddy', user: user }) %>
+<%- include('../partials/header', { title: 'Dozent Transferprojekt-Dashboard - ThesisBuddy', user: user }) %>
 
 <div class="d-flex justify-content-between align-items-center mb-4">
-    <h1>Meine Diplomarbeiten (Field Project Coach)</h1>
+    <h1>Meine Diplomarbeiten (Dozent Transferprojekt)</h1>
     <div class="d-flex align-items-center gap-3">
+        <a href="/api/transfer-project-overview.pdf" target="_blank" class="pill-btn" title="Gesamtübersicht aller Transferprojekt-Noten als PDF">
+            <i class="bi bi-arrow-left-right"></i> Gesamtübersicht Transferprojekt
+        </a>
         <span class="text-muted"><i class="bi bi-calendar"></i> Diplomjahr: <%= selectedYear %></span>
         <%- include('../partials/role-switcher', { availableRoles: availableRoles, currentRole: currentRole }) %>
     </div>
@@ -17,9 +20,12 @@
     <div class="row">
         <% theses.forEach(function(thesis) { %>
             <div class="col-md-6 mb-4">
-                <div class="card h-100">
-                    <div class="card-header">
-                        <h6 class="mb-0"><i class="bi bi-file-text"></i> <%= thesis.title %></h6>
+                <div class="card h-100<% if (thesis.is_locked) { %> border-danger<% } %>">
+                    <div class="card-header<% if (thesis.is_locked) { %> bg-warning-subtle<% } %>">
+                        <h6 class="mb-0">
+                            <% if (thesis.is_locked) { %><i class="bi bi-slash-circle-fill text-danger me-1" title="Diplomarbeit gesperrt"></i><% } %>
+                            <i class="bi bi-file-text"></i> <%= thesis.title %>
+                        </h6>
                     </div>
                     <div class="card-body">
                         <p><strong>Fachbereich:</strong> <%= thesis.department.name %></p>

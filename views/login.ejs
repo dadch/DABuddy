@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Anmeldung – DA-Buddy</title>
+    <title>Anmeldung – ThesisBuddy</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -16,12 +16,12 @@
     <div class="login-left">
         <div class="brand-row">
             <span class="brand-logo">D</span>
-            <span class="brand-text">DA-Buddy</span>
+            <span class="brand-text">ThesisBuddy</span>
         </div>
         <div class="marketing">
             Diplomarbeiten von der Anmeldung bis zur <strong>Schlussbewertung</strong> — an einem Ort.
         </div>
-        <div class="legal">© 2026 DA-Buddy · Diplomarbeit-Verwaltungssystem</div>
+        <div class="legal">© 2026 ThesisBuddy · Diplomarbeit-Verwaltungssystem</div>
     </div>
     <div class="login-right">
         <div class="login-card">
@@ -52,6 +52,18 @@
                     Passwort vergessen? Wenden Sie sich an die Administration.
                 </p>
             </form>
+
+            <div class="login-divider my-4 d-flex align-items-center text-muted" style="font-size: 0.8125rem;">
+                <hr class="flex-grow-1 me-2 mb-0">
+                <span>oder</span>
+                <hr class="flex-grow-1 ms-2 mb-0">
+            </div>
+
+            <div class="d-grid">
+                <a href="/auth/microsoft" class="btn btn-outline-secondary">
+                    <i class="bi bi-microsoft"></i> Mit M365-Login anmelden
+                </a>
+            </div>
         </div>
     </div>
 </div>

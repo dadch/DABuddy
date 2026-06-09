@@ -1,4 +1,4 @@
-const { User, UserRole, Thesis, Department, Year, Milestone, ThesisMilestone, ThesisMilestoneDocument, ThesisLog, EvaluationForm, ThesisEvaluation, ThesisEvaluationGroup } = require('../models');
+const { User, UserRole, Thesis, Department, Year, Milestone, ThesisMilestone, ThesisMilestoneDocument, ThesisLog, EvaluationForm, ThesisEvaluation, ThesisEvaluationGroup, UploadCategory } = require('../models');
 const { Op } = require('sequelize');
 
 const showDashboard = async (req, res) => {
@@ -148,8 +148,10 @@ const showThesisDetail = async (req, res) => {
     }
 
     // Studierende sehen nur freigegebene Meilensteine.
+    // Dozent Transferprojekt sieht nur Meilensteine mit Transferprojekt-Kennzeichnung.
     const milestoneWhere = { thesis_id: thesisId };
     if (userRole === 'student') milestoneWhere.released = true;
+    if (userRole === 'field_project_coach') milestoneWhere.is_transfer_project = true;
 
     const milestones = await ThesisMilestone.findAll({
       where: milestoneWhere,
@@ -162,6 +164,7 @@ const showThesisDetail = async (req, res) => {
         { model: User, as: 'evaluator', attributes: ['id', 'firstname', 'name', 'role'] },
         { model: User, as: 'approver', attributes: ['id', 'firstname', 'name', 'role'] },
         { model: User, as: 'approver2', attributes: ['id', 'firstname', 'name', 'role'] },
+        { model: UploadCategory, as: 'uploadCategories', through: { attributes: [] }, required: false },
         {
           model: ThesisEvaluation,
           as: 'thesisEvaluations',
@@ -174,9 +177,10 @@ const showThesisDetail = async (req, res) => {
       order: [['due_at', 'ASC'], [{ model: ThesisMilestoneDocument, as: 'documents' }, 'version', 'DESC']]
     });
 
-    // Log: für Studierende nur Einträge zu freigegebenen Meilensteinen (oder ohne Meilensteinbezug).
+    // Log: nur Einträge zu sichtbaren Meilensteinen (oder ohne Meilensteinbezug).
+    // Studierende: nur freigegebene; Dozent Transferprojekt: nur Transferprojekt-Meilensteine.
     const logWhere = { thesis_id: thesisId };
-    if (userRole === 'student') {
+    if (userRole === 'student' || userRole === 'field_project_coach') {
       const visibleIds = milestones.map(m => m.id);
       logWhere[Op.or] = [{ thesis_milestone_id: null }, { thesis_milestone_id: visibleIds }];
     }
@@ -232,17 +236,32 @@ const showMilestonesManagement = async (req, res) => {
 
     const milestones = await Milestone.findAll({
       where: { year_id: selectedYearId },
-      include: [{ model: EvaluationForm, as: 'evaluationForm', attributes: ['id', 'title_de'] }],
+      include: [
+        { model: EvaluationForm, as: 'evaluationForm', attributes: ['id', 'title_de'] },
+        { model: UploadCategory, as: 'uploadCategories', through: { attributes: [] } },
+      ],
       order: [['due_at', 'ASC']]
     });
 
     const thesesCount = await Thesis.count({ where: { year_id: selectedYearId } });
+
+    // Aktive Upload-Kategorien zur Auswahl (deaktivierte ausgeblendet, ausser sie
+    // sind bereits einem Meilenstein zugewiesen — dann auch sichtbar, damit der
+    // Edit-Prefill konsistent bleibt).
+    const activeCats = await UploadCategory.findAll({ where: { is_active: true }, order: [['label', 'ASC']] });
+    const assignedCatIds = new Set();
+    milestones.forEach(m => (m.uploadCategories || []).forEach(c => assignedCatIds.add(c.id)));
+    const extraInactive = await UploadCategory.findAll({
+      where: { id: Array.from(assignedCatIds), is_active: false },
+    });
+    const allCats = [...activeCats, ...extraInactive].sort((a, b) => a.label.localeCompare(b.label));
 
     res.render('admin/milestones-management', {
       user: { fullName: req.session.fullName, role: userRole },
       selectedYear,
       milestones,
       thesesCount,
+      uploadCategories: allCats,
       messages: req.flash(),
     });
   } catch (error) {
@@ -299,6 +318,23 @@ const showThesisChat = async (req, res) => {
   } catch (error) {
     console.error('Chat error:', error);
     req.flash('error', 'Chat konnte nicht geladen werden');
+    res.redirect('/dashboard');
+  }
+};
+
+const showUploadCategoriesManagement = async (req, res) => {
+  try {
+    if (req.session.userRole !== 'admin') {
+      req.flash('error', 'Zugriff verweigert. Nur Administratoren können Upload-Kategorien verwalten.');
+      return res.redirect('/dashboard');
+    }
+    res.render('admin/upload-categories', {
+      user: { fullName: req.session.fullName, role: req.session.userRole },
+      messages: req.flash(),
+    });
+  } catch (error) {
+    console.error('Error in showUploadCategoriesManagement:', error);
+    req.flash('error', 'Beim Laden der Upload-Kategorien ist ein Fehler aufgetreten.');
     res.redirect('/dashboard');
   }
 };
@@ -360,6 +396,7 @@ module.exports = {
   showThesisDetail,
   showThesisChat,
   showYearsManagement,
+  showUploadCategoriesManagement,
   showMilestonesManagement,
   showEvaluationForms,
   showEvaluationFormEditor,

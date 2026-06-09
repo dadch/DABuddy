@@ -1,0 +1,156 @@
+<%- include('../partials/header', { title: 'Upload-Kategorien - ThesisBuddy', user: user }) %>
+
+<div class="page-breadcrumb mb-2">
+    <a href="/dashboard">Dashboard</a>
+    <span class="sep"></span>
+    <span>Upload-Kategorien</span>
+</div>
+<div class="page-header">
+    <h1 class="page-title">Upload-Kategorien</h1>
+</div>
+
+<div class="card mb-4">
+    <div class="card-header d-flex justify-content-between align-items-center">
+        <h5 class="mb-0"><i class="bi bi-tag"></i> Kategorien</h5>
+        <button class="btn btn-primary" onclick="openAddCategoryModal()">
+            <i class="bi bi-plus"></i> Kategorie hinzufügen
+        </button>
+    </div>
+    <div class="card-body">
+        <div class="alert alert-info mb-3">
+            <i class="bi bi-info-circle"></i>
+            Deaktivierte Kategorien bleiben in der Datenbank erhalten, werden aber bei Uploads nicht mehr zur Auswahl angeboten.
+        </div>
+        <div id="categoriesList"><p class="text-muted">Wird geladen…</p></div>
+    </div>
+</div>
+
+<!-- Hinzufügen / Bearbeiten -->
+<div class="modal fade" id="categoryFormModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="categoryFormTitle">Kategorie hinzufügen</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form id="categoryForm">
+                <div class="modal-body">
+                    <input type="hidden" id="categoryId">
+                    <div class="mb-3">
+                        <label class="form-label">Bezeichnung</label>
+                        <input type="text" class="form-control" id="categoryLabel" maxlength="120" required autofocus>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Abbrechen</button>
+                    <button type="submit" class="btn btn-primary">Speichern</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script>
+function esc(s){ return (s||'').replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
+
+function loadCategories() {
+    fetch('/api/upload-categories')
+        .then(r => r.json())
+        .then(cats => {
+            const el = document.getElementById('categoriesList');
+            if (!Array.isArray(cats) || cats.length === 0) {
+                el.innerHTML = '<p class="text-muted mb-0">Noch keine Kategorien erfasst.</p>';
+                return;
+            }
+            el.innerHTML = `
+                <div class="table-responsive"><table class="table">
+                    <thead><tr>
+                        <th>Bezeichnung</th>
+                        <th>Status</th>
+                        <th class="text-end">Aktionen</th>
+                    </tr></thead>
+                    <tbody>
+                        ${cats.map(c => `
+                            <tr>
+                                <td><strong>${esc(c.label)}</strong></td>
+                                <td>${c.is_active
+                                    ? '<span class="status-pill success">Aktiv</span>'
+                                    : '<span class="status-pill">Deaktiviert</span>'}</td>
+                                <td class="text-end">
+                                    <button class="btn btn-outline-secondary btn-sm" onclick="toggleCategory(${c.id}, ${!c.is_active})">
+                                        ${c.is_active ? '<i class="bi bi-toggle-off"></i> Deaktivieren' : '<i class="bi bi-toggle-on"></i> Aktivieren'}
+                                    </button>
+                                    <button class="btn btn-outline-primary btn-sm" onclick='openEditCategoryModal(${JSON.stringify(c).replace(/'/g, "&#39;")})'>
+                                        <i class="bi bi-pencil"></i>
+                                    </button>
+                                    <button class="btn btn-outline-danger btn-sm" onclick="deleteCategory(${c.id}, '${esc(c.label).replace(/'/g, "\\'")}')"><i class="bi bi-trash"></i></button>
+                                </td>
+                            </tr>
+                        `).join('')}
+                    </tbody>
+                </table></div>`;
+        })
+        .catch(err => {
+            console.error(err);
+            document.getElementById('categoriesList').innerHTML = '<div class="alert alert-danger">Fehler beim Laden</div>';
+        });
+}
+
+function openAddCategoryModal() {
+    document.getElementById('categoryForm').reset();
+    document.getElementById('categoryId').value = '';
+    document.getElementById('categoryFormTitle').textContent = 'Kategorie hinzufügen';
+    new bootstrap.Modal(document.getElementById('categoryFormModal')).show();
+}
+
+function openEditCategoryModal(c) {
+    document.getElementById('categoryForm').reset();
+    document.getElementById('categoryId').value = c.id;
+    document.getElementById('categoryLabel').value = c.label;
+    document.getElementById('categoryFormTitle').textContent = 'Kategorie bearbeiten';
+    new bootstrap.Modal(document.getElementById('categoryFormModal')).show();
+}
+
+document.getElementById('categoryForm').addEventListener('submit', (e) => {
+    e.preventDefault();
+    const id = document.getElementById('categoryId').value;
+    const label = document.getElementById('categoryLabel').value.trim();
+    const url = id ? '/api/upload-categories/' + id : '/api/upload-categories';
+    fetch(url, {
+        method: id ? 'PUT' : 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ label })
+    })
+    .then(r => r.json())
+    .then(d => {
+        if (d.success) {
+            bootstrap.Modal.getInstance(document.getElementById('categoryFormModal')).hide();
+            loadCategories();
+        } else alert('Fehler: ' + (d.message || 'Unbekannt'));
+    })
+    .catch(err => { console.error(err); alert('Fehler beim Speichern'); });
+});
+
+function toggleCategory(id, makeActive) {
+    fetch('/api/upload-categories/' + id, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ is_active: makeActive })
+    })
+    .then(r => r.json())
+    .then(d => { if (d.success) loadCategories(); else alert('Fehler: ' + (d.message || 'Unbekannt')); })
+    .catch(err => { console.error(err); alert('Fehler beim Wechseln des Status'); });
+}
+
+function deleteCategory(id, label) {
+    if (!confirm(`Kategorie „${label}" wirklich löschen?`)) return;
+    fetch('/api/upload-categories/' + id, { method: 'DELETE' })
+        .then(r => r.json())
+        .then(d => { if (d.success) loadCategories(); else alert('Fehler: ' + (d.message || 'Unbekannt')); })
+        .catch(err => { console.error(err); alert('Fehler beim Löschen'); });
+}
+
+loadCategories();
+</script>
+
+<%- include('../partials/footer') %>

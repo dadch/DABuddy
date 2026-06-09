@@ -59,6 +59,26 @@ const Thesis = sequelize.define('Thesis', {
     type: DataTypes.STRING,
     allowNull: true,
   },
+  // Sperrung der Arbeit (z.B. wenn die Diplomarbeit abgebrochen wird).
+  // Studierende einer gesperrten Arbeit können sich nicht mehr einloggen.
+  is_locked: {
+    type: DataTypes.BOOLEAN,
+    allowNull: false,
+    defaultValue: false,
+  },
+  locked_at: {
+    type: DataTypes.DATE,
+    allowNull: true,
+  },
+  locked_by_user_id: {
+    type: DataTypes.INTEGER,
+    allowNull: true,
+    references: { model: 'users', key: 'id' },
+  },
+  locked_reason: {
+    type: DataTypes.TEXT,
+    allowNull: true,
+  },
 }, {
   tableName: 'theses',
 });

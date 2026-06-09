@@ -1,4 +1,4 @@
-<%- include('../partials/header', { title: 'ExpertIn-Dashboard - DABuddy', user: user }) %>
+<%- include('../partials/header', { title: 'ExpertIn-Dashboard - ThesisBuddy', user: user }) %>
 
 <div class="d-flex justify-content-between align-items-center mb-4">
     <h1>Diplomarbeiten zur Begutachtung</h1>
@@ -22,15 +22,18 @@
                     <th>Fachbereich</th>
                     <th>Studenten</th>
                     <th>Dozent/in</th>
-                    <th>Field Project Coach</th>
+                    <th>Dozent Transferprojekt</th>
                     <th>Auftraggeber</th>
                     <th>Aktionen</th>
                 </tr>
             </thead>
             <tbody>
                 <% theses.forEach(function(thesis) { %>
-                    <tr>
-                        <td><strong><%= thesis.title %></strong></td>
+                    <tr<% if (thesis.is_locked) { %> class="table-warning"<% } %>>
+                        <td>
+                            <% if (thesis.is_locked) { %><i class="bi bi-slash-circle-fill text-danger me-2" title="Diplomarbeit gesperrt"></i><% } %>
+                            <strong><%= thesis.title %></strong>
+                        </td>
                         <td><%= thesis.department.name %></td>
                         <td>
                             <% thesis.students.forEach(function(s, i) { %>

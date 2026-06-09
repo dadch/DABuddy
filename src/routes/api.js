@@ -2,6 +2,11 @@ const express = require('express');
 const { requireAuth, requireRole } = require('../middleware/auth');
 const evalCtrl = require('../controllers/evaluationController');
 const {
+  bulkDownloadCategoryZip,
+  getUploadCategories,
+  createUploadCategory,
+  updateUploadCategory,
+  deleteUploadCategory,
   getYears,
   createYear,
   setCurrentYear,
@@ -39,6 +44,7 @@ const {
   deleteMilestone,
   getThesisMilestones,
   updateThesisMilestoneDueAt,
+  resetThesisMilestoneDueAt,
   setThesisMilestoneApproval,
   setThesisMilestoneReleased,
   uploadThesisMilestoneDocument,
@@ -49,6 +55,8 @@ const {
   uploadConfidentialityDocument,
   downloadConfidentialityDocument,
   deleteConfidentialityDocument,
+  lockThesis,
+  unlockThesis,
   getChatMessages,
   postChatMessage,
   downloadChatAttachment,
@@ -58,6 +66,19 @@ const {
 const router = express.Router();
 
 router.use(requireAuth);
+
+// Upload-Kategorien (Stammdaten, admin verwaltet; alle authentisierten Rollen
+// können die aktiven Kategorien lesen — Bedarf entsteht beim späteren Upload-Flow).
+router.get('/upload-categories', getUploadCategories);
+router.post('/upload-categories', requireRole(['admin']), createUploadCategory);
+router.put('/upload-categories/:id', requireRole(['admin']), updateUploadCategory);
+router.delete('/upload-categories/:id', requireRole(['admin']), deleteUploadCategory);
+
+// Bulk-Download aller Dokumente einer Kategorie für die DAs, die der User im
+// Dashboard sieht (admin + FBL).
+router.get('/upload-categories/:id/bulk-download.zip',
+  requireRole(['admin', 'department_lead']),
+  bulkDownloadCategoryZip);
 
 // Year management (Diplomjahre, admin only) + Switcher (admin/department_lead)
 router.get('/years', requireRole(['admin']), getYears);
@@ -115,6 +136,7 @@ router.delete('/milestones/:id', requireRole(['admin']), deleteMilestone);
 // Thesis-milestone instances (per thesis)
 router.get('/theses/:id/milestones', getThesisMilestones);
 router.put('/thesis-milestones/:id/due-at', updateThesisMilestoneDueAt);
+router.delete('/thesis-milestones/:id/due-at', resetThesisMilestoneDueAt);
 router.put('/thesis-milestones/:id/approval', setThesisMilestoneApproval);
 router.put('/thesis-milestones/:id/release', setThesisMilestoneReleased);
 router.post('/thesis-milestones/:id/document', uploadThesisMilestoneDocument);
@@ -129,6 +151,10 @@ router.post('/theses/:id/confidentiality-pdf', requireRole(['admin', 'department
 router.post('/theses/:id/confidentiality-document', requireRole(['admin', 'department_lead']), uploadConfidentialityDocument);
 router.get('/theses/:id/confidentiality-document', downloadConfidentialityDocument);
 router.delete('/theses/:id/confidentiality-document', requireRole(['admin', 'department_lead']), deleteConfidentialityDocument);
+
+// Sperrung einer Diplomarbeit (Admin + FachbereichsleiterIn).
+router.post('/theses/:id/lock', requireRole(['admin', 'department_lead']), lockThesis);
+router.post('/theses/:id/unlock', requireRole(['admin', 'department_lead']), unlockThesis);
 
 // Chat (Berechtigung wird im Controller via userHasThesisAccess geprüft)
 router.get('/theses/:id/chat', getChatMessages);
@@ -154,7 +180,28 @@ router.get('/thesis-milestones/:id/evaluation-form', evalCtrl.getThesisEvaluatio
 router.put('/thesis-milestones/:id/evaluation-form', evalCtrl.saveThesisEvaluation);
 router.get('/thesis-milestones/:id/evaluation.pdf', evalCtrl.printThesisEvaluation);
 
+// Feedbackformular pro Meilenstein
+router.get('/thesis-milestones/:id/feedback', evalCtrl.getFeedback);
+router.post('/thesis-milestones/:id/feedback/generate', evalCtrl.generateFeedbackProposal);
+router.put('/thesis-milestones/:id/feedback', evalCtrl.saveFeedback);
+router.get('/thesis-milestones/:id/feedback.pdf', evalCtrl.printFeedbackForm);
+
 // Transferprojekt-Zusammenzug (PDF, mehrere Bewertungen + Durchschnittsnote)
 router.get('/theses/:id/transfer-project.pdf', evalCtrl.printTransferProjectSummary);
+
+// Gesamtübersicht Transferprojekt (alle DAs des Jahres, Querformat-Tabelle)
+router.get('/transfer-project-overview.pdf',
+  requireRole(['department_lead', 'field_project_coach', 'admin']),
+  evalCtrl.printTransferProjectOverview);
+
+// Liste aller im Dashboard sichtbaren Diplomarbeiten als PDF (Querformat).
+router.get('/theses-list.pdf',
+  requireRole(['admin', 'department_lead']),
+  evalCtrl.printThesesList);
+
+// Gleiche Liste als CSV-Export (Trennzeichen ;, kein Textbegrenzer).
+router.get('/theses-list.csv',
+  requireRole(['admin', 'department_lead']),
+  evalCtrl.exportThesesListCsv);
 
 module.exports = router;

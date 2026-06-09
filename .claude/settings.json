@@ -1,0 +1,8 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(/usr/bin/grep -n \"confidentiality-section\" /Users/munter/Documents/Projekte/DABuddy/views/admin/thesis-detail.ejs /Users/munter/Documents/Projekte/DABuddy/views/coach/thesis-detail.ejs /Users/munter/Documents/Projekte/DABuddy/views/expert/thesis-detail.ejs /Users/munter/Documents/Projekte/DABuddy/views/student/thesis-detail.ejs /Users/munter/Documents/Projekte/DABuddy/views/department_lead/thesis-detail.ejs /Users/munter/Documents/Projekte/DABuddy/views/field_project_coach/thesis-detail.ejs)",
+      "Bash(/usr/bin/grep -n \"thesis-lock-section\\\\|confidentiality-section\" views/admin/thesis-detail.ejs views/coach/thesis-detail.ejs views/expert/thesis-detail.ejs views/student/thesis-detail.ejs views/department_lead/thesis-detail.ejs views/field_project_coach/thesis-detail.ejs)"
+    ]
+  }
+}

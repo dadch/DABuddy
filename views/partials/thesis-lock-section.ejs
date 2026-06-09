@@ -1,0 +1,153 @@
+<!-- Sperrung der Diplomarbeit. Erwartet `thesis` und `user`.
+     Sichtbar für Admin und FachbereichsleiterIn (Aktionen) sowie für alle
+     übrigen Rollen als reiner Statushinweis (wenn gesperrt). Studierende
+     gesperrter Arbeiten kommen ohnehin nicht mehr auf diese Seite. -->
+<%
+const _canLock = ['admin','department_lead'].includes(user.role);
+const _isLocked = !!thesis.is_locked;
+const _lockedAt = thesis.locked_at ? new Date(thesis.locked_at) : null;
+const _lockedAtStr = _lockedAt
+  ? (_lockedAt.toLocaleDateString('de-CH') + ' ' + _lockedAt.toLocaleTimeString('de-CH', { hour: '2-digit', minute: '2-digit' }))
+  : '';
+%>
+<% if (_isLocked || _canLock) { %>
+<div class="card mb-4" <% if (_isLocked) { %>style="background-color: #fff3cd; border-color: #ffe69c;"<% } %>>
+    <div class="card-header" <% if (_isLocked) { %>style="background-color: #ffe69c; border-bottom-color: #ffd866;"<% } %>>
+        <h5 class="mb-0">
+            <% if (_isLocked) { %>
+                <i class="bi bi-lock-fill text-warning"></i> Diplomarbeit gesperrt
+            <% } else { %>
+                <i class="bi bi-lock"></i> Sperrung
+            <% } %>
+        </h5>
+    </div>
+    <div class="card-body">
+        <% if (_isLocked) { %>
+            <p class="mb-2">
+                <i class="bi bi-exclamation-triangle-fill text-warning"></i>
+                <strong>Diese Diplomarbeit ist gesperrt.</strong>
+                Die Studierende/der Studierende kann sich nicht mehr einloggen und hat keinen Zugriff auf den bisherigen Verlauf.
+            </p>
+            <% if (_lockedAtStr) { %>
+                <p class="mb-1 text-muted small">Gesperrt am <%= _lockedAtStr %></p>
+            <% } %>
+            <% if (thesis.locked_reason) { %>
+                <p class="mb-3"><strong>Begründung:</strong> <%= thesis.locked_reason %></p>
+            <% } else { %>
+                <div class="mb-3"></div>
+            <% } %>
+            <% if (_canLock) { %>
+                <button class="btn btn-outline-success" onclick="openUnlockThesisModal()">
+                    <i class="bi bi-unlock"></i> Sperrung aufheben
+                </button>
+            <% } %>
+        <% } else if (_canLock) { %>
+            <p class="mb-3 text-muted">
+                Eine Sperrung verhindert den Login der Studierenden dieser Diplomarbeit
+                (z.&nbsp;B. wenn die Arbeit abgebrochen wurde).
+            </p>
+            <button class="btn btn-outline-warning" onclick="openLockThesisModal()">
+                <i class="bi bi-lock"></i> Diplomarbeit sperren
+            </button>
+        <% } %>
+    </div>
+</div>
+
+<% if (_canLock) { %>
+<!-- Modal: Diplomarbeit sperren -->
+<div class="modal fade" id="lockThesisModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Diplomarbeit sperren</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form id="lockThesisForm">
+                <div class="modal-body">
+                    <p>
+                        Die Studierende/der Studierende kann sich nach dem Sperren nicht mehr einloggen
+                        und hat keinen Zugriff auf den bisherigen Verlauf der Arbeit. Andere Rollen
+                        (Dozent/in, Expert/in, FBL, Admin) können die Arbeit weiterhin einsehen.
+                    </p>
+                    <div class="mb-3">
+                        <label for="lockReason" class="form-label">Begründung (optional)</label>
+                        <textarea id="lockReason" class="form-control" rows="3"
+                                  placeholder="z. B. Abbruch der Diplomarbeit per ..."></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Abbrechen</button>
+                    <button type="submit" class="btn btn-warning"><i class="bi bi-lock"></i> Sperren</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Modal: Sperrung aufheben -->
+<div class="modal fade" id="unlockThesisModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Sperrung aufheben</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <p class="mb-0">
+                    Soll die Sperrung dieser Diplomarbeit aufgehoben werden? Die Studierende/der
+                    Studierende kann sich anschliessend wieder einloggen.
+                </p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Abbrechen</button>
+                <button type="button" class="btn btn-success" id="unlockThesisConfirmBtn">
+                    <i class="bi bi-unlock"></i> Entsperren
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+(function() {
+    const THESIS_ID = <%= thesis.id %>;
+
+    window.openLockThesisModal = function() {
+        const ta = document.getElementById('lockReason');
+        if (ta) ta.value = '';
+        new bootstrap.Modal(document.getElementById('lockThesisModal')).show();
+    };
+
+    window.openUnlockThesisModal = function() {
+        new bootstrap.Modal(document.getElementById('unlockThesisModal')).show();
+    };
+
+    const lockForm = document.getElementById('lockThesisForm');
+    if (lockForm) {
+        lockForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const reason = (document.getElementById('lockReason').value || '').trim();
+            const res = await fetch(`/api/theses/${THESIS_ID}/lock`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ reason }),
+            });
+            const d = await res.json().catch(() => ({}));
+            if (d.success) location.reload();
+            else alert('Fehler: ' + (d.message || 'Sperren fehlgeschlagen'));
+        });
+    }
+
+    const unlockBtn = document.getElementById('unlockThesisConfirmBtn');
+    if (unlockBtn) {
+        unlockBtn.addEventListener('click', async () => {
+            const res = await fetch(`/api/theses/${THESIS_ID}/unlock`, { method: 'POST' });
+            const d = await res.json().catch(() => ({}));
+            if (d.success) location.reload();
+            else alert('Fehler: ' + (d.message || 'Entsperren fehlgeschlagen'));
+        });
+    }
+})();
+</script>
+<% } %>
+<% } %>

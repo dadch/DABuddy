@@ -1,9 +1,10 @@
-const { sequelize, User, UserRole, Thesis, Department, Year, Milestone, ThesisMilestone, ThesisMilestoneDocument, ThesisLog, ChatMessage, ChatReadReceipt } = require('../models');
+const { sequelize, User, UserRole, Thesis, Department, Year, Milestone, ThesisMilestone, ThesisMilestoneDocument, ThesisLog, ChatMessage, ChatReadReceipt, UploadCategory } = require('../models');
 const { Op, fn, col } = require('sequelize');
 const multer = require('multer');
 const fs = require('fs');
 const path = require('path');
 const { PDFDocument } = require('pdf-lib');
+const archiver = require('archiver');
 
 const CONFIDENTIALITY_TEMPLATE_PATH = path.join(__dirname, '../../beispiele/Geheimhaltungsvereinbarung.pdf');
 
@@ -40,6 +41,10 @@ const chatUpload = multer({
 });
 
 const VALID_ROLES = ['student', 'coach', 'expert', 'admin', 'department_lead', 'field_project_coach'];
+
+// FPC darf nur auf Meilensteine mit Transferprojekt-Kennzeichnung zugreifen.
+const isFpcBlocked = (tm, userRole) =>
+  userRole === 'field_project_coach' && !(tm && tm.is_transfer_project);
 // Rollen, die eine Bewertung vornehmen dürfen (ohne Student)
 const ASSESSOR_ROLES = ['coach', 'expert', 'admin', 'department_lead', 'field_project_coach'];
 
@@ -116,6 +121,7 @@ const createThesisMilestoneFromTemplate = (thesisId, template, released = false)
   requires_approval_2: template.requires_approval_2,
   approver_role_2: template.approver_role_2,
   is_transfer_project: template.is_transfer_project,
+  feedback_form_enabled: template.feedback_form_enabled,
 });
 
 const createThesis = async (req, res) => {
@@ -176,9 +182,20 @@ const createThesis = async (req, res) => {
     }
 
     // Snapshot milestones for the thesis (earliest milestone is released by default)
-    const templates = await Milestone.findAll({ where: { year_id: selectedYearId }, order: [['due_at', 'ASC'], ['id', 'ASC']] });
+    const templates = await Milestone.findAll({
+      where: { year_id: selectedYearId },
+      include: [{ model: UploadCategory, as: 'uploadCategories', through: { attributes: [] } }],
+      order: [['due_at', 'ASC'], ['id', 'ASC']],
+    });
     if (templates.length > 0) {
-      await ThesisMilestone.bulkCreate(templates.map((t, idx) => createThesisMilestoneFromTemplate(thesis.id, t, idx === 0)));
+      const createdTms = [];
+      for (let i = 0; i < templates.length; i++) {
+        const tm = await ThesisMilestone.create(createThesisMilestoneFromTemplate(thesis.id, templates[i], i === 0));
+        if (templates[i].uploadCategories && templates[i].uploadCategories.length > 0) {
+          await tm.setUploadCategories(templates[i].uploadCategories.map(c => c.id));
+        }
+        createdTms.push(tm);
+      }
     }
 
     res.json({ success: true, thesis });
@@ -380,7 +397,7 @@ const getUsers = async (req, res) => {
     }
 
     const users = await User.findAll({
-      attributes: ['id', 'username', 'name', 'firstname', 'email', 'role'],
+      attributes: ['id', 'username', 'name', 'firstname', 'email', 'role', 'phone'],
       where: whereClause,
       include: [
         ...includeClause,
@@ -403,12 +420,12 @@ const getUsers = async (req, res) => {
 
 const createUser = async (req, res) => {
   try {
-    const { username, password, firstname, name, email, role, departments, additional_roles } = req.body;
+    const { username, password, firstname, name, email, role, departments, additional_roles, phone } = req.body;
 
     const existing = await User.findOne({ where: { [Op.or]: [{ username }, { email }] } });
     if (existing) return res.status(400).json({ success: false, message: 'Benutzername oder E-Mail existiert bereits' });
 
-    const user = await User.create({ username, password, firstname, name, email, role });
+    const user = await User.create({ username, password, firstname, name, email, role, phone: phone || null });
 
     if (departments && departments.length > 0) {
       const deptObjs = await Department.findAll({ where: { id: departments } });
@@ -428,7 +445,7 @@ const createUser = async (req, res) => {
 const updateUser = async (req, res) => {
   try {
     const { id } = req.params;
-    const { username, password, firstname, name, email, role, departments, additional_roles } = req.body;
+    const { username, password, firstname, name, email, role, departments, additional_roles, phone } = req.body;
 
     const user = await User.findByPk(id);
     if (!user) return res.status(404).json({ success: false, message: 'Benutzer nicht gefunden' });
@@ -439,6 +456,7 @@ const updateUser = async (req, res) => {
     if (existing) return res.status(400).json({ success: false, message: 'Benutzername oder E-Mail existiert bereits' });
 
     const updateData = { username, firstname, name, email, role };
+    if (phone !== undefined) updateData.phone = phone || null;
     if (password && password.trim() !== '') updateData.password = password;
 
     await user.update(updateData);
@@ -637,11 +655,12 @@ const generateUsername = async (email) => {
 
 // Validiert + legt einen Studierenden an. allDepartments: vorab geladene Liste.
 // Wirft Error mit verständlicher Meldung bei Problemen.
-const createStudentRecord = async ({ name, firstname, email, gender, department }, { actorRole, ledIds, allDepartments }) => {
+const createStudentRecord = async ({ name, firstname, email, gender, department, phone }, { actorRole, ledIds, allDepartments }) => {
   name = (name || '').trim();
   firstname = (firstname || '').trim();
   email = (email || '').trim();
   gender = (gender || '').trim().toLowerCase();
+  phone = (phone || '').trim() || null;
   const depStr = String(department || '').trim();
 
   if (!name || !firstname || !email) throw new Error('Name, Vorname und E-Mail sind erforderlich');
@@ -666,7 +685,7 @@ const createStudentRecord = async ({ name, firstname, email, gender, department 
     username = await generateUsername(email);
   }
   const user = await User.create({
-    username, password: STUDENT_DEFAULT_PASSWORD, name, firstname, email, role: 'student', gender,
+    username, password: STUDENT_DEFAULT_PASSWORD, name, firstname, email, role: 'student', gender, phone,
   });
   await user.setDepartments([dep.id]);
   return user;
@@ -686,7 +705,7 @@ const getStudents = async (req, res) => {
 
     const students = await User.findAll({
       where: { role: 'student' },
-      attributes: ['id', 'username', 'name', 'firstname', 'email', 'gender'],
+      attributes: ['id', 'username', 'name', 'firstname', 'email', 'gender', 'phone'],
       include: [includeDept],
       order: [['name', 'ASC'], ['firstname', 'ASC']],
     });
@@ -713,7 +732,7 @@ const updateStudent = async (req, res) => {
   try {
     const { id } = req.params;
     const actorRole = req.session.userRole;
-    const { name, firstname, email, gender, department } = req.body;
+    const { name, firstname, email, gender, department, phone } = req.body;
 
     const user = await User.findByPk(id, {
       include: [{ model: Department, as: 'departments', attributes: ['id'], through: { attributes: [] } }]
@@ -744,6 +763,7 @@ const updateStudent = async (req, res) => {
       firstname: firstname ?? user.firstname,
       email: email ?? user.email,
       gender: (gender === undefined) ? user.gender : (gender || null),
+      phone: (phone === undefined) ? user.phone : ((String(phone).trim() || null)),
     });
 
     if (department !== undefined && department !== null && String(department).trim() !== '') {
@@ -863,7 +883,7 @@ const FBL_ALLOWED_ROLES = ['student', 'coach', 'expert'];
 
 const createDepartmentLeadUser = async (req, res) => {
   try {
-    const { username, password, firstname, name, email, role, departments, additional_roles } = req.body;
+    const { username, password, firstname, name, email, role, departments, additional_roles, phone } = req.body;
     const userId = req.session.userId;
 
     if (!FBL_ALLOWED_ROLES.includes(role)) {
@@ -886,7 +906,7 @@ const createDepartmentLeadUser = async (req, res) => {
     const existing = await User.findOne({ where: { [Op.or]: [{ username }, { email }] } });
     if (existing) return res.status(400).json({ success: false, message: 'Benutzername oder E-Mail existiert bereits' });
 
-    const user = await User.create({ username, password, firstname, name, email, role });
+    const user = await User.create({ username, password, firstname, name, email, role, phone: phone || null });
     if (departments && departments.length > 0) {
       const deptObjs = await Department.findAll({ where: { id: departments } });
       await user.setDepartments(deptObjs);
@@ -904,7 +924,7 @@ const createDepartmentLeadUser = async (req, res) => {
 const updateDepartmentLeadUser = async (req, res) => {
   try {
     const { id } = req.params;
-    const { username, password, firstname, name, email, role, departments, additional_roles } = req.body;
+    const { username, password, firstname, name, email, role, departments, additional_roles, phone } = req.body;
     const userId = req.session.userId;
 
     if (!FBL_ALLOWED_ROLES.includes(role)) {
@@ -940,6 +960,7 @@ const updateDepartmentLeadUser = async (req, res) => {
     if (existing) return res.status(400).json({ success: false, message: 'Benutzername oder E-Mail existiert bereits' });
 
     const updateData = { username, firstname, name, email, role };
+    if (phone !== undefined) updateData.phone = phone || null;
     if (password && password.trim() !== '') updateData.password = password;
     await user.update(updateData);
 
@@ -1010,7 +1031,11 @@ const getDepartmentLeadDepartments = async (req, res) => {
 const getMilestones = async (req, res) => {
   try {
     const { yearId } = req.params;
-    const milestones = await Milestone.findAll({ where: { year_id: yearId }, order: [['due_at', 'ASC']] });
+    const milestones = await Milestone.findAll({
+      where: { year_id: yearId },
+      include: [{ model: UploadCategory, as: 'uploadCategories', through: { attributes: [] } }],
+      order: [['due_at', 'ASC']],
+    });
     res.json(milestones);
   } catch (error) {
     console.error('Error fetching milestones:', error);
@@ -1033,7 +1058,8 @@ const parseMilestoneConfig = (body) => {
   const requires_approval_2 = body.requires_approval_2 === undefined ? false : !!body.requires_approval_2;
   const approver_role_2 = requires_approval_2 ? (body.approver_role_2 || null) : null;
   const is_transfer_project = body.is_transfer_project === undefined ? false : !!body.is_transfer_project;
-  return { allow_upload, allow_update, requires_evaluation, evaluator_role, double_evaluation, evaluator_role_2, evaluation_form_id, requires_approval, approver_role, requires_approval_2, approver_role_2, is_transfer_project };
+  const feedback_form_enabled = body.feedback_form_enabled === undefined ? false : !!body.feedback_form_enabled;
+  return { allow_upload, allow_update, requires_evaluation, evaluator_role, double_evaluation, evaluator_role_2, evaluation_form_id, requires_approval, approver_role, requires_approval_2, approver_role_2, is_transfer_project, feedback_form_enabled };
 };
 
 const createMilestone = async (req, res) => {
@@ -1090,10 +1116,23 @@ const createMilestone = async (req, res) => {
 
     const milestone = await Milestone.create({ year_id: yearId, label, due_at, responsible_role, ...config });
 
+    // Upload-Kategorien zuweisen (optional)
+    const catIds = Array.isArray(req.body.upload_categories)
+      ? req.body.upload_categories.map(n => parseInt(n, 10)).filter(Number.isInteger)
+      : [];
+    if (catIds.length > 0) await milestone.setUploadCategories(catIds);
+
     if (applyToExisting) {
       const theses = await Thesis.findAll({ where: { year_id: yearId }, attributes: ['id'] });
       if (theses.length > 0) {
-        await ThesisMilestone.bulkCreate(theses.map(t => createThesisMilestoneFromTemplate(t.id, milestone)));
+        const tms = await ThesisMilestone.bulkCreate(
+          theses.map(t => createThesisMilestoneFromTemplate(t.id, milestone)),
+          { returning: true }
+        );
+        // Kategorien an die neuen Snapshots verteilen
+        if (catIds.length > 0) {
+          for (const tm of tms) await tm.setUploadCategories(catIds);
+        }
       }
     }
 
@@ -1160,11 +1199,20 @@ const updateMilestone = async (req, res) => {
       ...config,
     });
 
+    // Upload-Kategorien synchronisieren (immer komplett ersetzen für die Vorlage).
+    let newCatIds = null;
+    if (Array.isArray(req.body.upload_categories)) {
+      newCatIds = req.body.upload_categories.map(n => parseInt(n, 10)).filter(Number.isInteger);
+      await milestone.setUploadCategories(newCatIds);
+    }
+
     if (applyToExisting) {
+      // Alle anderen Felder werden auf allen Snapshots aktualisiert. due_at wird
+      // nur dort gesetzt, wo es nicht individuell überschrieben wurde — siehe
+      // separates Update unten.
       await ThesisMilestone.update(
         {
           label: milestone.label,
-          due_at: milestone.due_at,
           responsible_role: milestone.responsible_role,
           allow_upload: milestone.allow_upload,
           allow_update: milestone.allow_update,
@@ -1178,9 +1226,23 @@ const updateMilestone = async (req, res) => {
           requires_approval_2: milestone.requires_approval_2,
           approver_role_2: milestone.approver_role_2,
           is_transfer_project: milestone.is_transfer_project,
+          feedback_form_enabled: milestone.feedback_form_enabled,
         },
         { where: { milestone_id: milestone.id } }
       );
+      // Termin nur dort übernehmen, wo der FBL/Admin ihn nicht individuell
+      // gesetzt hat (Override-Schutz).
+      await ThesisMilestone.update(
+        { due_at: milestone.due_at },
+        { where: { milestone_id: milestone.id, due_at_overridden: false } }
+      );
+      // Snapshot-Kategorien werden NUR ergänzt, nie entfernt (Datenschutz für
+      // bereits hochgeladene Dokumente). Existierende Snapshot-Kategorien bleiben
+      // bestehen, neue aus dem Template kommen dazu.
+      if (newCatIds && newCatIds.length > 0) {
+        const snapshots = await ThesisMilestone.findAll({ where: { milestone_id: milestone.id } });
+        for (const tm of snapshots) await tm.addUploadCategories(newCatIds);
+      }
     }
 
     res.json({ success: true, milestone });
@@ -1283,24 +1345,65 @@ const getThesisMilestones = async (req, res) => {
   }
 };
 
+// Berechtigung für individuelle Termin-Anpassung: Admin oder FBL des Fachbereichs der DA.
+async function canManageThesisMilestoneDueAt(userRole, userId, thesisId) {
+  if (userRole === 'admin') return true;
+  if (userRole !== 'department_lead') return false;
+  const thesis = await Thesis.findByPk(thesisId, { attributes: ['department_id'] });
+  if (!thesis) return false;
+  const dept = await Department.findByPk(thesis.department_id, { attributes: ['department_lead_id'] });
+  return !!(dept && dept.department_lead_id === userId);
+}
+
 const updateThesisMilestoneDueAt = async (req, res) => {
   try {
     const { id } = req.params;
     const { due_at } = req.body;
     const userRole = req.session.userRole;
+    const userId = req.session.userId;
 
-    if (userRole !== 'admin') {
-      return res.status(403).json({ success: false, message: 'Nur Administratoren können den Termin pro Diplomarbeit übersteuern' });
-    }
     if (!due_at) return res.status(400).json({ success: false, message: 'Termin ist erforderlich' });
 
     const tm = await ThesisMilestone.findByPk(id);
     if (!tm) return res.status(404).json({ success: false, message: 'Meilenstein nicht gefunden' });
+    if (isFpcBlocked(tm, userRole)) return res.status(403).json({ success: false, message: 'Keine Berechtigung für diesen Meilenstein' });
 
-    await tm.update({ due_at });
+    const allowed = await canManageThesisMilestoneDueAt(userRole, userId, tm.thesis_id);
+    if (!allowed) return res.status(403).json({ success: false, message: 'Sie haben keine Berechtigung, den Termin zu übersteuern' });
+
+    await tm.update({ due_at, due_at_overridden: true });
     res.json({ success: true, milestone: tm });
   } catch (error) {
     console.error('Error updating thesis milestone due_at:', error);
+    res.status(500).json({ success: false, message: 'Interner Serverfehler' });
+  }
+};
+
+// Setzt den individuellen Termin zurück auf den Vorlagen-Termin (falls vorhanden)
+// und entfernt die Override-Markierung. Berechtigung wie Termin-Override.
+const resetThesisMilestoneDueAt = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const userRole = req.session.userRole;
+    const userId = req.session.userId;
+
+    const tm = await ThesisMilestone.findByPk(id);
+    if (!tm) return res.status(404).json({ success: false, message: 'Meilenstein nicht gefunden' });
+    if (isFpcBlocked(tm, userRole)) return res.status(403).json({ success: false, message: 'Keine Berechtigung für diesen Meilenstein' });
+
+    const allowed = await canManageThesisMilestoneDueAt(userRole, userId, tm.thesis_id);
+    if (!allowed) return res.status(403).json({ success: false, message: 'Sie haben keine Berechtigung, den Termin zurückzusetzen' });
+
+    // Originaltermin aus der zugehörigen Vorlage holen (falls vorhanden).
+    let resetDueAt = tm.due_at;
+    if (tm.milestone_id) {
+      const template = await Milestone.findByPk(tm.milestone_id, { attributes: ['due_at'] });
+      if (template) resetDueAt = template.due_at;
+    }
+    await tm.update({ due_at: resetDueAt, due_at_overridden: false });
+    res.json({ success: true, milestone: tm });
+  } catch (error) {
+    console.error('Error resetting thesis milestone due_at:', error);
     res.status(500).json({ success: false, message: 'Interner Serverfehler' });
   }
 };
@@ -1316,6 +1419,7 @@ const setThesisMilestoneApproval = async (req, res) => {
 
     const tm = await ThesisMilestone.findByPk(id);
     if (!tm) return res.status(404).json({ success: false, message: 'Meilenstein nicht gefunden' });
+    if (isFpcBlocked(tm, userRole)) return res.status(403).json({ success: false, message: 'Keine Berechtigung für diesen Meilenstein' });
 
     const requiresField = slot === 2 ? 'requires_approval_2' : 'requires_approval';
     const roleField = slot === 2 ? 'approver_role_2' : 'approver_role';
@@ -1397,9 +1501,13 @@ const uploadThesisMilestoneDocument = (req, res) => {
       const userRole = req.session.userRole;
 
       const tm = await ThesisMilestone.findByPk(id, {
-        include: [{ model: ThesisMilestoneDocument, as: 'documents' }]
+        include: [
+          { model: ThesisMilestoneDocument, as: 'documents' },
+          { model: UploadCategory, as: 'uploadCategories', through: { attributes: [] } },
+        ]
       });
       if (!tm) { cleanup(); return res.status(404).json({ success: false, message: 'Meilenstein nicht gefunden' }); }
+      if (isFpcBlocked(tm, userRole)) { cleanup(); return res.status(403).json({ success: false, message: 'Keine Berechtigung für diesen Meilenstein' }); }
 
       const access = await userHasThesisAccess(userId, userRole, tm.thesis_id);
       if (!access) { cleanup(); return res.status(403).json({ success: false, message: 'Sie haben keine Berechtigung, für diese Diplomarbeit Dokumente hochzuladen' }); }
@@ -1410,7 +1518,26 @@ const uploadThesisMilestoneDocument = (req, res) => {
 
       if (!canUploadForMilestone(tm, userRole)) { cleanup(); return res.status(403).json({ success: false, message: 'Ihre Rolle ist nicht berechtigt, dieses Dokument hochzuladen' }); }
 
-      const existing = tm.documents || [];
+      // Kategorie auswählen / validieren. Wenn der Meilenstein Kategorien zugewiesen
+      // hat, muss eine gewählt werden und sie muss zu den zulässigen gehören.
+      // Ohne zugewiesene Kategorien: NULL (Default-Slot, abwärtskompatibel).
+      const categoryIds = (tm.uploadCategories || []).map(c => c.id);
+      let categoryId = null;
+      if (req.body.upload_category_id !== undefined && req.body.upload_category_id !== '' && req.body.upload_category_id !== null) {
+        categoryId = parseInt(req.body.upload_category_id, 10);
+        if (!Number.isInteger(categoryId)) { cleanup(); return res.status(400).json({ success: false, message: 'Ungültige Upload-Kategorie' }); }
+      }
+      if (categoryIds.length > 0) {
+        if (categoryId === null) { cleanup(); return res.status(400).json({ success: false, message: 'Bitte eine Upload-Kategorie wählen' }); }
+        if (!categoryIds.includes(categoryId)) { cleanup(); return res.status(400).json({ success: false, message: 'Diese Kategorie ist für den Meilenstein nicht zugelassen' }); }
+      } else {
+        categoryId = null; // ignoriere fälschlich übergebene IDs
+      }
+
+      // Versionen werden pro (TM, Kategorie) geführt — gleiche Kategorie => neue Version.
+      const existing = (tm.documents || []).filter(d =>
+        (d.upload_category_id || null) === categoryId
+      );
       const hasExisting = existing.length > 0;
 
       if (hasExisting && !tm.allow_update) {
@@ -1420,16 +1547,17 @@ const uploadThesisMilestoneDocument = (req, res) => {
 
       const nextVersion = existing.reduce((max, d) => Math.max(max, d.version), 0) + 1;
 
-      // Mark previous current version(s) as superseded (all documents are kept)
+      // Vorherige aktuelle Version (in derselben Kategorie) als abgelöst markieren.
       if (hasExisting) {
         await ThesisMilestoneDocument.update(
           { is_current: false, superseded_at: new Date() },
-          { where: { thesis_milestone_id: tm.id, is_current: true } }
+          { where: { thesis_milestone_id: tm.id, upload_category_id: categoryId, is_current: true } }
         );
       }
 
       await ThesisMilestoneDocument.create({
         thesis_milestone_id: tm.id,
+        upload_category_id: categoryId,
         file_name: req.file.originalname,
         file_path: req.file.path,
         mime_type: req.file.mimetype,
@@ -1440,10 +1568,15 @@ const uploadThesisMilestoneDocument = (req, res) => {
         uploaded_at: new Date(),
       });
 
+      // Kategorie-Label für Log-Eintrag (falls vorhanden).
+      const catLabel = (tm.uploadCategories || []).find(c => c.id === categoryId);
+      const logDetail = catLabel
+        ? `${tm.label} — ${catLabel.label}: ${req.file.originalname} (Version ${nextVersion})`
+        : `${tm.label}: ${req.file.originalname} (Version ${nextVersion})`;
       await writeThesisLog(
         tm.thesis_id, tm.id, userId,
         hasExisting ? 'document_update' : 'document_upload',
-        `${tm.label}: ${req.file.originalname} (Version ${nextVersion})`
+        logDetail
       );
 
       res.json({ success: true, message: hasExisting ? 'Aktualisierte Version hochgeladen' : 'Dokument erfolgreich hochgeladen' });
@@ -1480,12 +1613,14 @@ const deleteThesisMilestoneDocument = async (req, res) => {
     const docName = doc.file_name;
     const thesisId = tm ? tm.thesis_id : null;
     const tmId = tm ? tm.id : null;
+    const catId = doc.upload_category_id ?? null;
     await doc.destroy();
 
-    // If we deleted the current version, promote the latest remaining one.
+    // Wurde die aktuelle Version gelöscht, die jüngste verbliebene in DERSELBEN
+    // Kategorie zur aktuellen befördern.
     if (wasCurrent && tmId) {
       const remaining = await ThesisMilestoneDocument.findOne({
-        where: { thesis_milestone_id: tmId },
+        where: { thesis_milestone_id: tmId, upload_category_id: catId },
         order: [['version', 'DESC']]
       });
       if (remaining) {
@@ -1511,9 +1646,10 @@ const downloadThesisMilestoneDocument = async (req, res) => {
     const userRole = req.session.userRole;
 
     const doc = await ThesisMilestoneDocument.findByPk(docId, {
-      include: [{ model: ThesisMilestone, as: 'thesisMilestone', attributes: ['id', 'thesis_id'] }]
+      include: [{ model: ThesisMilestone, as: 'thesisMilestone', attributes: ['id', 'thesis_id', 'is_transfer_project'] }]
     });
     if (!doc) return res.status(404).json({ success: false, message: 'Dokument nicht gefunden' });
+    if (isFpcBlocked(doc.thesisMilestone, userRole)) return res.status(403).json({ success: false, message: 'Keine Berechtigung für diesen Meilenstein' });
 
     const access = await userHasThesisAccess(userId, userRole, doc.thesisMilestone.thesis_id);
     if (!access) return res.status(403).json({ success: false, message: 'Sie haben keine Berechtigung, dieses Dokument herunterzuladen' });
@@ -1676,6 +1812,77 @@ const deleteConfidentialityDocument = async (req, res) => {
   }
 };
 
+// ---------- Sperrung einer Diplomarbeit ----------
+
+// Sperrt eine Diplomarbeit (z.B. wegen Abbruch). Studierende dieser Arbeit
+// können sich anschliessend nicht mehr einloggen; laufende Sessions werden
+// beim nächsten Request beendet (siehe middleware/auth.js).
+const lockThesis = async (req, res) => {
+  try {
+    const userRole = req.session.userRole;
+    const userId = req.session.userId;
+    if (!['admin', 'department_lead'].includes(userRole)) {
+      return res.status(403).json({ success: false, message: 'Keine Berechtigung' });
+    }
+    const thesis = await Thesis.findByPk(req.params.id);
+    if (!thesis) return res.status(404).json({ success: false, message: 'Diplomarbeit nicht gefunden' });
+    if (userRole === 'department_lead') {
+      const ledDepartments = await Department.findAll({ where: { department_lead_id: userId }, attributes: ['id'] });
+      if (!ledDepartments.map(d => d.id).includes(thesis.department_id)) {
+        return res.status(403).json({ success: false, message: 'Nur für Diplomarbeiten aus von Ihnen geleiteten Fachbereichen' });
+      }
+    }
+    if (thesis.is_locked) {
+      return res.json({ success: true, message: 'Bereits gesperrt' });
+    }
+    const reason = (req.body && typeof req.body.reason === 'string') ? req.body.reason.trim() : '';
+    await thesis.update({
+      is_locked: true,
+      locked_at: new Date(),
+      locked_by_user_id: userId,
+      locked_reason: reason || null,
+    });
+    await writeThesisLog(thesis.id, null, userId, 'thesis_locked', reason || '');
+    res.json({ success: true });
+  } catch (e) {
+    console.error('lockThesis error:', e);
+    res.status(500).json({ success: false, message: 'Sperren fehlgeschlagen' });
+  }
+};
+
+// Hebt die Sperrung einer Diplomarbeit wieder auf.
+const unlockThesis = async (req, res) => {
+  try {
+    const userRole = req.session.userRole;
+    const userId = req.session.userId;
+    if (!['admin', 'department_lead'].includes(userRole)) {
+      return res.status(403).json({ success: false, message: 'Keine Berechtigung' });
+    }
+    const thesis = await Thesis.findByPk(req.params.id);
+    if (!thesis) return res.status(404).json({ success: false, message: 'Diplomarbeit nicht gefunden' });
+    if (userRole === 'department_lead') {
+      const ledDepartments = await Department.findAll({ where: { department_lead_id: userId }, attributes: ['id'] });
+      if (!ledDepartments.map(d => d.id).includes(thesis.department_id)) {
+        return res.status(403).json({ success: false, message: 'Nur für Diplomarbeiten aus von Ihnen geleiteten Fachbereichen' });
+      }
+    }
+    if (!thesis.is_locked) {
+      return res.json({ success: true, message: 'Nicht gesperrt' });
+    }
+    await thesis.update({
+      is_locked: false,
+      locked_at: null,
+      locked_by_user_id: null,
+      locked_reason: null,
+    });
+    await writeThesisLog(thesis.id, null, userId, 'thesis_unlocked', '');
+    res.json({ success: true });
+  } catch (e) {
+    console.error('unlockThesis error:', e);
+    res.status(500).json({ success: false, message: 'Entsperren fehlgeschlagen' });
+  }
+};
+
 // ---------- Chat ----------
 
 // Liefert Chat-Nachrichten der DA (chronologisch) inkl. Sender und Read-Receipts.
@@ -1812,6 +2019,7 @@ const evaluateThesisMilestone = async (req, res) => {
 
     const tm = await ThesisMilestone.findByPk(id);
     if (!tm) return res.status(404).json({ success: false, message: 'Meilenstein nicht gefunden' });
+    if (isFpcBlocked(tm, userRole)) return res.status(403).json({ success: false, message: 'Keine Berechtigung für diesen Meilenstein' });
 
     if (!tm.requires_evaluation) {
       return res.status(400).json({ success: false, message: 'Für diesen Meilenstein ist keine Bewertung vorgesehen' });
@@ -1981,7 +2189,211 @@ const switchSelectedYear = async (req, res) => {
   }
 };
 
+// Bereinigt einen Wert für die Verwendung in einem Dateinamen (Unicode-freundlich,
+// ersetzt nur die kritischen Pfad-/Steuerzeichen sowie Leerzeichen).
+function sanitizeFilenamePart(s) {
+  return String(s || '')
+    .normalize('NFC')
+    .replace(/[\\/:*?"<>| -]/g, '')
+    .replace(/\s+/g, '-')
+    .replace(/^[.-]+|[.-]+$/g, '')
+    .slice(0, 120) || 'unbenannt';
+}
+function formatYyyymmdd(date) {
+  const d = date instanceof Date ? date : new Date(date);
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${y}${m}${day}`;
+}
+
+// ZIP-Export aller aktuellen Dokumente einer Upload-Kategorie für die DAs, die der
+// jeweilige User im Dashboard sieht (admin: alle bzw. dept-Filter; FBL: nur eigene
+// Fachbereiche, ggf. mit Filter). Pro Fachbereich ein Unterordner.
+// Dateinamen-Schema: <Nachnamen>_<Vornamen>_<Kategorie>_<YYYYMMDD heute>.<ext>
+const bulkDownloadCategoryZip = async (req, res) => {
+  try {
+    const userId = req.session.userId;
+    const userRole = req.session.userRole;
+    const yearId = req.session.selectedYear;
+
+    if (!['admin', 'department_lead'].includes(userRole)) {
+      return res.status(403).send('Keine Berechtigung');
+    }
+    if (!yearId) return res.status(400).send('Kein Diplomjahr ausgewählt');
+
+    const categoryId = parseInt(req.params.id, 10);
+    if (!Number.isInteger(categoryId)) return res.status(400).send('Ungültige Kategorie');
+    const category = await UploadCategory.findByPk(categoryId);
+    if (!category) return res.status(404).send('Kategorie nicht gefunden');
+
+    // Filter analog Dashboard ermitteln.
+    const whereThesis = { year_id: yearId };
+    const departmentFilter = req.query.department ? parseInt(req.query.department, 10) : null;
+    if (userRole === 'department_lead') {
+      const ledIds = (await Department.findAll({ where: { department_lead_id: userId }, attributes: ['id'] })).map(d => d.id);
+      if (ledIds.length === 0) return res.status(404).send('Keine Fachbereiche zugewiesen');
+      if (departmentFilter && ledIds.includes(departmentFilter)) whereThesis.department_id = departmentFilter;
+      else whereThesis.department_id = ledIds;
+    } else if (departmentFilter) {
+      whereThesis.department_id = departmentFilter;
+    }
+
+    // Alle Dokumente der gewünschten Kategorie für die berechtigten DAs holen.
+    const docs = await ThesisMilestoneDocument.findAll({
+      where: { upload_category_id: categoryId, is_current: true },
+      include: [{
+        model: ThesisMilestone, as: 'thesisMilestone', attributes: ['id', 'thesis_id'],
+        required: true,
+        include: [{
+          model: Thesis, as: 'thesis', where: whereThesis, required: true,
+          attributes: ['id', 'department_id'],
+          include: [
+            { model: Department, as: 'department', attributes: ['id', 'name'] },
+            { model: User, as: 'students', attributes: ['firstname', 'name'] },
+          ],
+        }],
+      }],
+    });
+
+    if (docs.length === 0) {
+      return res.status(404).send(`Keine Dokumente der Kategorie "${category.label}" im aktuellen Auswahlbereich gefunden.`);
+    }
+
+    const todayStr = formatYyyymmdd(new Date());
+    const catPart = sanitizeFilenamePart(category.label);
+    const safeZipName = sanitizeFilenamePart(category.label) + '_' + todayStr + '.zip';
+
+    res.setHeader('Content-Type', 'application/zip');
+    res.setHeader('Content-Disposition', `attachment; filename="${safeZipName}"`);
+
+    const archive = archiver('zip', { zlib: { level: 6 } });
+    archive.on('warning', (err) => { if (err.code !== 'ENOENT') console.error('archive warning:', err); });
+    archive.on('error', (err) => { console.error('archive error:', err); try { res.status(500).end(); } catch (e) {} });
+    archive.pipe(res);
+
+    // Dateinamen-Duplikate pro Fachbereichs-Ordner verhindern.
+    const seenPerFolder = new Map();
+    for (const doc of docs) {
+      const tm = doc.thesisMilestone;
+      if (!tm || !tm.thesis) continue;
+      if (!doc.file_path || !fs.existsSync(doc.file_path)) {
+        console.warn('Bulk-ZIP: Datei fehlt auf Disk, übersprungen:', doc.file_path);
+        continue;
+      }
+
+      const dept = tm.thesis.department;
+      const folder = sanitizeFilenamePart(dept ? dept.name : 'unbekannt');
+
+      const students = (tm.thesis.students || []).slice().sort((a, b) =>
+        (a.name || '').localeCompare(b.name || '') || (a.firstname || '').localeCompare(b.firstname || '')
+      );
+      const namesPart = sanitizeFilenamePart(students.map(s => s.name || '').filter(Boolean).join('-') || 'ohne-Namen');
+      const firstnamesPart = sanitizeFilenamePart(students.map(s => s.firstname || '').filter(Boolean).join('-') || 'ohne-Vornamen');
+
+      // Original-Erweiterung wiederverwenden (oder .pdf als Default).
+      const ext = (path.extname(doc.file_name || '') || '.pdf').toLowerCase();
+      let base = `${namesPart}_${firstnamesPart}_${catPart}_${todayStr}`;
+      let candidate = `${base}${ext}`;
+      const folderSeen = seenPerFolder.get(folder) || new Set();
+      let n = 2;
+      while (folderSeen.has(candidate)) {
+        candidate = `${base}_${n}${ext}`;
+        n++;
+      }
+      folderSeen.add(candidate);
+      seenPerFolder.set(folder, folderSeen);
+
+      archive.file(doc.file_path, { name: `${folder}/${candidate}` });
+    }
+
+    await archive.finalize();
+  } catch (e) {
+    console.error('bulkDownloadCategoryZip error:', e);
+    if (!res.headersSent) res.status(500).send('Interner Serverfehler');
+  }
+};
+
+// ---------- Upload-Kategorien (Stammdaten, Admin) ----------
+
+const getUploadCategories = async (req, res) => {
+  try {
+    // Admin: alle (inkl. inaktive). Andere Rollen (für Auswahl): nur aktive.
+    const onlyActive = req.session.userRole !== 'admin' || req.query.onlyActive === '1';
+    const where = onlyActive ? { is_active: true } : {};
+    const cats = await UploadCategory.findAll({ where, order: [['label', 'ASC']] });
+    res.json(cats);
+  } catch (err) {
+    console.error('getUploadCategories error:', err);
+    res.status(500).json({ success: false, message: 'Upload-Kategorien konnten nicht geladen werden' });
+  }
+};
+
+const createUploadCategory = async (req, res) => {
+  try {
+    const label = String(req.body.label || '').trim();
+    if (!label) return res.status(400).json({ success: false, message: 'Bezeichnung erforderlich' });
+    const existing = await UploadCategory.findOne({
+      where: sequelize.where(sequelize.fn('lower', sequelize.col('label')), label.toLowerCase())
+    });
+    if (existing) return res.status(409).json({ success: false, message: 'Diese Bezeichnung existiert bereits' });
+    const cat = await UploadCategory.create({ label, is_active: true });
+    res.json({ success: true, category: cat });
+  } catch (err) {
+    console.error('createUploadCategory error:', err);
+    res.status(500).json({ success: false, message: 'Upload-Kategorie konnte nicht angelegt werden' });
+  }
+};
+
+const updateUploadCategory = async (req, res) => {
+  try {
+    const id = parseInt(req.params.id, 10);
+    const cat = await UploadCategory.findByPk(id);
+    if (!cat) return res.status(404).json({ success: false, message: 'Upload-Kategorie nicht gefunden' });
+
+    const updates = {};
+    if (req.body.label !== undefined) {
+      const label = String(req.body.label).trim();
+      if (!label) return res.status(400).json({ success: false, message: 'Bezeichnung erforderlich' });
+      const dup = await UploadCategory.findOne({
+        where: {
+          [Op.and]: [
+            { id: { [Op.ne]: id } },
+            sequelize.where(sequelize.fn('lower', sequelize.col('label')), label.toLowerCase()),
+          ]
+        }
+      });
+      if (dup) return res.status(409).json({ success: false, message: 'Diese Bezeichnung existiert bereits' });
+      updates.label = label;
+    }
+    if (req.body.is_active !== undefined) updates.is_active = !!req.body.is_active;
+    await cat.update(updates);
+    res.json({ success: true, category: cat });
+  } catch (err) {
+    console.error('updateUploadCategory error:', err);
+    res.status(500).json({ success: false, message: 'Upload-Kategorie konnte nicht aktualisiert werden' });
+  }
+};
+
+const deleteUploadCategory = async (req, res) => {
+  try {
+    const id = parseInt(req.params.id, 10);
+    const cat = await UploadCategory.findByPk(id);
+    if (!cat) return res.status(404).json({ success: false, message: 'Upload-Kategorie nicht gefunden' });
+    await cat.destroy();
+    res.json({ success: true });
+  } catch (err) {
+    console.error('deleteUploadCategory error:', err);
+    res.status(500).json({ success: false, message: 'Upload-Kategorie konnte nicht gelöscht werden' });
+  }
+};
+
 module.exports = {
+  bulkDownloadCategoryZip,
+  getUploadCategories,
+  createUploadCategory,
+  updateUploadCategory,
+  deleteUploadCategory,
   getYears,
   createYear,
   setCurrentYear,
@@ -2019,6 +2431,7 @@ module.exports = {
   deleteMilestone,
   getThesisMilestones,
   updateThesisMilestoneDueAt,
+  resetThesisMilestoneDueAt,
   setThesisMilestoneApproval,
   setThesisMilestoneReleased,
   uploadThesisMilestoneDocument,
@@ -2028,6 +2441,8 @@ module.exports = {
   uploadConfidentialityDocument,
   downloadConfidentialityDocument,
   deleteConfidentialityDocument,
+  lockThesis,
+  unlockThesis,
   getChatMessages,
   postChatMessage,
   downloadChatAttachment,

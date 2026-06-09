@@ -12,6 +12,7 @@ const items = [
     { key: 'years',         href: '/dashboard/admin/years',              icon: 'bi-calendar3',      roles: ['admin'],                 title: 'Diplomjahre' },
     { key: 'milestones',    href: '/dashboard/admin/milestones',         icon: 'bi-flag',           roles: ['admin'],                 title: 'Meilensteine' },
     { key: 'eval-forms',    href: '/dashboard/admin/evaluation-forms',   icon: 'bi-clipboard-check',roles: ['admin'],                 title: 'Bewertungsformulare' },
+    { key: 'upload-cats',   href: '/dashboard/admin/upload-categories',  icon: 'bi-tag',            roles: ['admin'],                 title: 'Upload-Kategorien' },
 ];
 function isVisible(item) {
     if (item.roles === '*') return true;
@@ -19,7 +20,7 @@ function isVisible(item) {
 }
 %>
 <aside class="app-sidebar">
-    <a href="/dashboard" class="brand" title="DA-Buddy">
+    <a href="/dashboard" class="brand" title="ThesisBuddy">
         <span class="brand-logo">D</span>
     </a>
     <nav class="nav-icons">

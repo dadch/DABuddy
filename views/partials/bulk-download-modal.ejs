@@ -1,0 +1,82 @@
+<!-- Bulk-Download-Modal: lässt Admin/FBL alle Dokumente einer Upload-Kategorie
+     für die aktuell sichtbaren DAs als ZIP herunterladen. Erwartet:
+       - selectedDepartment: optionaler Department-Filter aus dem Dashboard. -->
+<div class="modal fade" id="bulkDownloadModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title"><i class="bi bi-archive"></i> Dokumente als ZIP herunterladen</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form id="bulkDownloadForm">
+                <div class="modal-body">
+                    <p class="text-muted small mb-3">
+                        Lädt alle aktuellen Dokumente der gewählten Upload-Kategorie aus den
+                        Diplomarbeiten, die unten in der Liste angezeigt werden, als ZIP herunter.
+                        Pro Fachbereich entsteht ein Unterordner. Dateinamen-Schema:
+                        <code>Nachname_Vorname_Kategorie_<%= new Date().toLocaleDateString('de-CH').replace(/\./g,'').padStart(8,'0').slice(-8) %>.pdf</code>.
+                    </p>
+                    <div class="mb-3">
+                        <label class="form-label">Upload-Kategorie</label>
+                        <select class="form-select" id="bulkDownloadCategory" required>
+                            <option value="">Wird geladen…</option>
+                        </select>
+                    </div>
+                    <div id="bulkDownloadError" class="alert alert-danger mb-0 d-none"></div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Abbrechen</button>
+                    <button type="submit" class="btn btn-primary"><i class="bi bi-download"></i> ZIP herunterladen</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+<script>
+(function() {
+    const SELECTED_DEPARTMENT = <%- JSON.stringify(typeof selectedDepartment !== 'undefined' && selectedDepartment ? String(selectedDepartment) : '') %>;
+    let categoriesLoaded = false;
+    function loadCategoriesOnce() {
+        if (categoriesLoaded) return Promise.resolve();
+        return fetch('/api/upload-categories?onlyActive=1')
+            .then(r => r.json())
+            .then(cats => {
+                const sel = document.getElementById('bulkDownloadCategory');
+                if (!Array.isArray(cats) || cats.length === 0) {
+                    sel.innerHTML = '<option value="">Keine aktiven Kategorien vorhanden</option>';
+                } else {
+                    sel.innerHTML = '<option value="">Bitte auswählen…</option>' +
+                        cats.map(c => `<option value="${c.id}">${c.label.replace(/[<>&"']/g, '')}</option>`).join('');
+                }
+                categoriesLoaded = true;
+            });
+    }
+    window.openBulkDownloadModal = function() {
+        document.getElementById('bulkDownloadError').classList.add('d-none');
+        loadCategoriesOnce().catch(() => {
+            const e = document.getElementById('bulkDownloadError');
+            e.textContent = 'Kategorien konnten nicht geladen werden';
+            e.classList.remove('d-none');
+        });
+        new bootstrap.Modal(document.getElementById('bulkDownloadModal')).show();
+    };
+    document.getElementById('bulkDownloadForm').addEventListener('submit', (e) => {
+        e.preventDefault();
+        const cid = document.getElementById('bulkDownloadCategory').value;
+        if (!cid) return;
+        const params = new URLSearchParams();
+        if (SELECTED_DEPARTMENT) params.set('department', SELECTED_DEPARTMENT);
+        const url = `/api/upload-categories/${cid}/bulk-download.zip` + (params.toString() ? '?' + params.toString() : '');
+        // Über verstecktes iframe streamen, damit die aktuelle Seite stehen bleibt.
+        let frame = document.getElementById('bulkDownloadFrame');
+        if (!frame) {
+            frame = document.createElement('iframe');
+            frame.id = 'bulkDownloadFrame';
+            frame.style.display = 'none';
+            document.body.appendChild(frame);
+        }
+        frame.src = url;
+        bootstrap.Modal.getInstance(document.getElementById('bulkDownloadModal')).hide();
+    });
+})();
+</script>

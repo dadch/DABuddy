@@ -1,4 +1,4 @@
-<%- include('../partials/header', { title: 'FachbereichsleiterIn-Dashboard - DABuddy', user: user }) %>
+<%- include('../partials/header', { title: 'FachbereichsleiterIn-Dashboard - ThesisBuddy', user: user }) %>
 
 <div class="page-header">
     <h1 class="page-title">Fachbereichsverwaltung</h1>
@@ -11,6 +11,11 @@
             </button>
             <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="dashboardActionsMenu">
                 <li><button class="dropdown-item" type="button" onclick="openAddThesisModal()"><i class="bi bi-plus"></i> Diplomarbeit hinzufügen</button></li>
+                <li><hr class="dropdown-divider"></li>
+                <li><a class="dropdown-item" href="/api/theses-list.pdf<%= selectedDepartment ? '?department=' + encodeURIComponent(selectedDepartment) : '' %>" target="_blank"><i class="bi bi-file-earmark-pdf"></i> Diplomarbeitenliste als PDF</a></li>
+                <li><a class="dropdown-item" href="/api/theses-list.csv<%= selectedDepartment ? '?department=' + encodeURIComponent(selectedDepartment) : '' %>"><i class="bi bi-file-earmark-spreadsheet"></i> Diplomarbeitenliste als CSV</a></li>
+                <li><a class="dropdown-item" href="/api/transfer-project-overview.pdf" target="_blank"><i class="bi bi-arrow-left-right"></i> Gesamtübersicht Transferprojekt</a></li>
+                <li><button class="dropdown-item" type="button" onclick="openBulkDownloadModal()"><i class="bi bi-archive"></i> Dokumente als ZIP herunterladen…</button></li>
                 <li><hr class="dropdown-divider"></li>
                 <li><button class="dropdown-item" type="button" onclick="openUserManagementModal()"><i class="bi bi-person-gear"></i> Benutzer verwalten</button></li>
                 <li><button class="dropdown-item" type="button" onclick="openStudentManagement()"><i class="bi bi-mortarboard"></i> Studierende verwalten</button></li>
@@ -61,7 +66,7 @@
                                     <th>Fachbereich</th>
                                     <th>Studenten</th>
                                     <th>Dozent/innen</th>
-                                    <th>Field Project Coaches</th>
+                                    <th>Dozenten Transferprojekt</th>
                                     <th>Experten</th>
                                     <th>Auftraggeber</th>
                                     <th>Aktionen</th>
@@ -69,8 +74,9 @@
                             </thead>
                             <tbody>
                                 <% theses.forEach(function(thesis) { %>
-                                    <tr>
+                                    <tr<% if (thesis.is_locked) { %> class="table-warning"<% } %>>
                                         <td>
+                                            <% if (thesis.is_locked) { %><i class="bi bi-slash-circle-fill text-danger me-2" title="Diplomarbeit gesperrt"></i><% } %>
                                             <strong><%= thesis.title %></strong>
                                         </td>
                                         <td><%= thesis.department.name %></td>
@@ -189,7 +195,7 @@
                         </select>
                     </div>
                     <div class="mb-3">
-                        <label for="thesisFieldProjectCoach" class="form-label">Field Project Coach</label>
+                        <label for="thesisFieldProjectCoach" class="form-label">Dozent Transferprojekt</label>
                         <select class="form-select" id="thesisFieldProjectCoach" name="field_project_coach">
                             <option value="">Field Project Dozent/in auswählen...</option>
                         </select>
@@ -265,7 +271,7 @@
                         </select>
                     </div>
                     <div class="mb-3">
-                        <label for="editThesisFieldProjectCoach" class="form-label">Field Project Coach</label>
+                        <label for="editThesisFieldProjectCoach" class="form-label">Dozent Transferprojekt</label>
                         <select class="form-select" id="editThesisFieldProjectCoach" name="field_project_coach">
                             <option value="">Field Project Dozent/in auswählen...</option>
                         </select>
@@ -341,6 +347,10 @@
                         <input type="email" class="form-control" id="userEmail" name="email" required>
                     </div>
                     <div class="mb-3">
+                        <label for="userPhone" class="form-label">Telefonnummer (optional)</label>
+                        <input type="tel" class="form-control" id="userPhone" name="phone">
+                    </div>
+                    <div class="mb-3">
                         <label for="userRole" class="form-label">Primärrolle</label>
                         <select class="form-select" id="userRole" name="role" required>
                             <option value="">Rolle auswählen</option>
@@ -408,6 +418,10 @@
                         <input type="email" class="form-control" id="editUserEmail" name="email" required>
                     </div>
                     <div class="mb-3">
+                        <label for="editUserPhone" class="form-label">Telefonnummer (optional)</label>
+                        <input type="tel" class="form-control" id="editUserPhone" name="phone">
+                    </div>
+                    <div class="mb-3">
                         <label for="editUserRole" class="form-label">Primärrolle</label>
                         <select class="form-select" id="editUserRole" name="role" required>
                             <option value="">Rolle auswählen</option>
@@ -450,7 +464,7 @@ function roleLabel(role) {
         expert: 'ExpertIn',
         admin: 'Administrator',
         department_lead: 'FachbereichsleiterIn',
-        field_project_coach: 'Field Project Coach'
+        field_project_coach: 'Dozent Transferprojekt'
     };
     return labels[role] || role;
 }
@@ -705,6 +719,7 @@ function editUser(userId) {
                 document.getElementById('editUserFirstname').value = user.firstname;
                 document.getElementById('editUserName').value = user.name;
                 document.getElementById('editUserEmail').value = user.email;
+                document.getElementById('editUserPhone').value = user.phone || '';
                 document.getElementById('editUserRole').value = user.role;
                 document.getElementById('editUserPassword').value = '';
 
@@ -966,5 +981,7 @@ document.getElementById('userUsername').addEventListener('blur', function() {
 </script>
 
 <%- include('../partials/student-management') %>
+
+<%- include('../partials/bulk-download-modal', { selectedDepartment: typeof selectedDepartment !== 'undefined' ? selectedDepartment : '' }) %>
 
 <%- include('../partials/footer') %>

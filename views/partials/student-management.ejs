@@ -45,6 +45,10 @@
                         <input type="email" class="form-control" id="studentEmail" required>
                     </div>
                     <div class="mb-3">
+                        <label class="form-label">Telefonnummer (optional)</label>
+                        <input type="tel" class="form-control" id="studentPhone">
+                    </div>
+                    <div class="mb-3">
                         <label class="form-label">Geschlecht</label>
                         <select class="form-select" id="studentGender" required>
                             <option value="">Auswählen...</option>
@@ -152,6 +156,7 @@ function editStudentOpen(s) {
     document.getElementById('studentName').value = s.name || '';
     document.getElementById('studentFirstname').value = s.firstname || '';
     document.getElementById('studentEmail').value = s.email || '';
+    document.getElementById('studentPhone').value = s.phone || '';
     document.getElementById('studentGender').value = s.gender || '';
     document.getElementById('studentDepartment').value = (s.departments && s.departments[0]) ? s.departments[0].id : '';
     document.getElementById('studentFormHint').classList.add('d-none');
@@ -165,6 +170,7 @@ document.getElementById('studentForm').addEventListener('submit', function(e) {
         name: document.getElementById('studentName').value,
         firstname: document.getElementById('studentFirstname').value,
         email: document.getElementById('studentEmail').value,
+        phone: document.getElementById('studentPhone').value,
         gender: document.getElementById('studentGender').value,
         department: document.getElementById('studentDepartment').value,
     };

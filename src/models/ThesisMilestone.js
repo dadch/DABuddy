@@ -153,6 +153,25 @@ const ThesisMilestone = sequelize.define('ThesisMilestone', {
     allowNull: false,
     defaultValue: false,
   },
+  // Markiert individuell gesetzten Termin pro DA (vom FBL oder Admin überschrieben).
+  // Schützt due_at vor Überschreiben bei Vorlagen-Update mit applyToExisting.
+  due_at_overridden: {
+    type: DataTypes.BOOLEAN,
+    allowNull: false,
+    defaultValue: false,
+  },
+  // Feedbackformular am Meilenstein aktivierbar (aus der Vorlage übernommen).
+  feedback_form_enabled: {
+    type: DataTypes.BOOLEAN,
+    allowNull: false,
+    defaultValue: false,
+  },
+  // Rückmeldungstext für das Feedbackformular (vom Dozent/Experte bearbeitbar,
+  // optional vom LLM vorbereitet). Wird beim PDF-Druck verwendet und persistiert.
+  feedback_text: {
+    type: DataTypes.TEXT,
+    allowNull: true,
+  },
 }, {
   tableName: 'thesis_milestones',
   indexes: [

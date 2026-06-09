@@ -16,6 +16,7 @@ const ThesisEvaluationGroup = require('./ThesisEvaluationGroup');
 const ThesisEvaluationCriterion = require('./ThesisEvaluationCriterion');
 const ChatMessage = require('./ChatMessage');
 const ChatReadReceipt = require('./ChatReadReceipt');
+const UploadCategory = require('./UploadCategory');
 
 // Mehrfachrollen: 1:n von User zu UserRole
 User.hasMany(UserRole, { foreignKey: 'user_id', as: 'extraRoles', onDelete: 'CASCADE' });
@@ -156,6 +157,35 @@ ThesisEvaluationGroup.hasMany(ThesisEvaluationCriterion, { foreignKey: 'thesis_e
 ThesisEvaluationCriterion.belongsTo(ThesisEvaluationGroup, { foreignKey: 'thesis_evaluation_group_id', as: 'group' });
 ThesisEvaluation.belongsTo(User, { foreignKey: 'evaluated_by', as: 'evaluator' });
 
+// Upload-Kategorien <-> Meilenstein-Vorlagen / Snapshots (Many-to-Many)
+Milestone.belongsToMany(UploadCategory, {
+  through: 'milestone_upload_categories',
+  as: 'uploadCategories',
+  foreignKey: 'milestone_id',
+  otherKey: 'upload_category_id',
+});
+UploadCategory.belongsToMany(Milestone, {
+  through: 'milestone_upload_categories',
+  as: 'milestones',
+  foreignKey: 'upload_category_id',
+  otherKey: 'milestone_id',
+});
+ThesisMilestone.belongsToMany(UploadCategory, {
+  through: 'thesis_milestone_upload_categories',
+  as: 'uploadCategories',
+  foreignKey: 'thesis_milestone_id',
+  otherKey: 'upload_category_id',
+});
+UploadCategory.belongsToMany(ThesisMilestone, {
+  through: 'thesis_milestone_upload_categories',
+  as: 'thesisMilestones',
+  foreignKey: 'upload_category_id',
+  otherKey: 'thesis_milestone_id',
+});
+// Dokument-Kategorie (FK direct)
+ThesisMilestoneDocument.belongsTo(UploadCategory, { foreignKey: 'upload_category_id', as: 'uploadCategory' });
+UploadCategory.hasMany(ThesisMilestoneDocument, { foreignKey: 'upload_category_id', as: 'documents' });
+
 // Chat
 Thesis.hasMany(ChatMessage, { foreignKey: 'thesis_id', as: 'chatMessages', onDelete: 'CASCADE' });
 ChatMessage.belongsTo(Thesis, { foreignKey: 'thesis_id', as: 'thesis' });
@@ -185,4 +215,5 @@ module.exports = {
   ThesisEvaluationCriterion,
   ChatMessage,
   ChatReadReceipt,
+  UploadCategory,
 };

@@ -62,6 +62,11 @@ const User = sequelize.define('User', {
     type: DataTypes.ENUM('m', 'w', 'd'),
     allowNull: true,
   },
+  // Telefonnummer (optional, freier Text — keine Format-Validierung).
+  phone: {
+    type: DataTypes.STRING(40),
+    allowNull: true,
+  },
   // Zuletzt gewähltes Diplomjahr (nur Admin/FachbereichsleiterIn nutzen den Switcher;
   // beim nächsten Login wird diese Auswahl wiederhergestellt).
   last_selected_year_id: {

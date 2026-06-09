@@ -63,6 +63,12 @@ const ThesisMilestoneDocument = sequelize.define('ThesisMilestoneDocument', {
     allowNull: false,
     defaultValue: DataTypes.NOW,
   },
+  // Upload-Kategorie (optional). NULL = unkategorisiert (Default-Slot).
+  // Versionen werden pro (thesis_milestone_id, upload_category_id) geführt.
+  upload_category_id: {
+    type: DataTypes.INTEGER,
+    allowNull: true,
+  },
 }, {
   tableName: 'thesis_milestone_documents',
   indexes: [

@@ -1,19 +1,22 @@
-<%- include('../partials/header', { title: 'Diplomarbeit-Details - DABuddy', user: user }) %>
+<%- include('../partials/header', { title: 'Diplomarbeit-Details - ThesisBuddy', user: user }) %>
 
 <%
-const ROLE_LABELS = { student: 'Student', coach: 'Dozent/in', expert: 'ExpertIn', admin: 'Administrator', department_lead: 'FachbereichsleiterIn', field_project_coach: 'Field Project Coach' };
+const ROLE_LABELS = { student: 'Student', coach: 'Dozent/in', expert: 'ExpertIn', admin: 'Administrator', department_lead: 'FachbereichsleiterIn', field_project_coach: 'Dozent Transferprojekt' };
 const ACTION_LABELS = { document_upload: 'Dokument hochgeladen', document_update: 'Dokument aktualisiert', document_delete: 'Dokument gelöscht', evaluation_create: 'Bewertung erfasst', evaluation_update: 'Bewertung aktualisiert', milestone_approved: 'Dokument-Freigabe erteilt', milestone_revoked: 'Dokument-Freigabe zurückgezogen', milestone_released: 'Meilenstein freigegeben (gestartet)', milestone_locked: 'Meilenstein gesperrt' };
 const isAdmin = user.role === 'admin';
 const fmtDateTime = (d) => new Date(d).toLocaleDateString('de-CH') + ' ' + new Date(d).toLocaleTimeString('de-CH', { hour: '2-digit', minute: '2-digit' });
 %>
 
 <% const hasTransferProject = (milestones || []).some(m => m.is_transfer_project); %>
+<% const isThesisDeptLead = user.role === 'department_lead' && thesis.department && thesis.department.department_lead_id === user.id; %>
+<% const canEditDueAt = isAdmin || isThesisDeptLead; %>
 <%- include('../partials/thesis-page-header', { thesis: thesis, user: user, hasTransferProject: hasTransferProject }) %>
 
 <div class="row">
     <div class="col-lg-12">
         <%- include('../partials/thesis-info-card', { thesis: thesis, user: user }) %>
         <%- include('../partials/confidentiality-section', { thesis: thesis, user: user }) %>
+        <%- include('../partials/thesis-lock-section', { thesis: thesis, user: user }) %>
 
         <div class="card mb-4">
             <div class="card-header">
@@ -34,13 +37,17 @@ const fmtDateTime = (d) => new Date(d).toLocaleDateString('de-CH') + ' ' + new D
                         const isResponsible = (user.role === m.responsible_role) || isAdmin;
                         const isCoachOfThesis = (thesis.coaches || []).some(c => c.id === user.id);
                         const canRelease = isAdmin || (user.role === 'coach' && isCoachOfThesis);
-                        const showUpload = m.allow_upload && isResponsible && (!hasDocs || m.allow_update) && (m.released || isAdmin);
+                        const cats = (m.uploadCategories || []).slice().sort((a, b) => (a.label||'').localeCompare(b.label||''));
+                        const hasCats = cats.length > 0;
+                        const showUpload = !hasCats && m.allow_upload && isResponsible && (!hasDocs || m.allow_update) && (m.released || isAdmin);
                         const canEvaluate = m.requires_evaluation && (user.role === m.evaluator_role || isAdmin);
                         const evalByKind = {};
                         (m.thesisEvaluations || []).forEach(e => { evalByKind[e.kind] = e; });
                         const finalExists = !!evalByKind['final'];
                         const isEvaluator1 = (user.role === m.evaluator_role) || isAdmin;
                         const isEvaluator2 = (user.role === m.evaluator_role_2) || isAdmin;
+                        const canFeedback = m.feedback_form_enabled && (isAdmin || user.role === m.evaluator_role || (m.double_evaluation && user.role === m.evaluator_role_2));
+                        const feedbackFinal = m.double_evaluation ? evalByKind['final'] : evalByKind['single'];
                         const approvalSlots = [];
                         if (m.requires_approval) approvalSlots.push({ n: 1, role: m.approver_role, approvedAt: m.approved_at, approver: m.approver });
                         if (m.requires_approval_2) approvalSlots.push({ n: 2, role: m.approver_role_2, approvedAt: m.approved_at_2, approver: m.approver2 });
@@ -56,10 +63,20 @@ const fmtDateTime = (d) => new Date(d).toLocaleDateString('de-CH') + ' ' + new D
                                             <i class="bi bi-calendar-event"></i> <%= fmtDateTime(m.due_at) %>
                                             <% if (overdue) { %> (überfällig)<% } %>
                                         </span>
-                                        <% if (isAdmin) { %>
+                                        <% if (m.due_at_overridden) { %>
+                                            <span class="badge bg-info" title="Termin wurde für diese Diplomarbeit individuell gesetzt">
+                                                <i class="bi bi-clock-history"></i> Individuell
+                                            </span>
+                                        <% } %>
+                                        <% if (canEditDueAt) { %>
                                             <button class="btn btn-sm btn-link p-0 ms-1" onclick='openOverrideDueAt(<%- JSON.stringify({ id: m.id, label: m.label, due_at: m.due_at }) %>)' title="Termin pro Diplomarbeit übersteuern">
                                                 <i class="bi bi-pencil"></i>
                                             </button>
+                                            <% if (m.due_at_overridden) { %>
+                                                <button class="btn btn-sm btn-link p-0 ms-1" onclick="resetDueAt(<%= m.id %>, '<%= m.label.replace(/'/g, "\\'") %>')" title="Auf Vorlagen-Termin zurücksetzen">
+                                                    <i class="bi bi-arrow-counterclockwise"></i>
+                                                </button>
+                                            <% } %>
                                         <% } %>
                                         <span class="badge bg-secondary ms-2">Verantwortlich: <%= ROLE_LABELS[m.responsible_role] || m.responsible_role %></span>
                                         <% if (m.released) { %>
@@ -97,40 +114,87 @@ const fmtDateTime = (d) => new Date(d).toLocaleDateString('de-CH') + ' ' + new D
                                 </div>
                             </div>
 
-                            <!-- Dokumente (versioniert, alle behalten) -->
-                            <% if (hasDocs) { %>
+                            <!-- Dokumente -->
+                            <%
+                            // Hilfsfunktion: Render eines Dokumenten-Eintrags.
+                            function renderDocRow(doc) { %>
+                                <div class="d-flex justify-content-between align-items-center border-top py-2">
+                                    <div>
+                                        <a href="/api/thesis-milestone-documents/<%= doc.id %>/download" class="text-decoration-none">
+                                            <i class="bi bi-file-earmark-pdf text-danger"></i> <%= doc.file_name %>
+                                        </a>
+                                        <% if (doc.is_current) { %>
+                                            <span class="badge bg-success ms-1">Aktuell · v<%= doc.version %></span>
+                                        <% } else { %>
+                                            <span class="badge bg-secondary ms-1">Frühere Version · v<%= doc.version %></span>
+                                        <% } %>
+                                        <br>
+                                        <small class="text-muted">
+                                            <%= formatFileSize(doc.file_size) %> · hochgeladen von
+                                            <%= doc.uploader ? (doc.uploader.name + ', ' + doc.uploader.firstname) : 'unbekannt' %>
+                                            am <%= fmtDateTime(doc.uploaded_at) %>
+                                            <% if (!doc.is_current && doc.superseded_at) { %>
+                                                · ersetzt am <%= fmtDateTime(doc.superseded_at) %>
+                                            <% } %>
+                                        </small>
+                                    </div>
+                                    <% if (isAdmin) { %>
+                                        <button class="btn btn-outline-danger btn-sm" onclick="deleteDocument(<%= doc.id %>)" title="Dokumentversion löschen (Admin)">
+                                            <i class="bi bi-trash"></i>
+                                        </button>
+                                    <% } %>
+                                </div>
+                            <% } %>
+
+                            <% if (!hasCats) { /* Legacy: ein Slot ohne Kategorie */ %>
+                                <% if (hasDocs) { %>
+                                    <div class="mt-3">
+                                        <% docs.forEach(function(doc) { renderDocRow(doc); }); %>
+                                    </div>
+                                <% } else { %>
+                                    <div class="mt-2"><small class="text-muted"><i class="bi bi-dash-circle"></i> Noch kein Dokument hochgeladen.</small></div>
+                                <% } %>
+                            <% } else { /* Pro Upload-Kategorie ein eigener Slot */ %>
                                 <div class="mt-3">
-                                    <% docs.forEach(function(doc) { %>
-                                        <div class="d-flex justify-content-between align-items-center border-top py-2">
-                                            <div>
-                                                <a href="/api/thesis-milestone-documents/<%= doc.id %>/download" class="text-decoration-none">
-                                                    <i class="bi bi-file-earmark-pdf text-danger"></i> <%= doc.file_name %>
-                                                </a>
-                                                <% if (doc.is_current) { %>
-                                                    <span class="badge bg-success ms-1">Aktuell · v<%= doc.version %></span>
-                                                <% } else { %>
-                                                    <span class="badge bg-secondary ms-1">Frühere Version · v<%= doc.version %></span>
-                                                <% } %>
-                                                <br>
-                                                <small class="text-muted">
-                                                    <%= formatFileSize(doc.file_size) %> · hochgeladen von
-                                                    <%= doc.uploader ? (doc.uploader.name + ', ' + doc.uploader.firstname) : 'unbekannt' %>
-                                                    am <%= fmtDateTime(doc.uploaded_at) %>
-                                                    <% if (!doc.is_current && doc.superseded_at) { %>
-                                                        · ersetzt am <%= fmtDateTime(doc.superseded_at) %>
+                                    <% cats.forEach(function(cat) {
+                                        const catDocs = docs.filter(d => d.upload_category_id === cat.id);
+                                        const catHasDocs = catDocs.length > 0;
+                                        const catShowUpload = m.allow_upload && isResponsible && (!catHasDocs || m.allow_update) && (m.released || isAdmin);
+                                    %>
+                                        <div class="rounded border mb-2 p-2">
+                                            <div class="d-flex justify-content-between align-items-center">
+                                                <div>
+                                                    <strong><i class="bi bi-tag"></i> <%= cat.label %></strong>
+                                                </div>
+                                                <div>
+                                                    <% if (catShowUpload) { %>
+                                                        <button class="btn btn-outline-primary btn-sm"
+                                                                onclick="openUploadModal(<%= m.id %>, '<%= m.label.replace(/'/g, "\\'") %>', <%= cat.id %>, '<%= cat.label.replace(/'/g, "\\'") %>')">
+                                                            <i class="bi bi-upload"></i> <%= catHasDocs ? 'Aktualisieren' : 'Hochladen' %>
+                                                        </button>
+                                                    <% } else if (!m.released) { %>
+                                                        <span class="text-muted small">Noch nicht freigegeben</span>
+                                                    <% } else if (!m.allow_upload) { %>
+                                                        <span class="text-muted small">Kein Upload</span>
+                                                    <% } else if (!catHasDocs) { %>
+                                                        <span class="text-muted small">Wartet auf <%= ROLE_LABELS[m.responsible_role] || m.responsible_role %></span>
                                                     <% } %>
-                                                </small>
+                                                </div>
                                             </div>
-                                            <% if (isAdmin) { %>
-                                                <button class="btn btn-outline-danger btn-sm" onclick="deleteDocument(<%= doc.id %>)" title="Dokumentversion löschen (Admin)">
-                                                    <i class="bi bi-trash"></i>
-                                                </button>
+                                            <% if (catHasDocs) { catDocs.forEach(function(doc) { renderDocRow(doc); }); } else { %>
+                                                <small class="text-muted d-block mt-1"><i class="bi bi-dash-circle"></i> Noch kein Dokument hochgeladen.</small>
                                             <% } %>
                                         </div>
                                     <% }); %>
+                                    <%
+                                    const orphans = docs.filter(d => !cats.find(c => c.id === d.upload_category_id));
+                                    if (orphans.length > 0) { %>
+                                        <div class="rounded border mb-2 p-2">
+                                            <strong class="small text-muted"><i class="bi bi-archive"></i> Weitere Dokumente</strong>
+                                            <% orphans.forEach(function(doc) { renderDocRow(doc); }); %>
+                                        </div>
+                                    <% } %>
                                 </div>
-                            <% } else { %>
-                                <div class="mt-2"><small class="text-muted"><i class="bi bi-dash-circle"></i> Noch kein Dokument hochgeladen.</small></div>
                             <% } %>
 
                             <!-- Bewertung -->
@@ -233,6 +297,25 @@ const fmtDateTime = (d) => new Date(d).toLocaleDateString('de-CH') + ' ' + new D
                                 </div>
                             <% } %>
 
+                            <!-- Feedbackformular -->
+                            <% if (m.feedback_form_enabled && canFeedback) { %>
+                                <div class="mt-3 border rounded p-2">
+                                    <div class="d-flex justify-content-between align-items-center">
+                                        <strong class="small"><i class="bi bi-chat-square-text"></i> Feedbackformular</strong>
+                                        <% if (feedbackFinal) { %>
+                                            <button class="btn btn-outline-secondary btn-sm" onclick='openFeedbackModal(<%- JSON.stringify({ id: m.id, label: m.label }) %>)'>
+                                                <i class="bi bi-pencil"></i> Rückmeldung bearbeiten
+                                            </button>
+                                        <% } else { %>
+                                            <span class="text-muted small">Eine finale Bewertung ist Voraussetzung.</span>
+                                        <% } %>
+                                    </div>
+                                    <% if (m.feedback_text) { %>
+                                        <div class="mt-1"><small class="text-muted"><i class="bi bi-check"></i> Rückmeldung erfasst</small></div>
+                                    <% } %>
+                                </div>
+                            <% } %>
+
                             <!-- Freigaben -->
                             <% if (approvalSlots.length > 0) { %>
                                 <div class="mt-3 border rounded p-2 <%= allApproved ? 'border-success' : '' %>">
@@ -323,6 +406,11 @@ const fmtDateTime = (d) => new Date(d).toLocaleDateString('de-CH') + ' ' + new D
             <form id="uploadForm" enctype="multipart/form-data">
                 <div class="modal-body">
                     <input type="hidden" id="uploadMilestoneId">
+                    <input type="hidden" id="uploadCategoryId" name="upload_category_id">
+                    <div id="uploadCategoryRow" class="mb-3 d-none">
+                        <label class="form-label">Upload-Kategorie</label>
+                        <input type="text" class="form-control" id="uploadCategoryLabel" disabled>
+                    </div>
                     <div class="mb-3">
                         <label class="form-label">PDF-Datei</label>
                         <input type="file" class="form-control" name="document" accept=".pdf" required>
@@ -397,7 +485,41 @@ const fmtDateTime = (d) => new Date(d).toLocaleDateString('de-CH') + ' ' + new D
     </div>
 </div>
 
-<% if (isAdmin) { %>
+<!-- Feedbackformular Modal -->
+<div class="modal fade" id="feedbackModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Feedbackformular — <span id="feedbackModalLabel"></span></h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <input type="hidden" id="feedbackMilestoneId">
+                <div id="feedbackInfo" class="mb-3"></div>
+                <div class="mb-3">
+                    <label class="form-label">Rückmeldung an Studierende</label>
+                    <textarea class="form-control" id="feedbackText" rows="14" placeholder="Hier den Feedback-Text erfassen oder per Vorschlag generieren lassen."></textarea>
+                    <div class="form-text">Wird beim PDF-Druck verwendet und als „Bewertung" für das Feedbackformular gespeichert.</div>
+                </div>
+                <div id="feedbackError" class="alert alert-danger d-none"></div>
+            </div>
+            <div class="modal-footer flex-wrap gap-2">
+                <button type="button" class="btn btn-outline-primary" id="feedbackGenBtn" onclick="generateFeedback()">
+                    <i class="bi bi-stars"></i> Vorschlag durch LLM
+                </button>
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Schliessen</button>
+                <button type="button" class="btn btn-primary" onclick="saveFeedback()">
+                    <i class="bi bi-save"></i> Speichern
+                </button>
+                <a id="feedbackPdfLink" target="_blank" class="btn btn-outline-danger d-none">
+                    <i class="bi bi-file-earmark-pdf"></i> PDF
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+
+<% if (canEditDueAt) { %>
 <!-- Override Termin Modal -->
 <div class="modal fade" id="overrideModal" tabindex="-1">
     <div class="modal-dialog">
@@ -432,10 +554,22 @@ function toLocalInput(iso) {
     return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
 }
 
-function openUploadModal(id, label) {
+function openUploadModal(id, label, categoryId, categoryLabel) {
+    document.getElementById('uploadForm').reset();
     document.getElementById('uploadMilestoneId').value = id;
     document.getElementById('uploadModalLabel').textContent = label;
-    document.getElementById('uploadForm').reset();
+    const catRow = document.getElementById('uploadCategoryRow');
+    const catInput = document.getElementById('uploadCategoryId');
+    const catLabel = document.getElementById('uploadCategoryLabel');
+    if (categoryId) {
+        catInput.value = categoryId;
+        catLabel.value = categoryLabel || '';
+        catRow.classList.remove('d-none');
+    } else {
+        catInput.value = '';
+        catLabel.value = '';
+        catRow.classList.add('d-none');
+    }
     new bootstrap.Modal(document.getElementById('uploadModal')).show();
 }
 
@@ -548,7 +682,7 @@ function renderEvaluationForm() {
     const phasePrefix = phaseLabels[evalFormState.kind] ? (phaseLabels[evalFormState.kind] + ' — ') : '';
     document.getElementById('evalFormTitle').textContent = phasePrefix + 'Bewertung — ' + ev.form_title;
 
-    const ROLE_LABELS = { student: 'Student', coach: 'Dozent/in', expert: 'ExpertIn', admin: 'Administrator', department_lead: 'FachbereichsleiterIn', field_project_coach: 'Field Project Coach' };
+    const ROLE_LABELS = { student: 'Student', coach: 'Dozent/in', expert: 'ExpertIn', admin: 'Administrator', department_lead: 'FachbereichsleiterIn', field_project_coach: 'Dozent Transferprojekt' };
     function roleLabel(r) { return ROLE_LABELS[r] || r || 'Bewerter'; }
     function buildPeerBlock(critId) {
         if (!peers || !peers[critId]) return '';
@@ -778,7 +912,131 @@ document.getElementById('overrideForm').addEventListener('submit', function(e) {
     })
     .catch(err => { console.error(err); alert('Fehler beim Speichern'); });
 });
+
+function resetDueAt(id, label) {
+    if (!confirm(`Termin für „${label}" auf den Vorlagen-Termin zurücksetzen?`)) return;
+    fetch(`/api/thesis-milestones/${id}/due-at`, { method: 'DELETE' })
+        .then(r => r.json())
+        .then(d => {
+            if (d.success) location.reload();
+            else alert('Fehler: ' + (d.message || 'Unbekannt'));
+        })
+        .catch(err => { console.error(err); alert('Fehler beim Zurücksetzen'); });
+}
 <% } %>
+
+// ---------- Feedbackformular (Markdown-Editor via EasyMDE) ----------
+let feedbackEditor = null; // EasyMDE-Instanz wird lazy beim ersten Öffnen erzeugt
+function getFeedbackText() {
+    return feedbackEditor ? feedbackEditor.value() : (document.getElementById('feedbackText').value || '');
+}
+function setFeedbackText(text) {
+    if (feedbackEditor) feedbackEditor.value(text || '');
+    else document.getElementById('feedbackText').value = text || '';
+}
+function ensureFeedbackEditor() {
+    if (feedbackEditor || typeof EasyMDE === 'undefined') return;
+    feedbackEditor = new EasyMDE({
+        element: document.getElementById('feedbackText'),
+        spellChecker: false,
+        status: ['lines', 'words'],
+        minHeight: '280px',
+        toolbar: ['bold', 'italic', 'heading', '|', 'unordered-list', 'ordered-list', '|', 'preview', 'side-by-side', '|', 'guide'],
+        previewRender: (plainText) => (window.marked ? marked.parse(plainText, { breaks: true, gfm: true }) : plainText),
+    });
+}
+
+function setFeedbackError(msg) {
+    const el = document.getElementById('feedbackError');
+    if (!msg) { el.classList.add('d-none'); el.textContent = ''; }
+    else { el.textContent = msg; el.classList.remove('d-none'); }
+}
+function openFeedbackModal(m) {
+    document.getElementById('feedbackMilestoneId').value = m.id;
+    document.getElementById('feedbackModalLabel').textContent = m.label || '';
+    document.getElementById('feedbackInfo').innerHTML = '<small class="text-muted">Wird geladen…</small>';
+    document.getElementById('feedbackPdfLink').classList.add('d-none');
+    setFeedbackError('');
+
+    // EasyMDE erst initialisieren wenn Modal sichtbar ist (sonst stimmt das Layout nicht).
+    const modalEl = document.getElementById('feedbackModal');
+    modalEl.addEventListener('shown.bs.modal', function onceShown() {
+        modalEl.removeEventListener('shown.bs.modal', onceShown);
+        ensureFeedbackEditor();
+        // Inhalt nach erfolgreichem fetch nochmals setzen (falls schon geladen).
+        if (modalEl.dataset.pendingFeedback != null) {
+            setFeedbackText(modalEl.dataset.pendingFeedback);
+            delete modalEl.dataset.pendingFeedback;
+        }
+    });
+
+    fetch(`/api/thesis-milestones/${m.id}/feedback`)
+        .then(r => r.json())
+        .then(d => {
+            if (!d.success) { setFeedbackError(d.message || 'Fehler beim Laden'); return; }
+            // Wenn Editor schon vorhanden, direkt setzen; sonst auf shown.bs.modal warten.
+            if (feedbackEditor) setFeedbackText(d.feedback_text || '');
+            else modalEl.dataset.pendingFeedback = d.feedback_text || '';
+
+            const groups = (d.group_grades || []).map(g =>
+                `<span class="badge bg-secondary me-1">${escapeHtml(g.name)} ${g.grade != null ? g.grade.toFixed(1) : '—'}</span>`
+            ).join('');
+            const modN = d.module_grade != null ? d.module_grade.toFixed(1) : '—';
+            document.getElementById('feedbackInfo').innerHTML =
+                `${groups}<span class="badge bg-success">Modulnote ${modN}</span>` +
+                (d.is_confidential ? ' <span class="badge bg-danger ms-2">Geheimhaltung – kein LLM</span>' : '');
+            const genBtn = document.getElementById('feedbackGenBtn');
+            genBtn.disabled = !d.has_final_evaluation || d.is_confidential;
+            if (d.is_confidential) genBtn.title = 'Bei Geheimhaltung muss die Rückmeldung manuell verfasst werden';
+            else if (!d.has_final_evaluation) genBtn.title = 'Voraussetzung: finale Bewertung';
+            else genBtn.title = '';
+            const link = document.getElementById('feedbackPdfLink');
+            if (d.has_final_evaluation) {
+                link.href = `/api/thesis-milestones/${m.id}/feedback.pdf`;
+                link.classList.remove('d-none');
+            }
+        })
+        .catch(err => { console.error(err); setFeedbackError('Netzwerkfehler'); });
+    new bootstrap.Modal(modalEl).show();
+}
+
+function generateFeedback() {
+    setFeedbackError('');
+    const id = document.getElementById('feedbackMilestoneId').value;
+    const current = getFeedbackText();
+    if (current && current.trim().length > 0) {
+        alert('Es ist bereits ein Text erfasst. Der bestehende Text wird beibehalten — keine erneute LLM-Aufbereitung.');
+        return;
+    }
+    const btn = document.getElementById('feedbackGenBtn');
+    const orig = btn.innerHTML;
+    btn.disabled = true;
+    btn.innerHTML = '<span class="spinner-border spinner-border-sm"></span> wird vorbereitet…';
+    fetch(`/api/thesis-milestones/${id}/feedback/generate`, { method: 'POST' })
+        .then(r => r.json())
+        .then(d => {
+            if (!d.success) { setFeedbackError(d.message || 'Fehler bei der LLM-Aufbereitung'); return; }
+            setFeedbackText(d.feedback_text || '');
+        })
+        .catch(err => { console.error(err); setFeedbackError('Netzwerkfehler bei der LLM-Anfrage'); })
+        .finally(() => { btn.disabled = false; btn.innerHTML = orig; });
+}
+
+function saveFeedback() {
+    setFeedbackError('');
+    const id = document.getElementById('feedbackMilestoneId').value;
+    const text = getFeedbackText();
+    fetch(`/api/thesis-milestones/${id}/feedback`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ feedback_text: text }),
+    })
+    .then(r => r.json())
+    .then(d => {
+        if (!d.success) { setFeedbackError(d.message || 'Fehler beim Speichern'); return; }
+    })
+    .catch(err => { console.error(err); setFeedbackError('Netzwerkfehler beim Speichern'); });
+}
 </script>
 
 <%- include('../partials/footer') %>

@@ -99,6 +99,13 @@ const Milestone = sequelize.define('Milestone', {
     allowNull: false,
     defaultValue: false,
   },
+  // Feedbackformular am Meilenstein aktivierbar — erzeugt PDF "Diplomarbeit: Feedback
+  // für Studierende" basierend auf der finalen Bewertung dieses Meilensteins.
+  feedback_form_enabled: {
+    type: DataTypes.BOOLEAN,
+    allowNull: false,
+    defaultValue: false,
+  },
 }, {
   tableName: 'milestones',
   indexes: [

@@ -1,7 +1,7 @@
-<%- include('../partials/header', { title: 'Meilenstein-Verwaltung - DABuddy', user: user }) %>
+<%- include('../partials/header', { title: 'Meilenstein-Verwaltung - ThesisBuddy', user: user }) %>
 
 <%
-const ROLE_LABELS = { student: 'Student', coach: 'Dozent/in', expert: 'ExpertIn', admin: 'Administrator', department_lead: 'FachbereichsleiterIn', field_project_coach: 'Field Project Coach' };
+const ROLE_LABELS = { student: 'Student', coach: 'Dozent/in', expert: 'ExpertIn', admin: 'Administrator', department_lead: 'FachbereichsleiterIn', field_project_coach: 'Dozent Transferprojekt' };
 %>
 
 <div class="d-flex justify-content-between align-items-center mb-4">
@@ -105,6 +105,16 @@ const ROLE_LABELS = { student: 'Student', coach: 'Dozent/in', expert: 'ExpertIn'
                                             <i class="bi bi-arrow-left-right"></i> Transferprojekt
                                         </span>
                                     <% } %>
+                                    <% if (m.feedback_form_enabled) { %>
+                                        <span class="badge bg-success" title="Feedbackformular aktiviert">
+                                            <i class="bi bi-chat-square-text"></i> Feedbackformular
+                                        </span>
+                                    <% } %>
+                                    <% (m.uploadCategories || []).forEach(function(uc) { %>
+                                        <span class="badge bg-secondary" title="Upload-Kategorie">
+                                            <i class="bi bi-tag"></i> <%= uc.label %>
+                                        </span>
+                                    <% }); %>
                                 </td>
                                 <td>
                                     <div class="btn-group">
@@ -151,7 +161,7 @@ const ROLE_LABELS = { student: 'Student', coach: 'Dozent/in', expert: 'ExpertIn'
                             <option value="coach">Dozent/in</option>
                             <option value="expert">ExpertIn</option>
                             <option value="department_lead">FachbereichsleiterIn</option>
-                            <option value="field_project_coach">Field Project Coach</option>
+                            <option value="field_project_coach">Dozent Transferprojekt</option>
                             <option value="admin">Administrator</option>
                         </select>
                     </div>
@@ -175,7 +185,7 @@ const ROLE_LABELS = { student: 'Student', coach: 'Dozent/in', expert: 'ExpertIn'
                             <option value="coach">Dozent/in</option>
                             <option value="expert">ExpertIn</option>
                             <option value="department_lead">FachbereichsleiterIn</option>
-                            <option value="field_project_coach">Field Project Coach</option>
+                            <option value="field_project_coach">Dozent Transferprojekt</option>
                             <option value="admin">Administrator</option>
                         </select>
                     </div>
@@ -196,7 +206,7 @@ const ROLE_LABELS = { student: 'Student', coach: 'Dozent/in', expert: 'ExpertIn'
                             <option value="coach">Dozent/in</option>
                             <option value="expert">ExpertIn</option>
                             <option value="department_lead">FachbereichsleiterIn</option>
-                            <option value="field_project_coach">Field Project Coach</option>
+                            <option value="field_project_coach">Dozent Transferprojekt</option>
                             <option value="admin">Administrator</option>
                         </select>
                         <div class="form-text">Die erste bewertende Rolle ist oben gewählt. Beide Rollen müssen unterschiedlich sein.</div>
@@ -214,7 +224,7 @@ const ROLE_LABELS = { student: 'Student', coach: 'Dozent/in', expert: 'ExpertIn'
                             <option value="coach">Dozent/in</option>
                             <option value="expert">ExpertIn</option>
                             <option value="department_lead">FachbereichsleiterIn</option>
-                            <option value="field_project_coach">Field Project Coach</option>
+                            <option value="field_project_coach">Dozent Transferprojekt</option>
                             <option value="admin">Administrator</option>
                         </select>
                     </div>
@@ -230,13 +240,26 @@ const ROLE_LABELS = { student: 'Student', coach: 'Dozent/in', expert: 'ExpertIn'
                             <option value="coach">Dozent/in</option>
                             <option value="expert">ExpertIn</option>
                             <option value="department_lead">FachbereichsleiterIn</option>
-                            <option value="field_project_coach">Field Project Coach</option>
+                            <option value="field_project_coach">Dozent Transferprojekt</option>
                             <option value="admin">Administrator</option>
                         </select>
                     </div>
                     <div class="form-check mb-2">
                         <input type="checkbox" class="form-check-input" name="is_transfer_project" id="addIsTransferProject">
                         <label class="form-check-label" for="addIsTransferProject">Transferprojekt</label>
+                    </div>
+                    <div class="form-check mb-2">
+                        <input type="checkbox" class="form-check-input" name="feedback_form_enabled" id="addFeedbackFormEnabled">
+                        <label class="form-check-label" for="addFeedbackFormEnabled">Feedbackformular aktivieren (Voraussetzung: finale Bewertung)</label>
+                    </div>
+                    <div class="mb-3">
+                        <label for="addUploadCategories" class="form-label">Upload-Kategorien</label>
+                        <select class="form-select" id="addUploadCategories" name="upload_categories" multiple size="4">
+                            <% (uploadCategories || []).forEach(function(c) { %>
+                                <option value="<%= c.id %>" <%= c.is_active ? '' : 'data-inactive="1"' %>><%= c.label %><%= c.is_active ? '' : ' (deaktiviert)' %></option>
+                            <% }); %>
+                        </select>
+                        <div class="form-text">Mehrere wählbar (Strg/Cmd). Leer lassen = ein einzelner Upload-Slot ohne Kategorie (wie bisher).</div>
                     </div>
                     <hr>
                     <% if (thesesCount > 0) { %>
@@ -283,7 +306,7 @@ const ROLE_LABELS = { student: 'Student', coach: 'Dozent/in', expert: 'ExpertIn'
                             <option value="coach">Dozent/in</option>
                             <option value="expert">ExpertIn</option>
                             <option value="department_lead">FachbereichsleiterIn</option>
-                            <option value="field_project_coach">Field Project Coach</option>
+                            <option value="field_project_coach">Dozent Transferprojekt</option>
                             <option value="admin">Administrator</option>
                         </select>
                     </div>
@@ -307,7 +330,7 @@ const ROLE_LABELS = { student: 'Student', coach: 'Dozent/in', expert: 'ExpertIn'
                             <option value="coach">Dozent/in</option>
                             <option value="expert">ExpertIn</option>
                             <option value="department_lead">FachbereichsleiterIn</option>
-                            <option value="field_project_coach">Field Project Coach</option>
+                            <option value="field_project_coach">Dozent Transferprojekt</option>
                             <option value="admin">Administrator</option>
                         </select>
                     </div>
@@ -328,7 +351,7 @@ const ROLE_LABELS = { student: 'Student', coach: 'Dozent/in', expert: 'ExpertIn'
                             <option value="coach">Dozent/in</option>
                             <option value="expert">ExpertIn</option>
                             <option value="department_lead">FachbereichsleiterIn</option>
-                            <option value="field_project_coach">Field Project Coach</option>
+                            <option value="field_project_coach">Dozent Transferprojekt</option>
                             <option value="admin">Administrator</option>
                         </select>
                         <div class="form-text">Die erste bewertende Rolle ist oben gewählt. Beide Rollen müssen unterschiedlich sein.</div>
@@ -346,7 +369,7 @@ const ROLE_LABELS = { student: 'Student', coach: 'Dozent/in', expert: 'ExpertIn'
                             <option value="coach">Dozent/in</option>
                             <option value="expert">ExpertIn</option>
                             <option value="department_lead">FachbereichsleiterIn</option>
-                            <option value="field_project_coach">Field Project Coach</option>
+                            <option value="field_project_coach">Dozent Transferprojekt</option>
                             <option value="admin">Administrator</option>
                         </select>
                     </div>
@@ -362,13 +385,26 @@ const ROLE_LABELS = { student: 'Student', coach: 'Dozent/in', expert: 'ExpertIn'
                             <option value="coach">Dozent/in</option>
                             <option value="expert">ExpertIn</option>
                             <option value="department_lead">FachbereichsleiterIn</option>
-                            <option value="field_project_coach">Field Project Coach</option>
+                            <option value="field_project_coach">Dozent Transferprojekt</option>
                             <option value="admin">Administrator</option>
                         </select>
                     </div>
                     <div class="form-check mb-2">
                         <input type="checkbox" class="form-check-input" name="is_transfer_project" id="editIsTransferProject">
                         <label class="form-check-label" for="editIsTransferProject">Transferprojekt</label>
+                    </div>
+                    <div class="form-check mb-2">
+                        <input type="checkbox" class="form-check-input" name="feedback_form_enabled" id="editFeedbackFormEnabled">
+                        <label class="form-check-label" for="editFeedbackFormEnabled">Feedbackformular aktivieren (Voraussetzung: finale Bewertung)</label>
+                    </div>
+                    <div class="mb-3">
+                        <label for="editUploadCategories" class="form-label">Upload-Kategorien</label>
+                        <select class="form-select" id="editUploadCategories" name="upload_categories" multiple size="4">
+                            <% (uploadCategories || []).forEach(function(c) { %>
+                                <option value="<%= c.id %>"><%= c.label %><%= c.is_active ? '' : ' (deaktiviert)' %></option>
+                            <% }); %>
+                        </select>
+                        <div class="form-text">Snapshots existierender DAs werden beim „Anwenden auf existierende" nur ergänzt, nie reduziert.</div>
                     </div>
                     <hr>
                     <% if (thesesCount > 0) { %>
@@ -508,6 +544,12 @@ function editMilestone(m) {
     document.getElementById('editRequiresApproval2').checked = !!m.requires_approval_2;
     document.getElementById('editApproverRole2').value = m.approver_role_2 || '';
     document.getElementById('editIsTransferProject').checked = !!m.is_transfer_project;
+    document.getElementById('editFeedbackFormEnabled').checked = !!m.feedback_form_enabled;
+    const editCatSelect = document.getElementById('editUploadCategories');
+    if (editCatSelect) {
+        const assigned = new Set((m.uploadCategories || []).map(c => c.id));
+        Array.from(editCatSelect.options).forEach(opt => { opt.selected = assigned.has(parseInt(opt.value, 10)); });
+    }
     toggleEvalRole('edit');
     toggleApprover('edit');
     toggleApprover2('edit');
@@ -530,6 +572,7 @@ function normalizeConfig(data) {
     data.requires_approval_2 = !!data.requires_approval_2;
     if (!data.requires_approval_2) data.approver_role_2 = null;
     data.is_transfer_project = !!data.is_transfer_project;
+    data.feedback_form_enabled = !!data.feedback_form_enabled;
     return data;
 }
 
@@ -544,6 +587,7 @@ document.getElementById('addMilestoneForm').addEventListener('submit', function(
     e.preventDefault();
     const data = normalizeConfig(Object.fromEntries(new FormData(this)));
     data.applyToExisting = !!data.applyToExisting;
+    data.upload_categories = Array.from(document.getElementById('addUploadCategories').selectedOptions).map(o => o.value);
 
     fetch(`/api/years/${selectedYearId}/milestones`, {
         method: 'POST',
@@ -562,6 +606,7 @@ document.getElementById('editMilestoneForm').addEventListener('submit', function
     e.preventDefault();
     const data = normalizeConfig(Object.fromEntries(new FormData(this)));
     data.applyToExisting = !!data.applyToExisting;
+    data.upload_categories = Array.from(document.getElementById('editUploadCategories').selectedOptions).map(o => o.value);
     const id = data.id; delete data.id;
 
     fetch(`/api/milestones/${id}`, {

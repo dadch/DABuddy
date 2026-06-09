@@ -73,7 +73,7 @@ async function startServer() {
     console.log('Database synchronized successfully.');
     
     app.listen(PORT, () => {
-      console.log(`DABuddy server running on http://localhost:${PORT}`);
+      console.log(`ThesisBuddy server running on http://localhost:${PORT}`);
     });
   } catch (error) {
     console.error('Unable to start server:', error);
