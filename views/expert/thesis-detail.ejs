@@ -52,6 +52,24 @@ const fmtDateTime = (d) => new Date(d).toLocaleDateString('de-CH') + ' ' + new D
                         if (m.requires_approval) approvalSlots.push({ n: 1, role: m.approver_role, approvedAt: m.approved_at, approver: m.approver });
                         if (m.requires_approval_2) approvalSlots.push({ n: 2, role: m.approver_role_2, approvedAt: m.approved_at_2, approver: m.approver2 });
                         const allApproved = approvalSlots.length > 0 && approvalSlots.every(s => s.approvedAt);
+                        // Voraussetzungen für eine Freigabe (gespiegelt zu missingApprovalPrerequisites im Backend):
+                        // alle erforderlichen Bewertungen vorhanden + Feedbackformular ausgefüllt (falls aktiv).
+                        const approvalMissing = [];
+                        const _hasGrade = (k) => { const e = evalByKind[k]; return !!(e && e.overall_grade !== null && e.overall_grade !== undefined); };
+                        if (m.requires_evaluation) {
+                            if (m.double_evaluation) {
+                                if (!_hasGrade('first'))  approvalMissing.push('Bewertung 1 fehlt');
+                                if (!_hasGrade('second')) approvalMissing.push('Bewertung 2 fehlt');
+                                if (!_hasGrade('final'))  approvalMissing.push('Finale Bewertung fehlt');
+                            } else if (!_hasGrade('single')) {
+                                approvalMissing.push('Bewertung fehlt');
+                            }
+                        }
+                        if (m.feedback_form_enabled) {
+                            const _fb = m.feedback_text == null ? '' : String(m.feedback_text).trim();
+                            if (_fb.length === 0) approvalMissing.push('Feedbackformular noch nicht ausgefüllt');
+                        }
+                        const canGrantApprovals = approvalMissing.length === 0;
                         const overdue = !hasDocs && new Date(m.due_at) < new Date();
                         %>
                         <div class="milestone-card mb-3">
@@ -323,6 +341,12 @@ const fmtDateTime = (d) => new Date(d).toLocaleDateString('de-CH') + ' ' + new D
                                         <strong class="small"><i class="bi bi-unlock"></i> Freigaben</strong>
                                         <% if (allApproved) { %><span class="badge bg-success"><i class="bi bi-check-circle"></i> Vollständig freigegeben</span><% } %>
                                     </div>
+                                    <% if (!canGrantApprovals) { %>
+                                        <div class="alert alert-warning py-1 px-2 small mb-2">
+                                            <i class="bi bi-exclamation-triangle"></i>
+                                            Freigaben erst möglich, wenn: <%= approvalMissing.join(' · ') %>.
+                                        </div>
+                                    <% } %>
                                     <% approvalSlots.forEach(function(s) { %>
                                         <% const canApproveSlot = (user.role === s.role) || isAdmin; %>
                                         <div class="d-flex justify-content-between align-items-center py-1 small">
@@ -342,7 +366,10 @@ const fmtDateTime = (d) => new Date(d).toLocaleDateString('de-CH') + ' ' + new D
                                             <% if (canApproveSlot) { %>
                                                 <div>
                                                     <% if (!s.approvedAt) { %>
-                                                        <button class="btn btn-success btn-sm" onclick="setApproval(<%= m.id %>, <%= s.n %>, true)"><i class="bi bi-check-lg"></i> Freigeben</button>
+                                                        <button class="btn btn-success btn-sm" onclick="setApproval(<%= m.id %>, <%= s.n %>, true)"
+                                                                <% if (!canGrantApprovals) { %>disabled title="<%= approvalMissing.join(' · ') %>"<% } %>>
+                                                            <i class="bi bi-check-lg"></i> Freigeben
+                                                        </button>
                                                     <% } else { %>
                                                         <button class="btn btn-outline-danger btn-sm" onclick="setApproval(<%= m.id %>, <%= s.n %>, false)"><i class="bi bi-x-lg"></i> Zurückziehen</button>
                                                     <% } %>

@@ -1,5 +1,5 @@
-const { sequelize, User, UserRole, Thesis, Department, Year, Milestone, ThesisMilestone, ThesisMilestoneDocument, ThesisLog, ChatMessage, ChatReadReceipt, UploadCategory } = require('../models');
-const { Op, fn, col } = require('sequelize');
+const { sequelize, User, UserRole, Thesis, Department, Year, Milestone, ThesisMilestone, ThesisMilestoneDocument, ThesisEvaluation, ThesisLog, ChatMessage, ChatReadReceipt, UploadCategory, DocumentTemplate } = require('../models');
+const { Op, fn, col, where } = require('sequelize');
 const multer = require('multer');
 const fs = require('fs');
 const path = require('path');
@@ -12,6 +12,37 @@ const uploadsDir = path.join(__dirname, '../../uploads');
 if (!fs.existsSync(uploadsDir)) {
   fs.mkdirSync(uploadsDir, { recursive: true });
 }
+const templatesDir = path.join(uploadsDir, 'templates');
+if (!fs.existsSync(templatesDir)) {
+  fs.mkdirSync(templatesDir, { recursive: true });
+}
+
+// Erlaubte MIME-Typen für Vorlagen: Word, Excel, PowerPoint, PDF
+// (alte und neue Office-Formate).
+const TEMPLATE_MIMES = new Set([
+  'application/pdf',
+  'application/msword',
+  'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+  'application/vnd.ms-excel',
+  'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+  'application/vnd.ms-powerpoint',
+  'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+]);
+
+const templateUpload = multer({
+  storage: multer.diskStorage({
+    destination: (req, file, cb) => cb(null, templatesDir),
+    filename: (req, file, cb) => {
+      const unique = Date.now() + '-' + Math.round(Math.random() * 1e9);
+      cb(null, 'tpl-' + unique + path.extname(file.originalname));
+    }
+  }),
+  fileFilter: (req, file, cb) => {
+    if (TEMPLATE_MIMES.has(file.mimetype)) cb(null, true);
+    else cb(new Error('Nur Word, Excel, PowerPoint oder PDF sind erlaubt.'), false);
+  },
+  limits: { fileSize: 50 * 1024 * 1024 }
+});
 
 const upload = multer({
   storage: multer.diskStorage({
@@ -47,6 +78,34 @@ const isFpcBlocked = (tm, userRole) =>
   userRole === 'field_project_coach' && !(tm && tm.is_transfer_project);
 // Rollen, die eine Bewertung vornehmen dürfen (ohne Student)
 const ASSESSOR_ROLES = ['coach', 'expert', 'admin', 'department_lead', 'field_project_coach'];
+
+// Prüft, ob alle Voraussetzungen für eine Freigabe eines Meilensteins
+// erfüllt sind. Liefert eine Liste menschenlesbarer Defizit-Texte (DE).
+// Wird sowohl in setThesisMilestoneApproval als auch in der View
+// (gespiegelte Logik in EJS) verwendet.
+const missingApprovalPrerequisites = (tm) => {
+  const missing = [];
+  const evalByKind = {};
+  (tm.thesisEvaluations || []).forEach(e => { evalByKind[e.kind] = e; });
+  const hasGrade = (kind) => {
+    const e = evalByKind[kind];
+    return !!(e && e.overall_grade !== null && e.overall_grade !== undefined);
+  };
+  if (tm.requires_evaluation) {
+    if (tm.double_evaluation) {
+      if (!hasGrade('first'))  missing.push('Bewertung 1 fehlt');
+      if (!hasGrade('second')) missing.push('Bewertung 2 fehlt');
+      if (!hasGrade('final'))  missing.push('Finale Bewertung fehlt');
+    } else if (!hasGrade('single')) {
+      missing.push('Bewertung fehlt');
+    }
+  }
+  if (tm.feedback_form_enabled) {
+    const txt = tm.feedback_text == null ? '' : String(tm.feedback_text).trim();
+    if (txt.length === 0) missing.push('Feedbackformular noch nicht ausgefüllt');
+  }
+  return missing;
+};
 
 // Schreibt einen Eintrag ins Diplomarbeit-Änderungsprotokoll.
 const writeThesisLog = async (thesisId, thesisMilestoneId, userId, action, detail) => {
@@ -1417,7 +1476,9 @@ const setThesisMilestoneApproval = async (req, res) => {
     const userId = req.session.userId;
     const userRole = req.session.userRole;
 
-    const tm = await ThesisMilestone.findByPk(id);
+    const tm = await ThesisMilestone.findByPk(id, {
+      include: [{ model: ThesisEvaluation, as: 'thesisEvaluations', attributes: ['kind', 'overall_grade'] }],
+    });
     if (!tm) return res.status(404).json({ success: false, message: 'Meilenstein nicht gefunden' });
     if (isFpcBlocked(tm, userRole)) return res.status(403).json({ success: false, message: 'Keine Berechtigung für diesen Meilenstein' });
 
@@ -1435,6 +1496,19 @@ const setThesisMilestoneApproval = async (req, res) => {
 
     if (userRole !== 'admin' && userRole !== tm[roleField]) {
       return res.status(403).json({ success: false, message: `Ihre Rolle ist nicht berechtigt, Freigabe ${slot} zu erteilen` });
+    }
+
+    // Vor dem Erteilen einer Freigabe sicherstellen, dass alle erforderlichen
+    // Bewertungen vorhanden sind und (falls aktiv) das Feedbackformular
+    // ausgefüllt ist. Beim Zurückziehen entfällt diese Prüfung.
+    if (approved) {
+      const missing = missingApprovalPrerequisites(tm);
+      if (missing.length > 0) {
+        return res.status(400).json({
+          success: false,
+          message: 'Freigabe nicht möglich: ' + missing.join(', ') + '.',
+        });
+      }
     }
 
     if (approved) {
@@ -1808,6 +1882,139 @@ const deleteConfidentialityDocument = async (req, res) => {
     res.json({ success: true });
   } catch (e) {
     console.error('deleteConfidentialityDocument error:', e);
+    res.status(500).json({ success: false, message: 'Löschen fehlgeschlagen' });
+  }
+};
+
+// Aktualisiert nur den Titel einer Diplomarbeit. Erlaubt für Admin und für
+// einen Dozent Transferprojekt, der dieser Arbeit zugewiesen ist
+// (Tabelle thesis_field_project_coaches). Andere Felder werden nicht angefasst.
+const updateThesisTitle = async (req, res) => {
+  try {
+    const userId = req.session.userId;
+    const userRole = req.session.userRole;
+    if (!['admin', 'field_project_coach'].includes(userRole)) {
+      return res.status(403).json({ success: false, message: 'Keine Berechtigung' });
+    }
+
+    const newTitle = (req.body && typeof req.body.title === 'string') ? req.body.title.trim() : '';
+    if (newTitle.length < 5 || newTitle.length > 500) {
+      return res.status(400).json({ success: false, message: 'Titel muss zwischen 5 und 500 Zeichen lang sein' });
+    }
+
+    const thesis = await Thesis.findByPk(req.params.id, {
+      include: [{ model: User, as: 'fieldProjectCoaches', attributes: ['id'], through: { attributes: [] } }],
+    });
+    if (!thesis) return res.status(404).json({ success: false, message: 'Diplomarbeit nicht gefunden' });
+
+    if (userRole === 'field_project_coach') {
+      const isAssigned = (thesis.fieldProjectCoaches || []).some(f => f.id === userId);
+      if (!isAssigned) return res.status(403).json({ success: false, message: 'Sie sind dieser Diplomarbeit nicht zugewiesen' });
+    }
+
+    await thesis.update({ title: newTitle });
+    res.json({ success: true, title: thesis.title });
+  } catch (e) {
+    console.error('updateThesisTitle error:', e);
+    res.status(500).json({ success: false, message: 'Titel konnte nicht aktualisiert werden' });
+  }
+};
+
+// ---------- Dokumentvorlagen ----------
+
+// Liefert die alphabetisch nach Beschreibung sortierte Liste aller Vorlagen.
+// Sichtbar für alle angemeldeten Benutzer.
+const listDocumentTemplates = async (req, res) => {
+  try {
+    const rows = await DocumentTemplate.findAll({
+      attributes: ['id', 'description', 'original_filename', 'mime_type', 'size_bytes', 'createdAt', 'uploaded_by_user_id'],
+      order: [[fn('lower', col('description')), 'ASC']],
+    });
+    res.json({ success: true, templates: rows });
+  } catch (e) {
+    console.error('listDocumentTemplates error:', e);
+    res.status(500).json({ success: false, message: 'Vorlagen konnten nicht geladen werden' });
+  }
+};
+
+// Upload einer neuen Vorlage. Berechtigung: Admin + FachbereichsleiterIn.
+// description ist Pflicht und muss eindeutig sein (case-insensitiv).
+const uploadDocumentTemplate = (req, res) => {
+  templateUpload.single('file')(req, res, async (err) => {
+    if (err) return res.status(400).json({ success: false, message: err.message });
+    if (!req.file) return res.status(400).json({ success: false, message: 'Keine Datei hochgeladen' });
+
+    const cleanup = () => { try { fs.unlinkSync(req.file.path); } catch (e) {} };
+    try {
+      const userRole = req.session.userRole;
+      const userId = req.session.userId;
+      if (!['admin', 'department_lead'].includes(userRole)) {
+        cleanup();
+        return res.status(403).json({ success: false, message: 'Keine Berechtigung' });
+      }
+      const description = (req.body.description || '').trim();
+      if (!description) { cleanup(); return res.status(400).json({ success: false, message: 'Beschreibung ist erforderlich' }); }
+      if (description.length > 255) { cleanup(); return res.status(400).json({ success: false, message: 'Beschreibung ist zu lang (max. 255 Zeichen)' }); }
+
+      // Eindeutigkeit prüfen (Unique-Index ist case-insensitiv).
+      const existing = await DocumentTemplate.findOne({
+        where: where(fn('lower', col('description')), description.toLowerCase()),
+      });
+      if (existing) {
+        cleanup();
+        return res.status(409).json({ success: false, message: 'Eine Vorlage mit dieser Beschreibung existiert bereits' });
+      }
+
+      const tpl = await DocumentTemplate.create({
+        description,
+        original_filename: req.file.originalname,
+        stored_path: req.file.path,
+        mime_type: req.file.mimetype,
+        size_bytes: req.file.size,
+        uploaded_by_user_id: userId,
+      });
+      res.json({ success: true, template: tpl });
+    } catch (e) {
+      cleanup();
+      console.error('uploadDocumentTemplate error:', e);
+      res.status(500).json({ success: false, message: 'Upload fehlgeschlagen' });
+    }
+  });
+};
+
+// Download einer Vorlage. Sichtbar für alle angemeldeten Benutzer.
+const downloadDocumentTemplate = async (req, res) => {
+  try {
+    const tpl = await DocumentTemplate.findByPk(req.params.id);
+    if (!tpl) return res.status(404).json({ success: false, message: 'Vorlage nicht gefunden' });
+    if (!tpl.stored_path || !fs.existsSync(tpl.stored_path)) {
+      return res.status(404).json({ success: false, message: 'Datei nicht mehr vorhanden' });
+    }
+    res.setHeader('Content-Type', tpl.mime_type || 'application/octet-stream');
+    res.setHeader('Content-Disposition', `attachment; filename="${tpl.original_filename}"`);
+    res.sendFile(path.resolve(tpl.stored_path));
+  } catch (e) {
+    console.error('downloadDocumentTemplate error:', e);
+    res.status(500).json({ success: false, message: 'Download fehlgeschlagen' });
+  }
+};
+
+// Löscht eine Vorlage samt Datei. Berechtigung: Admin + FachbereichsleiterIn.
+const deleteDocumentTemplate = async (req, res) => {
+  try {
+    const userRole = req.session.userRole;
+    if (!['admin', 'department_lead'].includes(userRole)) {
+      return res.status(403).json({ success: false, message: 'Keine Berechtigung' });
+    }
+    const tpl = await DocumentTemplate.findByPk(req.params.id);
+    if (!tpl) return res.status(404).json({ success: false, message: 'Vorlage nicht gefunden' });
+    if (tpl.stored_path && fs.existsSync(tpl.stored_path)) {
+      try { fs.unlinkSync(tpl.stored_path); } catch (e) { /* Datei ggf. schon weg */ }
+    }
+    await tpl.destroy();
+    res.json({ success: true });
+  } catch (e) {
+    console.error('deleteDocumentTemplate error:', e);
     res.status(500).json({ success: false, message: 'Löschen fehlgeschlagen' });
   }
 };
@@ -2441,6 +2648,11 @@ module.exports = {
   uploadConfidentialityDocument,
   downloadConfidentialityDocument,
   deleteConfidentialityDocument,
+  updateThesisTitle,
+  listDocumentTemplates,
+  uploadDocumentTemplate,
+  downloadDocumentTemplate,
+  deleteDocumentTemplate,
   lockThesis,
   unlockThesis,
   getChatMessages,

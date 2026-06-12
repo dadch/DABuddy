@@ -53,15 +53,75 @@
                             </div>
                         <% } %>
                     </div>
-                    <div class="card-footer">
+                    <div class="card-footer d-flex gap-2 flex-wrap">
                         <a href="/dashboard/thesis/<%= thesis.id %>" class="btn btn-primary btn-sm">
                             <i class="bi bi-eye"></i> Details & Meilensteine
                         </a>
+                        <button type="button" class="btn btn-outline-secondary btn-sm"
+                                onclick="openEditTitleModal(<%= thesis.id %>, <%- JSON.stringify(thesis.title || '') %>)">
+                            <i class="bi bi-pencil"></i> Titel bearbeiten
+                        </button>
                     </div>
                 </div>
             </div>
         <% }); %>
     </div>
 <% } %>
+
+<!-- Modal: Titel bearbeiten -->
+<div class="modal fade" id="editThesisTitleModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Titel der Diplomarbeit bearbeiten</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form id="editThesisTitleForm">
+                <div class="modal-body">
+                    <input type="hidden" id="editThesisTitleId">
+                    <div class="mb-3">
+                        <label for="editThesisTitleInput" class="form-label">Titel</label>
+                        <input type="text" class="form-control" id="editThesisTitleInput" minlength="5" maxlength="500" required>
+                    </div>
+                    <div id="editThesisTitleError" class="alert alert-danger d-none" role="alert"></div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Abbrechen</button>
+                    <button type="submit" class="btn btn-primary"><i class="bi bi-check-lg"></i> Speichern</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script>
+function openEditTitleModal(thesisId, currentTitle) {
+    document.getElementById('editThesisTitleId').value = thesisId;
+    document.getElementById('editThesisTitleInput').value = currentTitle || '';
+    document.getElementById('editThesisTitleError').classList.add('d-none');
+    new bootstrap.Modal(document.getElementById('editThesisTitleModal')).show();
+}
+
+document.getElementById('editThesisTitleForm').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const errBox = document.getElementById('editThesisTitleError');
+    errBox.classList.add('d-none');
+    const id = document.getElementById('editThesisTitleId').value;
+    const title = document.getElementById('editThesisTitleInput').value.trim();
+    const res = await fetch(`/api/theses/${id}/title`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ title }),
+    });
+    const d = await res.json().catch(() => ({}));
+    if (d.success) {
+        bootstrap.Modal.getInstance(document.getElementById('editThesisTitleModal')).hide();
+        location.reload();
+    } else {
+        errBox.textContent = d.message || 'Speichern fehlgeschlagen';
+        errBox.classList.remove('d-none');
+    }
+});
+</script>
 
 <%- include('../partials/footer') %>

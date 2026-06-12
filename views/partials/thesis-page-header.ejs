@@ -1,14 +1,15 @@
 <!-- Page-Header der DA-Detailseite. Erwartet: thesis, user.
      Optional: subtitle override via locals.subtitle.
      Optional: hasTransferProject (boolean) — wenn true, wird der Button
-     "Transferprojekt" eingeblendet (nur für Studierende/Dozierende/FBL/Admin). -->
+     "Transferprojekt" eingeblendet (für Studierende, Dozent/in, Dozent
+     Transferprojekt, FBL und Admin). -->
 <%
 const subtitleParts = [];
 if (thesis.department && thesis.department.name) subtitleParts.push(thesis.department.name);
 if (thesis.sponsor) subtitleParts.push(thesis.sponsor);
 const computedSubtitle = subtitleParts.join(' · ');
 const _hasTransfer = (typeof hasTransferProject !== 'undefined') && !!hasTransferProject;
-const _transferRoles = ['student', 'coach', 'department_lead', 'admin'];
+const _transferRoles = ['student', 'coach', 'department_lead', 'admin', 'field_project_coach'];
 const _showTransferBtn = _hasTransfer && user && _transferRoles.includes(user.role);
 %>
 <div class="page-breadcrumb mb-2">
@@ -26,6 +27,9 @@ const _showTransferBtn = _hasTransfer && user && _transferRoles.includes(user.ro
     <div class="page-actions">
         <a href="/dashboard/thesis/<%= thesis.id %>/chat" class="pill-btn">
             <i class="bi bi-chat-dots"></i> Chat
+        </a>
+        <a href="/dashboard/document-templates?from=<%= thesis.id %>" class="pill-btn" title="Dokumentvorlagen und Downloads">
+            <i class="bi bi-folder2-open"></i> Vorlagen
         </a>
         <% if (_showTransferBtn) { %>
             <a href="/api/theses/<%= thesis.id %>/transfer-project.pdf"

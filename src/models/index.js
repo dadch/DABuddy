@@ -17,6 +17,7 @@ const ThesisEvaluationCriterion = require('./ThesisEvaluationCriterion');
 const ChatMessage = require('./ChatMessage');
 const ChatReadReceipt = require('./ChatReadReceipt');
 const UploadCategory = require('./UploadCategory');
+const DocumentTemplate = require('./DocumentTemplate');
 
 // Mehrfachrollen: 1:n von User zu UserRole
 User.hasMany(UserRole, { foreignKey: 'user_id', as: 'extraRoles', onDelete: 'CASCADE' });
@@ -216,4 +217,5 @@ module.exports = {
   ChatMessage,
   ChatReadReceipt,
   UploadCategory,
+  DocumentTemplate,
 };

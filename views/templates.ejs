@@ -1,0 +1,179 @@
+<%- include('partials/header', { title: 'Dokumentvorlagen - ThesisBuddy', user: user }) %>
+
+<%
+const canManage = ['admin', 'department_lead'].includes(user.role);
+%>
+
+<div class="page-breadcrumb mb-2">
+    <a href="/dashboard">Dashboard</a>
+    <% if (fromThesisId) { %>
+        <span class="sep"></span>
+        <a href="/dashboard/thesis/<%= fromThesisId %>"><%= fromThesisTitle || 'Diplomarbeit' %></a>
+    <% } %>
+    <span class="sep"></span>
+    <span>Dokumentvorlagen</span>
+</div>
+<div class="page-header">
+    <div>
+        <h1 class="page-title">Dokumentvorlagen</h1>
+        <div class="page-subtitle">Vorlagen und Dokumente zum Herunterladen</div>
+    </div>
+    <div class="page-actions">
+        <% if (fromThesisId) { %>
+            <a href="/dashboard/thesis/<%= fromThesisId %>" class="btn btn-outline-secondary">
+                <i class="bi bi-arrow-left"></i> Zurück zur Diplomarbeit
+            </a>
+        <% } %>
+        <% if (canManage) { %>
+            <button class="btn btn-primary" type="button" onclick="openUploadTemplateModal()">
+                <i class="bi bi-upload"></i> Vorlage hochladen
+            </button>
+        <% } %>
+    </div>
+</div>
+
+<div class="card">
+    <div class="card-body">
+        <div id="templatesList">
+            <div class="text-center py-4 text-muted">
+                <i class="bi bi-hourglass-split"></i> Lade Vorlagen…
+            </div>
+        </div>
+    </div>
+</div>
+
+<% if (canManage) { %>
+<!-- Upload-Modal -->
+<div class="modal fade" id="uploadTemplateModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Vorlage hochladen</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form id="uploadTemplateForm" enctype="multipart/form-data">
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label for="tplDescription" class="form-label">Beschreibung</label>
+                        <input type="text" class="form-control" id="tplDescription" name="description" maxlength="255" required>
+                        <div class="form-text">Wird in der alphabetischen Liste angezeigt.</div>
+                    </div>
+                    <div class="mb-3">
+                        <label for="tplFile" class="form-label">Datei</label>
+                        <input type="file" class="form-control" id="tplFile" name="file" required
+                               accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-powerpoint,application/vnd.openxmlformats-officedocument.presentationml.presentation">
+                        <div class="form-text">Word, Excel, PowerPoint oder PDF, max. 50 MB.</div>
+                    </div>
+                    <div id="uploadTemplateError" class="alert alert-danger d-none" role="alert"></div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Abbrechen</button>
+                    <button type="submit" class="btn btn-primary"><i class="bi bi-upload"></i> Hochladen</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+<% } %>
+
+<script>
+const CAN_MANAGE = <%= canManage ? 'true' : 'false' %>;
+
+const ICON_BY_MIME = {
+    'application/pdf': 'bi-file-earmark-pdf',
+    'application/msword': 'bi-file-earmark-word',
+    'application/vnd.openxmlformats-officedocument.wordprocessingml.document': 'bi-file-earmark-word',
+    'application/vnd.ms-excel': 'bi-file-earmark-spreadsheet',
+    'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet': 'bi-file-earmark-spreadsheet',
+    'application/vnd.ms-powerpoint': 'bi-file-earmark-slides',
+    'application/vnd.openxmlformats-officedocument.presentationml.presentation': 'bi-file-earmark-slides',
+};
+const iconFor = (mime) => ICON_BY_MIME[mime] || 'bi-file-earmark';
+
+const fmtSize = (bytes) => {
+    if (bytes === null || bytes === undefined) return '';
+    const b = Number(bytes);
+    if (Number.isNaN(b)) return '';
+    if (b < 1024) return b + ' B';
+    if (b < 1024 * 1024) return (b / 1024).toFixed(1) + ' KB';
+    return (b / 1024 / 1024).toFixed(1) + ' MB';
+};
+
+async function loadTemplates() {
+    const container = document.getElementById('templatesList');
+    try {
+        const res = await fetch('/api/document-templates');
+        const data = await res.json();
+        if (!data.success) throw new Error(data.message || 'Fehler');
+        const rows = data.templates || [];
+        if (rows.length === 0) {
+            container.innerHTML = '<div class="text-center py-4 text-muted">Noch keine Vorlagen vorhanden.</div>';
+            return;
+        }
+        const html = rows.map(r => `
+            <div class="d-flex align-items-center py-2 border-bottom">
+                <i class="bi ${iconFor(r.mime_type)} fs-4 me-3 text-secondary"></i>
+                <div class="flex-grow-1">
+                    <div class="fw-medium">${escapeHtml(r.description)}</div>
+                    <div class="small text-muted">${escapeHtml(r.original_filename)} · ${fmtSize(r.size_bytes)}</div>
+                </div>
+                <a href="/api/document-templates/${r.id}/download" class="btn btn-sm btn-outline-primary me-2">
+                    <i class="bi bi-download"></i> Download
+                </a>
+                ${CAN_MANAGE ? `<button class="btn btn-sm btn-outline-danger" onclick="deleteTemplate(${r.id}, '${escapeAttr(r.description)}')">
+                    <i class="bi bi-trash"></i>
+                </button>` : ''}
+            </div>
+        `).join('');
+        container.innerHTML = html;
+    } catch (e) {
+        container.innerHTML = '<div class="alert alert-danger">' + escapeHtml(e.message) + '</div>';
+    }
+}
+
+function escapeHtml(s) {
+    return String(s == null ? '' : s)
+        .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+}
+function escapeAttr(s) {
+    return escapeHtml(s).replace(/'/g, '&#39;');
+}
+
+async function deleteTemplate(id, description) {
+    if (!confirm(`Vorlage „${description}" wirklich löschen?`)) return;
+    const res = await fetch(`/api/document-templates/${id}`, { method: 'DELETE' });
+    const d = await res.json().catch(() => ({}));
+    if (d.success) loadTemplates();
+    else alert('Fehler: ' + (d.message || 'Löschen fehlgeschlagen'));
+}
+
+function openUploadTemplateModal() {
+    document.getElementById('uploadTemplateForm').reset();
+    document.getElementById('uploadTemplateError').classList.add('d-none');
+    new bootstrap.Modal(document.getElementById('uploadTemplateModal')).show();
+}
+
+const uploadForm = document.getElementById('uploadTemplateForm');
+if (uploadForm) {
+    uploadForm.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const errBox = document.getElementById('uploadTemplateError');
+        errBox.classList.add('d-none');
+        const fd = new FormData(uploadForm);
+        const res = await fetch('/api/document-templates', { method: 'POST', body: fd });
+        const d = await res.json().catch(() => ({}));
+        if (d.success) {
+            bootstrap.Modal.getInstance(document.getElementById('uploadTemplateModal')).hide();
+            loadTemplates();
+        } else {
+            errBox.textContent = d.message || 'Upload fehlgeschlagen';
+            errBox.classList.remove('d-none');
+        }
+    });
+}
+
+loadTemplates();
+</script>
+
+<%- include('partials/footer') %>

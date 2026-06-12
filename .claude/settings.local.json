@@ -46,7 +46,8 @@
       "Bash(/usr/bin/grep -rln \"Field Project Coach\\\\|field project coach\\\\|Field-Project-Coach\" /Users/munter/Documents/Projekte/DABuddy --include=\"*.js\" --include=\"*.ejs\" --include=\"*.json\" --include=\"*.css\")",
       "Bash(/usr/bin/grep -rn \"Field Project Coach\\\\|field project coach\\\\|Field-Project-Coach\" /Users/munter/Documents/Projekte/DABuddy/src /Users/munter/Documents/Projekte/DABuddy/views)",
       "Bash(/usr/bin/grep -rn \"Field Project Coach\\\\|Field-Project-Coach\\\\|field project coach\" /Users/munter/Documents/Projekte/DABuddy --include=\"*.js\" --include=\"*.ejs\" --include=\"*.json\" --include=\"*.css\")",
-      "Bash(/usr/bin/grep -v \".claude/\")"
+      "Bash(/usr/bin/grep -v \".claude/\")",
+      "Bash(/usr/bin/grep -n \"router.get.*dashboard\\\\|dashboard\\\\..*=\\\\|showTransferProjects\\\\|showMilestonesManagement\" /Users/munter/Documents/Projekte/DABuddy/src/routes/dashboard.js)"
     ],
     "deny": []
   }

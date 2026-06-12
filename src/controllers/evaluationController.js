@@ -576,7 +576,7 @@ const printTransferProjectSummary = async (req, res) => {
     const userId = req.session.userId;
     const userRole = req.session.userRole;
 
-    const ALLOWED = ['student', 'coach', 'department_lead', 'admin'];
+    const ALLOWED = ['student', 'coach', 'department_lead', 'admin', 'field_project_coach'];
     if (!ALLOWED.includes(userRole)) return res.status(403).send('Keine Berechtigung');
 
     const access = await userHasThesisAccess(userId, userRole, thesisId);

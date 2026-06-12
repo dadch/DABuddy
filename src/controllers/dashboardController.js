@@ -322,6 +322,32 @@ const showThesisChat = async (req, res) => {
   }
 };
 
+const showDocumentTemplates = async (req, res) => {
+  try {
+    // Optionaler Rücksprung-Kontext: ?from=<thesisId>. Wir validieren nur das
+    // Format; die Berechtigungsprüfung erfolgt beim Aufruf der Detailseite.
+    let fromThesisId = null;
+    let fromThesisTitle = '';
+    if (req.query.from) {
+      const id = parseInt(req.query.from, 10);
+      if (Number.isInteger(id) && id > 0) {
+        const t = await Thesis.findByPk(id, { attributes: ['id', 'title'] });
+        if (t) { fromThesisId = t.id; fromThesisTitle = t.title || ''; }
+      }
+    }
+    res.render('templates', {
+      user: { id: req.session.userId, fullName: req.session.fullName, role: req.session.userRole },
+      fromThesisId,
+      fromThesisTitle,
+      messages: req.flash(),
+    });
+  } catch (error) {
+    console.error('Error in showDocumentTemplates:', error);
+    req.flash('error', 'Vorlagen-Seite konnte nicht geladen werden.');
+    res.redirect('/dashboard');
+  }
+};
+
 const showUploadCategoriesManagement = async (req, res) => {
   try {
     if (req.session.userRole !== 'admin') {
@@ -395,6 +421,7 @@ module.exports = {
   showDashboard,
   showThesisDetail,
   showThesisChat,
+  showDocumentTemplates,
   showYearsManagement,
   showUploadCategoriesManagement,
   showMilestonesManagement,

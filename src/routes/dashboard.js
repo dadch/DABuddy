@@ -6,6 +6,7 @@ const { requireAuth, requireRole } = require('../middleware/auth');
 router.get('/dashboard', requireAuth, dashboardController.showDashboard);
 router.get('/dashboard/thesis/:id', requireAuth, dashboardController.showThesisDetail);
 router.get('/dashboard/thesis/:id/chat', requireAuth, dashboardController.showThesisChat);
+router.get('/dashboard/document-templates', requireAuth, dashboardController.showDocumentTemplates);
 router.get('/dashboard/admin/years', requireAuth, requireRole(['admin']), dashboardController.showYearsManagement);
 router.get('/dashboard/admin/upload-categories', requireAuth, requireRole(['admin']), dashboardController.showUploadCategoriesManagement);
 router.get('/dashboard/admin/milestones', requireAuth, requireRole(['admin']), dashboardController.showMilestonesManagement);

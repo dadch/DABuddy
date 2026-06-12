@@ -55,6 +55,11 @@ const {
   uploadConfidentialityDocument,
   downloadConfidentialityDocument,
   deleteConfidentialityDocument,
+  updateThesisTitle,
+  listDocumentTemplates,
+  uploadDocumentTemplate,
+  downloadDocumentTemplate,
+  deleteDocumentTemplate,
   lockThesis,
   unlockThesis,
   getChatMessages,
@@ -95,6 +100,8 @@ router.get('/theses/:id', requireRole(['admin', 'department_lead']), getThesis);
 router.post('/theses', requireRole(['admin', 'department_lead']), createThesis);
 router.put('/theses/:id', requireRole(['admin', 'department_lead']), updateThesis);
 router.delete('/theses/:id', requireRole(['admin', 'department_lead']), deleteThesis);
+// Titel-Edit für Dozent Transferprojekt (und Admin); Berechtigung wird im Handler präzisiert.
+router.put('/theses/:id/title', requireRole(['admin', 'field_project_coach']), updateThesisTitle);
 
 // User management
 router.get('/users', requireRole(['admin', 'department_lead']), getUsers);
@@ -155,6 +162,13 @@ router.delete('/theses/:id/confidentiality-document', requireRole(['admin', 'dep
 // Sperrung einer Diplomarbeit (Admin + FachbereichsleiterIn).
 router.post('/theses/:id/lock', requireRole(['admin', 'department_lead']), lockThesis);
 router.post('/theses/:id/unlock', requireRole(['admin', 'department_lead']), unlockThesis);
+
+// Dokumentvorlagen (global). Liste/Download: alle angemeldeten Benutzer.
+// Upload/Delete: Admin + FachbereichsleiterIn.
+router.get('/document-templates', listDocumentTemplates);
+router.post('/document-templates', requireRole(['admin', 'department_lead']), uploadDocumentTemplate);
+router.get('/document-templates/:id/download', downloadDocumentTemplate);
+router.delete('/document-templates/:id', requireRole(['admin', 'department_lead']), deleteDocumentTemplate);
 
 // Chat (Berechtigung wird im Controller via userHasThesisAccess geprüft)
 router.get('/theses/:id/chat', getChatMessages);
