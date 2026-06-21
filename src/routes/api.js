@@ -9,6 +9,7 @@ const {
   deleteUploadCategory,
   getYears,
   createYear,
+  updateYear,
   setCurrentYear,
   deleteYear,
   switchSelectedYear,
@@ -88,6 +89,7 @@ router.get('/upload-categories/:id/bulk-download.zip',
 // Year management (Diplomjahre, admin only) + Switcher (admin/department_lead)
 router.get('/years', requireRole(['admin']), getYears);
 router.post('/years', requireRole(['admin']), createYear);
+router.put('/years/:id', requireRole(['admin']), updateYear);
 router.put('/years/:id/current', requireRole(['admin']), setCurrentYear);
 router.delete('/years/:id', requireRole(['admin']), deleteYear);
 router.post('/year/switch', requireRole(['admin', 'department_lead']), switchSelectedYear);

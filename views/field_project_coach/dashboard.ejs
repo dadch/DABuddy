@@ -1,12 +1,12 @@
 <%- include('../partials/header', { title: 'Dozent Transferprojekt-Dashboard - ThesisBuddy', user: user }) %>
 
 <div class="d-flex justify-content-between align-items-center mb-4">
-    <h1>Meine Diplomarbeiten (Dozent Transferprojekt)</h1>
+    <h1><%= t('dashboard.titleFieldProjectCoach') %></h1>
     <div class="d-flex align-items-center gap-3">
-        <a href="/api/transfer-project-overview.pdf" target="_blank" class="pill-btn" title="Gesamtübersicht aller Transferprojekt-Noten als PDF">
-            <i class="bi bi-arrow-left-right"></i> Gesamtübersicht Transferprojekt
+        <a href="/api/transfer-project-overview.pdf" target="_blank" class="pill-btn">
+            <i class="bi bi-arrow-left-right"></i> <%= t('dashboard.actions.transferOverview') %>
         </a>
-        <span class="text-muted"><i class="bi bi-calendar"></i> Diplomjahr: <%= selectedYear %></span>
+        <span class="text-muted"><i class="bi bi-calendar"></i> <%= t('dashboard.year') %>: <%= yearLabel(selectedYearObj) %></span>
         <%- include('../partials/role-switcher', { availableRoles: availableRoles, currentRole: currentRole }) %>
     </div>
 </div>
@@ -14,7 +14,7 @@
 <% if (theses.length === 0) { %>
     <div class="alert alert-info" role="alert">
         <i class="bi bi-info-circle"></i>
-        Im ausgewählten Diplomjahr sind Ihnen keine Diplomarbeiten zugewiesen.
+        <%= t('dashboard.noTheses_role') %>
     </div>
 <% } else { %>
     <div class="row">

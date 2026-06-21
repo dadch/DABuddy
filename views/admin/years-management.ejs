@@ -43,10 +43,51 @@
                         <label for="newYearInput" class="form-label">Jahr (z. B. 2027)</label>
                         <input type="number" class="form-control" id="newYearInput" min="2000" max="2100" required>
                     </div>
+                    <div class="mb-3">
+                        <label for="newYearLabelDe" class="form-label">Bezeichnung (Deutsch)</label>
+                        <input type="text" class="form-control" id="newYearLabelDe" placeholder="optional – Fallback auf Jahreszahl">
+                    </div>
+                    <div class="mb-3">
+                        <label for="newYearLabelFr" class="form-label">Bezeichnung (Französisch)</label>
+                        <input type="text" class="form-control" id="newYearLabelFr" placeholder="optional – Fallback auf Jahreszahl">
+                    </div>
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Abbrechen</button>
                     <button type="submit" class="btn btn-primary">Anlegen</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Bearbeiten -->
+<div class="modal fade" id="editYearModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Diplomjahr bearbeiten</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form id="editYearForm">
+                <div class="modal-body">
+                    <input type="hidden" id="editYearId">
+                    <div class="mb-3">
+                        <label class="form-label">Jahr</label>
+                        <input type="text" class="form-control" id="editYearReadonly" readonly>
+                    </div>
+                    <div class="mb-3">
+                        <label for="editYearLabelDe" class="form-label">Bezeichnung (Deutsch)</label>
+                        <input type="text" class="form-control" id="editYearLabelDe" placeholder="optional – Fallback auf Jahreszahl">
+                    </div>
+                    <div class="mb-3">
+                        <label for="editYearLabelFr" class="form-label">Bezeichnung (Französisch)</label>
+                        <input type="text" class="form-control" id="editYearLabelFr" placeholder="optional – Fallback auf Jahreszahl">
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Abbrechen</button>
+                    <button type="submit" class="btn btn-primary"><i class="bi bi-check-lg"></i> Speichern</button>
                 </div>
             </form>
         </div>
@@ -67,6 +108,8 @@ function loadYears() {
                 <div class="table-responsive"><table class="table table-striped">
                     <thead><tr>
                         <th>Jahr</th>
+                        <th>Bezeichnung DE</th>
+                        <th>Bezeichnung FR</th>
                         <th>Status</th>
                         <th>Diplomarbeiten</th>
                         <th>Meilenstein-Vorlagen</th>
@@ -76,12 +119,15 @@ function loadYears() {
                         ${years.map(y => `
                             <tr>
                                 <td><strong>${y.year}</strong></td>
+                                <td>${escapeHtml(y.label_de || '')}</td>
+                                <td>${escapeHtml(y.label_fr || '')}</td>
                                 <td>${y.is_current
                                     ? '<span class="badge bg-success"><i class="bi bi-check-circle"></i> Aktuell</span>'
                                     : '<span class="badge bg-secondary">—</span>'}</td>
                                 <td>${y.thesesCount}</td>
                                 <td>${y.milestonesCount}</td>
                                 <td>
+                                    <button class="btn btn-outline-primary btn-sm me-1" onclick='editYear(${JSON.stringify(y)})'><i class="bi bi-pencil"></i></button>
                                     ${y.is_current
                                       ? ''
                                       : `<button class="btn btn-outline-success btn-sm me-1" onclick="setYearCurrent(${y.id})"><i class="bi bi-check2-circle"></i> Als aktuell setzen</button>`}
@@ -105,10 +151,18 @@ function openAddYearModal() {
     new bootstrap.Modal(document.getElementById('addYearModal')).show();
 }
 
+function escapeHtml(s) {
+    return String(s == null ? '' : s)
+        .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+}
+
 document.getElementById('addYearForm').addEventListener('submit', function(e) {
     e.preventDefault();
     const year = parseInt(document.getElementById('newYearInput').value, 10);
-    fetch('/api/years', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ year }) })
+    const label_de = document.getElementById('newYearLabelDe').value.trim();
+    const label_fr = document.getElementById('newYearLabelFr').value.trim();
+    fetch('/api/years', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ year, label_de, label_fr }) })
         .then(r => r.json())
         .then(d => {
             if (d.success) {
@@ -117,6 +171,30 @@ document.getElementById('addYearForm').addEventListener('submit', function(e) {
             } else alert('Fehler: ' + (d.message || 'Unbekannt'));
         })
         .catch(err => { console.error(err); alert('Fehler beim Anlegen'); });
+});
+
+function editYear(y) {
+    document.getElementById('editYearId').value = y.id;
+    document.getElementById('editYearReadonly').value = y.year;
+    document.getElementById('editYearLabelDe').value = y.label_de || '';
+    document.getElementById('editYearLabelFr').value = y.label_fr || '';
+    new bootstrap.Modal(document.getElementById('editYearModal')).show();
+}
+
+document.getElementById('editYearForm').addEventListener('submit', function(e) {
+    e.preventDefault();
+    const id = document.getElementById('editYearId').value;
+    const label_de = document.getElementById('editYearLabelDe').value.trim();
+    const label_fr = document.getElementById('editYearLabelFr').value.trim();
+    fetch('/api/years/' + id, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ label_de, label_fr }) })
+        .then(r => r.json())
+        .then(d => {
+            if (d.success) {
+                bootstrap.Modal.getInstance(document.getElementById('editYearModal')).hide();
+                loadYears();
+            } else alert('Fehler: ' + (d.message || 'Unbekannt'));
+        })
+        .catch(err => { console.error(err); alert('Fehler beim Speichern'); });
 });
 
 function setYearCurrent(id) {

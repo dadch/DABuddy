@@ -1,9 +1,9 @@
 <!DOCTYPE html>
-<html lang="de">
+<html lang="<%= lang %>">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Anmeldung – ThesisBuddy</title>
+    <title><%= t('auth.loginTitle') %> – ThesisBuddy</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -19,14 +19,26 @@
             <span class="brand-text">ThesisBuddy</span>
         </div>
         <div class="marketing">
-            Diplomarbeiten von der Anmeldung bis zur <strong>Schlussbewertung</strong> — an einem Ort.
+            <%= t('auth.marketingTagline') %>
         </div>
-        <div class="legal">© 2026 ThesisBuddy · Diplomarbeit-Verwaltungssystem</div>
+        <div class="legal">© 2026 ThesisBuddy</div>
     </div>
     <div class="login-right">
         <div class="login-card">
-            <h2>Anmeldung</h2>
-            <div class="subtitle">Melden Sie sich mit Ihrem HFTM-Konto an.</div>
+            <div class="d-flex justify-content-between align-items-start mb-2">
+                <h2 class="mb-0"><%= t('auth.loginTitle') %></h2>
+                <div class="dropdown">
+                    <button class="btn btn-sm btn-outline-secondary dropdown-toggle" type="button" data-bs-toggle="dropdown">
+                        <i class="bi bi-translate"></i> <%= lang.toUpperCase() %>
+                    </button>
+                    <ul class="dropdown-menu dropdown-menu-end">
+                        <% supportedLanguages.forEach(function(code) { %>
+                            <li><a class="dropdown-item <%= code === lang ? 'active' : '' %>" href="/login?lng=<%= code %>"><%= t('profile.languages.' + code) %></a></li>
+                        <% }); %>
+                    </ul>
+                </div>
+            </div>
+            <div class="subtitle"><%= t('auth.loginSubtitle') %></div>
 
             <% if (typeof messages !== 'undefined' && messages && messages.error && messages.error.length > 0) { %>
                 <% messages.error.forEach(function(message) { %>
@@ -36,32 +48,32 @@
 
             <form action="/login" method="POST">
                 <div class="mb-3">
-                    <label for="username" class="form-label">Benutzername oder E-Mail</label>
-                    <input type="text" class="form-control" id="username" name="username" placeholder="vorname.nachname" required autofocus>
+                    <label for="username" class="form-label"><%= t('auth.userOrEmail') %></label>
+                    <input type="text" class="form-control" id="username" name="username" placeholder="<%= t('auth.userOrEmailPlaceholder') %>" required autofocus>
                 </div>
                 <div class="mb-3">
-                    <label for="password" class="form-label">Passwort</label>
+                    <label for="password" class="form-label"><%= t('auth.password') %></label>
                     <input type="password" class="form-control" id="password" name="password" required>
                 </div>
                 <div class="d-grid mt-4">
                     <button type="submit" class="btn btn-primary">
-                        <i class="bi bi-arrow-right"></i> Anmelden
+                        <i class="bi bi-arrow-right"></i> <%= t('auth.loginSubmit') %>
                     </button>
                 </div>
                 <p class="text-muted mt-4 mb-0" style="font-size: 0.8125rem;">
-                    Passwort vergessen? Wenden Sie sich an die Administration.
+                    <%= t('auth.forgotPassword') %>
                 </p>
             </form>
 
             <div class="login-divider my-4 d-flex align-items-center text-muted" style="font-size: 0.8125rem;">
                 <hr class="flex-grow-1 me-2 mb-0">
-                <span>oder</span>
+                <span><%= t('auth.or') %></span>
                 <hr class="flex-grow-1 ms-2 mb-0">
             </div>
 
             <div class="d-grid">
                 <a href="/auth/microsoft" class="btn btn-outline-secondary">
-                    <i class="bi bi-microsoft"></i> Mit M365-Login anmelden
+                    <i class="bi bi-microsoft"></i> <%= t('auth.m365Login') %>
                 </a>
             </div>
         </div>

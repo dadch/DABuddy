@@ -13,9 +13,9 @@ const _transferRoles = ['student', 'coach', 'department_lead', 'admin', 'field_p
 const _showTransferBtn = _hasTransfer && user && _transferRoles.includes(user.role);
 %>
 <div class="page-breadcrumb mb-2">
-    <a href="/dashboard">Dashboard</a>
+    <a href="/dashboard"><%= t('nav.dashboard') %></a>
     <span class="sep"></span>
-    <span>Diplomarbeit-Details</span>
+    <span><%= t('thesis.details') %></span>
 </div>
 <div class="page-header">
     <div>
@@ -26,21 +26,20 @@ const _showTransferBtn = _hasTransfer && user && _transferRoles.includes(user.ro
     </div>
     <div class="page-actions">
         <a href="/dashboard/thesis/<%= thesis.id %>/chat" class="pill-btn">
-            <i class="bi bi-chat-dots"></i> Chat
+            <i class="bi bi-chat-dots"></i> <%= t('nav.chat') %>
         </a>
-        <a href="/dashboard/document-templates?from=<%= thesis.id %>" class="pill-btn" title="Dokumentvorlagen und Downloads">
-            <i class="bi bi-folder2-open"></i> Vorlagen
+        <a href="/dashboard/document-templates?from=<%= thesis.id %>" class="pill-btn">
+            <i class="bi bi-folder2-open"></i> <%= t('nav.documentTemplates') %>
         </a>
         <% if (_showTransferBtn) { %>
             <a href="/api/theses/<%= thesis.id %>/transfer-project.pdf"
                target="_blank"
-               class="pill-btn"
-               title="Zusammenzug aller Bewertungen mit Transferprojekt-Kennzeichnung als PDF">
-                <i class="bi bi-arrow-left-right"></i> Transferprojekt
+               class="pill-btn">
+                <i class="bi bi-arrow-left-right"></i> <%= t('thesis.transferProject') %>
             </a>
         <% } %>
         <span class="pill-btn">
-            <i class="bi bi-calendar3"></i> Diplomjahr <%= thesis.year.year %>
+            <i class="bi bi-calendar3"></i> <%= t('dashboard.year') %> <%= yearLabel(thesis.year) %>
         </span>
     </div>
 </div>

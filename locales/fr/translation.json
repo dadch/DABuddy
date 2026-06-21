@@ -1,0 +1,176 @@
+{
+  "common": {
+    "save": "Enregistrer",
+    "cancel": "Annuler",
+    "delete": "Supprimer",
+    "edit": "Modifier",
+    "create": "Créer",
+    "close": "Fermer",
+    "back": "Retour",
+    "yes": "Oui",
+    "no": "Non",
+    "loading": "Chargement…",
+    "actions": "Actions",
+    "search": "Rechercher",
+    "filter": "Filtrer",
+    "all": "Tous",
+    "none": "Aucun",
+    "open": "Ouvert",
+    "details": "Détails",
+    "upload": "Téléverser",
+    "download": "Télécharger",
+    "view": "Voir",
+    "of": "sur"
+  },
+  "nav": {
+    "dashboard": "Tableau de bord",
+    "profile": "Profil",
+    "logout": "Déconnexion",
+    "documentTemplates": "Modèles",
+    "chat": "Chat"
+  },
+  "auth": {
+    "loginTitle": "Connexion",
+    "loginSubtitle": "Connectez-vous avec votre compte HFTM.",
+    "userOrEmail": "Nom d'utilisateur ou e-mail",
+    "userOrEmailPlaceholder": "prenom.nom",
+    "password": "Mot de passe",
+    "loginSubmit": "Se connecter",
+    "forgotPassword": "Mot de passe oublié ? Veuillez contacter l'administration.",
+    "or": "ou",
+    "m365Login": "Se connecter avec M365",
+    "marketingTagline": "Les travaux de diplôme, de l'inscription à l'évaluation finale — au même endroit.",
+    "errors": {
+      "invalid": "Nom d'utilisateur ou mot de passe invalide",
+      "missing": "Veuillez remplir tous les champs",
+      "noYear": "Aucune année de diplôme disponible. Veuillez contacter l'administrateur.",
+      "locked": "Ce travail de diplôme a été verrouillé. Veuillez contacter la direction de filière.",
+      "generic": "Une erreur est survenue lors de la connexion",
+      "sessionExpired": "Session expirée. Veuillez vous reconnecter.",
+      "m365NotConfigured": "La connexion M365 n'est pas configurée. Veuillez informer l'administrateur.",
+      "m365Failed": "Échec de la connexion M365.",
+      "m365EmailNotRegistered": "Cette adresse e-mail n'est pas enregistrée dans le système. Veuillez contacter la direction de filière.",
+      "m365StateInvalid": "État de connexion M365 invalide. Veuillez réessayer.",
+      "m365NoEmail": "La connexion M365 n'a fourni aucune adresse e-mail.",
+      "m365Cancelled": "Connexion M365 annulée ou refusée."
+    },
+    "welcomeBack": "Bon retour, {{name}} !"
+  },
+  "profile": {
+    "title": "Profil utilisateur",
+    "subtitle": "Paramètres personnels",
+    "languageSection": "Langue de l'interface",
+    "languageHelp": "Affecte tous les menus, boutons et textes standard. La langue des formulaires d'évaluation suit toujours la langue du travail de diplôme.",
+    "languageLabel": "Langue",
+    "languages": {
+      "de": "Allemand",
+      "fr": "Français"
+    },
+    "saved": "Profil enregistré"
+  },
+  "dashboard": {
+    "titleAdmin": "Gestion des travaux de diplôme",
+    "titleDepartmentLead": "Gestion de la filière",
+    "titleCoach": "Mes travaux de diplôme (enseignant·e)",
+    "titleExpert": "Mes travaux de diplôme (expert·e)",
+    "titleStudent": "Mon travail de diplôme",
+    "titleFieldProjectCoach": "Mes travaux de diplôme (enseignant·e projet de transfert)",
+    "year": "Année de diplôme",
+    "totalCount": "Total des travaux de diplôme",
+    "departmentCount": "Travaux de diplôme dans la filière",
+    "noTheses": "Aucun travail de diplôme trouvé pour les critères sélectionnés.",
+    "noTheses_role": "Aucun travail de diplôme ne vous est attribué pour l'année sélectionnée.",
+    "department": "Filière",
+    "allDepartments": "Toutes les filières",
+    "headers": {
+      "title": "Titre du travail de diplôme",
+      "department": "Filière",
+      "students": "Étudiant·e·s",
+      "coaches": "Enseignant·e·s",
+      "experts": "Expert·e·s",
+      "fieldProjectCoaches": "Enseignant·e·s projet de transfert",
+      "sponsor": "Mandant",
+      "actions": "Actions"
+    },
+    "actions": {
+      "addThesis": "Ajouter un travail de diplôme",
+      "years": "Années de diplôme",
+      "milestones": "Jalons",
+      "evaluationForms": "Formulaires d'évaluation",
+      "uploadCategories": "Catégories de documents",
+      "thesesListPdf": "Liste des travaux en PDF",
+      "thesesListCsv": "Liste des travaux en CSV",
+      "transferOverview": "Vue d'ensemble projet de transfert",
+      "bulkDownload": "Télécharger les documents en ZIP…",
+      "userManagement": "Gérer les utilisateurs",
+      "studentManagement": "Gérer les étudiant·e·s",
+      "departmentManagement": "Gérer les filières"
+    },
+    "thesisLocked": "Travail de diplôme verrouillé",
+    "noStudents": "Aucun·e étudiant·e attribué·e",
+    "noCoaches": "Aucun·e enseignant·e attribué·e",
+    "noExperts": "Aucun·e expert·e attribué·e",
+    "noFieldProjectCoaches": "Aucun·e attribué·e",
+    "fbl": {
+      "noTemplates": "Aucun modèle de jalon défini pour l'année de diplôme sélectionnée. La vue affiche uniquement les informations de base des travaux.",
+      "col": {
+        "documents": "Doc",
+        "evaluation": "Éval",
+        "dueBy": "jusqu'au",
+        "evalLegendDouble": "É1 · É2 · F",
+        "evalLegendNone": "—"
+      },
+      "tooltip": {
+        "deadlineMissed": "Délai du {{date}} manqué",
+        "by": "jusqu'au {{date}}",
+        "categoryPrefix": "Catégorie",
+        "noCategory": "Sans catégorie",
+        "version": "v{{n}}"
+      },
+      "eval": {
+        "first": "Évaluation 1",
+        "second": "Évaluation 2",
+        "final": "Évaluation finale",
+        "single": "Évaluation",
+        "openResponsible": "ouvert · responsable : {{names}}",
+        "unknownEvaluator": "(inconnu)"
+      },
+      "legend": {
+        "done": "terminé",
+        "pending": "ouvert, dans les délais",
+        "overdue": "délai manqué",
+        "notApplicable": "non prévu"
+      }
+    }
+  },
+  "thesis": {
+    "details": "Détails du travail de diplôme",
+    "milestones": "Jalons",
+    "approvals": "Validations",
+    "language": "Langue",
+    "language_de": "Allemand",
+    "language_fr": "Français",
+    "noMilestones": "Aucun jalon pour ce travail de diplôme.",
+    "approvalGranted": "Validé",
+    "approvalPending": "ouvert",
+    "approvalAllDone": "Entièrement validé",
+    "grant": "Valider",
+    "revoke": "Retirer",
+    "approveTooltip": "Accorder la validation {{n}}",
+    "responsibleRole": "Responsable",
+    "released": "Libéré",
+    "locked": "Bloqué",
+    "evaluation": "Évaluation",
+    "transferProject": "Projet de transfert",
+    "overdue": "(en retard)",
+    "individualDueDate": "Individuel"
+  },
+  "roles": {
+    "student": "Étudiant·e",
+    "coach": "Enseignant·e",
+    "expert": "Expert·e",
+    "admin": "Administrateur",
+    "department_lead": "Direction de filière",
+    "field_project_coach": "Enseignant·e projet de transfert"
+  }
+}

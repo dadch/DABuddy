@@ -529,8 +529,12 @@ const printThesisEvaluation = async (req, res) => {
       ]
     });
 
-    const title = 'Bewertung ' + (tm.label || '');
-    const safeName = ('Bewertung_' + (tm.label || 'Meilenstein')).replace(/[^a-zA-Z0-9_-]+/g, '_');
+    // PDF-Sprache richtet sich nach der Diplomarbeit (vereinbart): FR-DA →
+    // Meilenstein-Titel auf FR (Fallback DE), sonst DE.
+    const isFr = thesis.language === 'fr';
+    const tmLabelLocal = (isFr && tm.label_fr) ? tm.label_fr : (tm.label || '');
+    const title = 'Bewertung ' + tmLabelLocal;
+    const safeName = ('Bewertung_' + (tmLabelLocal || 'Meilenstein')).replace(/[^a-zA-Z0-9_-]+/g, '_');
 
     // Freitext-Bewertung
     if (!tm.evaluation_form_id) {
@@ -995,14 +999,15 @@ const printFeedbackForm = async (req, res) => {
     if (!ctx.finalEval) return res.status(400).send('Eine finale Bewertung ist Voraussetzung');
 
     const language = ctx.thesis && ctx.thesis.language === 'fr' ? 'fr' : 'de';
-    const safeName = ('Feedback_' + (tm.label || 'Meilenstein')).replace(/[^a-zA-Z0-9_-]+/g, '_');
+    const tmLabelLocal = (language === 'fr' && tm.label_fr) ? tm.label_fr : (tm.label || '');
+    const safeName = ('Feedback_' + (tmLabelLocal || 'Meilenstein')).replace(/[^a-zA-Z0-9_-]+/g, '_');
 
     res.setHeader('Content-Type', 'application/pdf');
     res.setHeader('Content-Disposition', `inline; filename="${safeName}.pdf"`);
     streamFeedbackFormPdf(res, {
       language,
       thesis: ctx.thesis,
-      milestoneLabel: tm.label,
+      milestoneLabel: tmLabelLocal,
       groupGrades: ctx.groupGrades,
       moduleGrade: ctx.moduleGrade,
       feedbackText: tm.feedback_text || '',

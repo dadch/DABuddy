@@ -1,0 +1,176 @@
+{
+  "common": {
+    "save": "Speichern",
+    "cancel": "Abbrechen",
+    "delete": "Löschen",
+    "edit": "Bearbeiten",
+    "create": "Erstellen",
+    "close": "Schliessen",
+    "back": "Zurück",
+    "yes": "Ja",
+    "no": "Nein",
+    "loading": "Lade…",
+    "actions": "Aktionen",
+    "search": "Suchen",
+    "filter": "Filtern",
+    "all": "Alle",
+    "none": "Keine",
+    "open": "Offen",
+    "details": "Details",
+    "upload": "Hochladen",
+    "download": "Herunterladen",
+    "view": "Anzeigen",
+    "of": "von"
+  },
+  "nav": {
+    "dashboard": "Dashboard",
+    "profile": "Profil",
+    "logout": "Abmelden",
+    "documentTemplates": "Vorlagen",
+    "chat": "Chat"
+  },
+  "auth": {
+    "loginTitle": "Anmeldung",
+    "loginSubtitle": "Melden Sie sich mit Ihrem HFTM-Konto an.",
+    "userOrEmail": "Benutzername oder E-Mail",
+    "userOrEmailPlaceholder": "vorname.nachname",
+    "password": "Passwort",
+    "loginSubmit": "Anmelden",
+    "forgotPassword": "Passwort vergessen? Wenden Sie sich an die Administration.",
+    "or": "oder",
+    "m365Login": "Mit M365-Login anmelden",
+    "marketingTagline": "Diplomarbeiten von der Anmeldung bis zur Schlussbewertung — an einem Ort.",
+    "errors": {
+      "invalid": "Benutzername oder Passwort ungültig",
+      "missing": "Bitte füllen Sie alle Felder aus",
+      "noYear": "Es ist kein Diplomjahr verfügbar. Bitte kontaktieren Sie den Administrator.",
+      "locked": "Diese Diplomarbeit wurde gesperrt. Bitte kontaktieren Sie die Fachbereichsleitung.",
+      "generic": "Bei der Anmeldung ist ein Fehler aufgetreten",
+      "sessionExpired": "Sitzung abgelaufen. Bitte erneut anmelden.",
+      "m365NotConfigured": "M365-Login ist nicht konfiguriert. Bitte Administrator informieren.",
+      "m365Failed": "M365-Login fehlgeschlagen.",
+      "m365EmailNotRegistered": "Diese E-Mail-Adresse ist nicht im System registriert. Bitte wende dich an die Fachbereichsleitung.",
+      "m365StateInvalid": "Ungültiger M365-Login-Status. Bitte erneut versuchen.",
+      "m365NoEmail": "M365-Login lieferte keine E-Mail-Adresse.",
+      "m365Cancelled": "M365-Login abgebrochen oder verweigert."
+    },
+    "welcomeBack": "Willkommen zurück, {{name}}!"
+  },
+  "profile": {
+    "title": "Benutzerprofil",
+    "subtitle": "Persönliche Einstellungen",
+    "languageSection": "Sprache der Benutzeroberfläche",
+    "languageHelp": "Wirkt sich auf alle Menüs, Buttons und Standardtexte aus. Die Sprache der Bewertungsformulare richtet sich weiterhin nach der Sprache der Diplomarbeit.",
+    "languageLabel": "Sprache",
+    "languages": {
+      "de": "Deutsch",
+      "fr": "Französisch"
+    },
+    "saved": "Profil gespeichert"
+  },
+  "dashboard": {
+    "titleAdmin": "Diplomarbeit-Verwaltung",
+    "titleDepartmentLead": "Fachbereichsverwaltung",
+    "titleCoach": "Meine Diplomarbeiten (Dozent/in)",
+    "titleExpert": "Meine Diplomarbeiten (Expert/in)",
+    "titleStudent": "Meine Diplomarbeit",
+    "titleFieldProjectCoach": "Meine Diplomarbeiten (Dozent Transferprojekt)",
+    "year": "Diplomjahr",
+    "totalCount": "Diplomarbeiten gesamt",
+    "departmentCount": "Diplomarbeiten im Fachbereich",
+    "noTheses": "Keine Diplomarbeiten für die ausgewählten Kriterien gefunden.",
+    "noTheses_role": "Im ausgewählten Diplomjahr sind Ihnen keine Diplomarbeiten zugewiesen.",
+    "department": "Fachbereich",
+    "allDepartments": "Alle Fachbereiche",
+    "headers": {
+      "title": "Titel der Diplomarbeit",
+      "department": "Fachbereich",
+      "students": "Studierende",
+      "coaches": "Dozent/innen",
+      "experts": "Expert/innen",
+      "fieldProjectCoaches": "Dozenten Transferprojekt",
+      "sponsor": "Auftraggeber",
+      "actions": "Aktionen"
+    },
+    "actions": {
+      "addThesis": "Diplomarbeit hinzufügen",
+      "years": "Diplomjahre",
+      "milestones": "Meilensteine",
+      "evaluationForms": "Bewertungsformulare",
+      "uploadCategories": "Upload-Kategorien",
+      "thesesListPdf": "Diplomarbeitenliste als PDF",
+      "thesesListCsv": "Diplomarbeitenliste als CSV",
+      "transferOverview": "Gesamtübersicht Transferprojekt",
+      "bulkDownload": "Dokumente als ZIP herunterladen…",
+      "userManagement": "Benutzer verwalten",
+      "studentManagement": "Studierende verwalten",
+      "departmentManagement": "Fachbereiche verwalten"
+    },
+    "thesisLocked": "Diplomarbeit gesperrt",
+    "noStudents": "Keine Studierenden zugewiesen",
+    "noCoaches": "Keine Dozent/innen zugewiesen",
+    "noExperts": "Keine Expert/innen zugewiesen",
+    "noFieldProjectCoaches": "Keine zugewiesen",
+    "fbl": {
+      "noTemplates": "Für das gewählte Diplomjahr sind keine Meilenstein-Vorlagen definiert. Die Übersicht zeigt nur die Stammdaten der Diplomarbeiten.",
+      "col": {
+        "documents": "Doc",
+        "evaluation": "Bew",
+        "dueBy": "bis",
+        "evalLegendDouble": "B1 · B2 · F",
+        "evalLegendNone": "—"
+      },
+      "tooltip": {
+        "deadlineMissed": "Termin {{date}} verpasst",
+        "by": "bis {{date}}",
+        "categoryPrefix": "Kategorie",
+        "noCategory": "Ohne Kategorie",
+        "version": "v{{n}}"
+      },
+      "eval": {
+        "first": "Bewertung 1",
+        "second": "Bewertung 2",
+        "final": "Finale Bewertung",
+        "single": "Bewertung",
+        "openResponsible": "offen · zuständig: {{names}}",
+        "unknownEvaluator": "(unbekannt)"
+      },
+      "legend": {
+        "done": "erledigt",
+        "pending": "offen, im Termin",
+        "overdue": "Termin verpasst",
+        "notApplicable": "nicht vorgesehen"
+      }
+    }
+  },
+  "thesis": {
+    "details": "Diplomarbeit-Details",
+    "milestones": "Meilensteine",
+    "approvals": "Freigaben",
+    "language": "Sprache",
+    "language_de": "Deutsch",
+    "language_fr": "Französisch",
+    "noMilestones": "Keine Meilensteine für diese Diplomarbeit.",
+    "approvalGranted": "Freigegeben",
+    "approvalPending": "offen",
+    "approvalAllDone": "Vollständig freigegeben",
+    "grant": "Freigeben",
+    "revoke": "Zurückziehen",
+    "approveTooltip": "Freigabe {{n}} erteilen",
+    "responsibleRole": "Verantwortlich",
+    "released": "Freigegeben",
+    "locked": "Gesperrt",
+    "evaluation": "Bewertung",
+    "transferProject": "Transferprojekt",
+    "overdue": "(überfällig)",
+    "individualDueDate": "Individuell"
+  },
+  "roles": {
+    "student": "Student",
+    "coach": "Dozent/in",
+    "expert": "Expert/in",
+    "admin": "Administrator",
+    "department_lead": "FachbereichsleiterIn",
+    "field_project_coach": "Dozent Transferprojekt"
+  }
+}

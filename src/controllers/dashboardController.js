@@ -53,7 +53,30 @@ const showDashboard = async (req, res) => {
           whereClause.department_id = departmentIds;
         }
 
-        theses = await Thesis.findAll({ where: whereClause, include: baseInclude, order: [['title', 'ASC']] });
+        // FBL-Dashboard zeigt pro DA eine Übersicht über Meilensteine, Dokumente
+        // und Bewertungen — daher hier zusätzlich Snapshots eager-laden.
+        theses = await Thesis.findAll({
+          where: whereClause,
+          include: [
+            ...baseInclude,
+            {
+              model: ThesisMilestone, as: 'milestones', required: false,
+              include: [
+                { model: UploadCategory, as: 'uploadCategories', through: { attributes: [] }, required: false },
+                {
+                  model: ThesisMilestoneDocument, as: 'documents', required: false,
+                  include: [{ model: UploadCategory, as: 'uploadCategory', required: false }],
+                },
+                {
+                  model: ThesisEvaluation, as: 'thesisEvaluations', required: false,
+                  attributes: ['id', 'kind', 'overall_grade', 'evaluated_by'],
+                  include: [{ model: User, as: 'evaluator', attributes: ['id', 'firstname', 'name'] }],
+                },
+              ],
+            },
+          ],
+          order: [['title', 'ASC']],
+        });
       }
     } else if (userRole === 'admin') {
       const departmentFilter = req.query.department;
@@ -68,6 +91,33 @@ const showDashboard = async (req, res) => {
       return res.redirect('/dashboard/thesis/' + theses[0].id);
     }
 
+    // Dashboard-Sortierung: nach Studierenden-Nachname/Vorname; bei mehreren
+    // Fachbereichen voran nach Fachbereich. Pro Diplomarbeit wird der/die
+    // alphabetisch erste Studierende als Sortierschlüssel verwendet.
+    const COLLATOR = new Intl.Collator('de-CH', { sensitivity: 'base' });
+    const primaryStudentKey = (t) => {
+      const list = (t.students || []).slice().sort((a, b) =>
+        COLLATOR.compare(a.name || '', b.name || '')
+        || COLLATOR.compare(a.firstname || '', b.firstname || '')
+      );
+      const p = list[0];
+      // Ohne Studierende ans Ende sortieren (Marker '~~~~').
+      return p ? [p.name || '~~~~', p.firstname || ''] : ['~~~~', '~~~~'];
+    };
+    const distinctDepartments = new Set(theses.map(t => t.department_id));
+    const sortByDepartment = distinctDepartments.size > 1;
+    theses.sort((a, b) => {
+      if (sortByDepartment) {
+        const da = (a.department && a.department.name) || '';
+        const db = (b.department && b.department.name) || '';
+        const c = COLLATOR.compare(da, db);
+        if (c !== 0) return c;
+      }
+      const [an, af] = primaryStudentKey(a);
+      const [bn, bf] = primaryStudentKey(b);
+      return COLLATOR.compare(an, bn) || COLLATOR.compare(af, bf);
+    });
+
     // Mehrfachrollen (Primär + Zusatzrollen) — wird vom Role-Switcher-Partial benötigt.
     const roleRows = await UserRole.findAll({ where: { user_id: userId }, attributes: ['role'], raw: true });
     const availableRoles = Array.from(new Set(roleRows.map(r => r.role)));
@@ -78,6 +128,7 @@ const showDashboard = async (req, res) => {
         role: userRole
       },
       selectedYear: selectedYear.year,
+      selectedYearObj: { id: selectedYear.id, year: selectedYear.year, label_de: selectedYear.label_de, label_fr: selectedYear.label_fr },
       selectedYearId: selectedYear.id,
       availableRoles,
       currentRole: userRole,
@@ -88,12 +139,22 @@ const showDashboard = async (req, res) => {
     if (userRole === 'admin') {
       dashboardData.departments = await Department.findAll({ order: [['name', 'ASC']] });
       dashboardData.selectedDepartment = req.query.department;
-      dashboardData.availableYears = await Year.findAll({ order: [['year', 'DESC']], attributes: ['id', 'year'] });
+      dashboardData.availableYears = await Year.findAll({ order: [['year', 'DESC']], attributes: ['id', 'year', 'label_de', 'label_fr'] });
     } else if (userRole === 'department_lead') {
       const ledDepartments = await Department.findAll({ where: { department_lead_id: userId }, order: [['name', 'ASC']] });
       dashboardData.departments = ledDepartments;
       dashboardData.selectedDepartment = req.query.department;
-      dashboardData.availableYears = await Year.findAll({ order: [['year', 'DESC']], attributes: ['id', 'year'] });
+      dashboardData.availableYears = await Year.findAll({ order: [['year', 'DESC']], attributes: ['id', 'year', 'label_de', 'label_fr'] });
+      // Meilenstein-Vorlagen des Diplomjahres definieren die Spaltenstruktur
+      // der FBL-Übersichtstabelle (chronologisch nach Fälligkeit).
+      dashboardData.milestoneTemplates = await Milestone.findAll({
+        where: { year_id: selectedYearId },
+        attributes: [
+          'id', 'label', 'due_at', 'allow_upload', 'requires_evaluation',
+          'double_evaluation', 'evaluator_role', 'evaluator_role_2',
+        ],
+        order: [['due_at', 'ASC'], ['id', 'ASC']],
+      });
     } else {
       dashboardData.availableYears = [];
     }
@@ -322,6 +383,56 @@ const showThesisChat = async (req, res) => {
   }
 };
 
+// Profilseite: zeigt die persönlichen Einstellungen des Benutzers.
+// Aktuell: GUI-Sprache (Deutsch/Französisch, weitere Sprachen via locales/).
+const showProfile = async (req, res) => {
+  try {
+    const { SUPPORTED_LANGUAGES } = require('../config/i18n');
+    const user = await User.findByPk(req.session.userId, {
+      attributes: ['id', 'username', 'firstname', 'name', 'email', 'language'],
+    });
+    if (!user) {
+      req.flash('error', 'Benutzer nicht gefunden.');
+      return res.redirect('/dashboard');
+    }
+    res.render('profile', {
+      user: { id: user.id, fullName: req.session.fullName, role: req.session.userRole },
+      profile: user,
+      supportedLanguages: SUPPORTED_LANGUAGES,
+      messages: req.flash(),
+    });
+  } catch (e) {
+    console.error('showProfile error:', e);
+    req.flash('error', 'Profil konnte nicht geladen werden.');
+    res.redirect('/dashboard');
+  }
+};
+
+// Speichert die Profil-Einstellungen (aktuell nur Sprache).
+const updateProfile = async (req, res) => {
+  try {
+    const { SUPPORTED_LANGUAGES } = require('../config/i18n');
+    const lang = (req.body && req.body.language) ? String(req.body.language) : '';
+    if (!SUPPORTED_LANGUAGES.includes(lang)) {
+      req.flash('error', 'Ungültige Sprachauswahl.');
+      return res.redirect('/dashboard/profile');
+    }
+    const user = await User.findByPk(req.session.userId);
+    if (!user) {
+      req.flash('error', 'Benutzer nicht gefunden.');
+      return res.redirect('/dashboard');
+    }
+    await user.update({ language: lang });
+    req.session.language = lang;
+    req.flash('success', req.t('profile.saved'));
+    res.redirect('/dashboard/profile');
+  } catch (e) {
+    console.error('updateProfile error:', e);
+    req.flash('error', 'Profil konnte nicht gespeichert werden.');
+    res.redirect('/dashboard/profile');
+  }
+};
+
 const showDocumentTemplates = async (req, res) => {
   try {
     // Optionaler Rücksprung-Kontext: ?from=<thesisId>. Wir validieren nur das
@@ -422,6 +533,8 @@ module.exports = {
   showThesisDetail,
   showThesisChat,
   showDocumentTemplates,
+  showProfile,
+  updateProfile,
   showYearsManagement,
   showUploadCategoriesManagement,
   showMilestonesManagement,

@@ -165,6 +165,7 @@ const createThesisMilestoneFromTemplate = (thesisId, template, released = false)
   thesis_id: thesisId,
   milestone_id: template.id,
   label: template.label,
+  label_fr: template.label_fr || null,
   due_at: template.due_at,
   released,
   responsible_role: template.responsible_role,
@@ -1124,7 +1125,7 @@ const parseMilestoneConfig = (body) => {
 const createMilestone = async (req, res) => {
   try {
     const { yearId } = req.params;
-    const { label, due_at, responsible_role, applyToExisting } = req.body;
+    const { label, label_fr, due_at, responsible_role, applyToExisting } = req.body;
 
     if (!label || !due_at || !responsible_role) {
       return res.status(400).json({ success: false, message: 'Bezeichnung, Termin und Rolle sind erforderlich' });
@@ -1173,7 +1174,8 @@ const createMilestone = async (req, res) => {
     const year = await Year.findByPk(yearId);
     if (!year) return res.status(404).json({ success: false, message: 'Diplomjahr nicht gefunden' });
 
-    const milestone = await Milestone.create({ year_id: yearId, label, due_at, responsible_role, ...config });
+    const labelFrTrim = (typeof label_fr === 'string' && label_fr.trim()) ? label_fr.trim() : null;
+    const milestone = await Milestone.create({ year_id: yearId, label, label_fr: labelFrTrim, due_at, responsible_role, ...config });
 
     // Upload-Kategorien zuweisen (optional)
     const catIds = Array.isArray(req.body.upload_categories)
@@ -1205,7 +1207,7 @@ const createMilestone = async (req, res) => {
 const updateMilestone = async (req, res) => {
   try {
     const { id } = req.params;
-    const { label, due_at, responsible_role, applyToExisting } = req.body;
+    const { label, label_fr, due_at, responsible_role, applyToExisting } = req.body;
 
     if (responsible_role && !VALID_ROLES.includes(responsible_role)) {
       return res.status(400).json({ success: false, message: 'Ungültige Rolle' });
@@ -1251,8 +1253,13 @@ const updateMilestone = async (req, res) => {
       }
     }
 
+    // label_fr: leerer String → null, undefined → unverändert
+    const labelFrUpdate = (label_fr === undefined)
+      ? milestone.label_fr
+      : (typeof label_fr === 'string' && label_fr.trim() ? label_fr.trim() : null);
     await milestone.update({
       label: label ?? milestone.label,
+      label_fr: labelFrUpdate,
       due_at: due_at ?? milestone.due_at,
       responsible_role: responsible_role ?? milestone.responsible_role,
       ...config,
@@ -1272,6 +1279,7 @@ const updateMilestone = async (req, res) => {
       await ThesisMilestone.update(
         {
           label: milestone.label,
+          label_fr: milestone.label_fr,
           responsible_role: milestone.responsible_role,
           allow_upload: milestone.allow_upload,
           allow_update: milestone.allow_update,
@@ -2287,6 +2295,8 @@ const getYears = async (req, res) => {
     res.json(years.map(y => ({
       id: y.id,
       year: y.year,
+      label_de: y.label_de,
+      label_fr: y.label_fr,
       is_current: y.is_current,
       thesesCount: tMap[y.id] || 0,
       milestonesCount: mMap[y.id] || 0,
@@ -2305,11 +2315,32 @@ const createYear = async (req, res) => {
     }
     const existing = await Year.findOne({ where: { year: yearNum } });
     if (existing) return res.status(409).json({ success: false, message: 'Dieses Diplomjahr existiert bereits.' });
-    const created = await Year.create({ year: yearNum, is_current: false });
-    res.json({ success: true, year: { id: created.id, year: created.year, is_current: created.is_current } });
+    const labelDe = (typeof req.body.label_de === 'string' && req.body.label_de.trim()) ? req.body.label_de.trim() : null;
+    const labelFr = (typeof req.body.label_fr === 'string' && req.body.label_fr.trim()) ? req.body.label_fr.trim() : null;
+    const created = await Year.create({ year: yearNum, is_current: false, label_de: labelDe, label_fr: labelFr });
+    res.json({ success: true, year: { id: created.id, year: created.year, label_de: created.label_de, label_fr: created.label_fr, is_current: created.is_current } });
   } catch (err) {
     console.error('createYear error:', err);
     res.status(500).json({ success: false, message: 'Diplomjahr konnte nicht angelegt werden' });
+  }
+};
+
+// Aktualisiert die zweisprachigen Bezeichnungen eines Diplomjahres.
+// Jahreszahl selbst bleibt unveränderlich (Stammdaten-Schutz).
+const updateYear = async (req, res) => {
+  try {
+    const yearId = parseInt(req.params.id, 10);
+    const year = await Year.findByPk(yearId);
+    if (!year) return res.status(404).json({ success: false, message: 'Diplomjahr nicht gefunden' });
+    const norm = (v) => (typeof v === 'string' && v.trim()) ? v.trim() : null;
+    await year.update({
+      label_de: (req.body.label_de === undefined) ? year.label_de : norm(req.body.label_de),
+      label_fr: (req.body.label_fr === undefined) ? year.label_fr : norm(req.body.label_fr),
+    });
+    res.json({ success: true, year: { id: year.id, year: year.year, label_de: year.label_de, label_fr: year.label_fr, is_current: year.is_current } });
+  } catch (err) {
+    console.error('updateYear error:', err);
+    res.status(500).json({ success: false, message: 'Diplomjahr konnte nicht aktualisiert werden' });
   }
 };
 
@@ -2544,7 +2575,8 @@ const createUploadCategory = async (req, res) => {
       where: sequelize.where(sequelize.fn('lower', sequelize.col('label')), label.toLowerCase())
     });
     if (existing) return res.status(409).json({ success: false, message: 'Diese Bezeichnung existiert bereits' });
-    const cat = await UploadCategory.create({ label, is_active: true });
+    const labelFr = (typeof req.body.label_fr === 'string' && req.body.label_fr.trim()) ? req.body.label_fr.trim() : null;
+    const cat = await UploadCategory.create({ label, label_fr: labelFr, is_active: true });
     res.json({ success: true, category: cat });
   } catch (err) {
     console.error('createUploadCategory error:', err);
@@ -2572,6 +2604,10 @@ const updateUploadCategory = async (req, res) => {
       });
       if (dup) return res.status(409).json({ success: false, message: 'Diese Bezeichnung existiert bereits' });
       updates.label = label;
+    }
+    if (req.body.label_fr !== undefined) {
+      const fr = String(req.body.label_fr).trim();
+      updates.label_fr = fr || null;
     }
     if (req.body.is_active !== undefined) updates.is_active = !!req.body.is_active;
     await cat.update(updates);
@@ -2603,6 +2639,7 @@ module.exports = {
   deleteUploadCategory,
   getYears,
   createYear,
+  updateYear,
   setCurrentYear,
   deleteYear,
   switchSelectedYear,

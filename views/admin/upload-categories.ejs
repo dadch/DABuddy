@@ -37,8 +37,12 @@
                 <div class="modal-body">
                     <input type="hidden" id="categoryId">
                     <div class="mb-3">
-                        <label class="form-label">Bezeichnung</label>
+                        <label class="form-label">Bezeichnung (Deutsch)</label>
                         <input type="text" class="form-control" id="categoryLabel" maxlength="120" required autofocus>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Bezeichnung (Französisch)</label>
+                        <input type="text" class="form-control" id="categoryLabelFr" maxlength="120" placeholder="optional – Fallback auf DE">
                     </div>
                 </div>
                 <div class="modal-footer">
@@ -65,7 +69,8 @@ function loadCategories() {
             el.innerHTML = `
                 <div class="table-responsive"><table class="table">
                     <thead><tr>
-                        <th>Bezeichnung</th>
+                        <th>Bezeichnung DE</th>
+                        <th>Bezeichnung FR</th>
                         <th>Status</th>
                         <th class="text-end">Aktionen</th>
                     </tr></thead>
@@ -73,6 +78,7 @@ function loadCategories() {
                         ${cats.map(c => `
                             <tr>
                                 <td><strong>${esc(c.label)}</strong></td>
+                                <td>${esc(c.label_fr || '')}</td>
                                 <td>${c.is_active
                                     ? '<span class="status-pill success">Aktiv</span>'
                                     : '<span class="status-pill">Deaktiviert</span>'}</td>
@@ -107,6 +113,7 @@ function openEditCategoryModal(c) {
     document.getElementById('categoryForm').reset();
     document.getElementById('categoryId').value = c.id;
     document.getElementById('categoryLabel').value = c.label;
+    document.getElementById('categoryLabelFr').value = c.label_fr || '';
     document.getElementById('categoryFormTitle').textContent = 'Kategorie bearbeiten';
     new bootstrap.Modal(document.getElementById('categoryFormModal')).show();
 }
@@ -115,11 +122,12 @@ document.getElementById('categoryForm').addEventListener('submit', (e) => {
     e.preventDefault();
     const id = document.getElementById('categoryId').value;
     const label = document.getElementById('categoryLabel').value.trim();
+    const label_fr = document.getElementById('categoryLabelFr').value.trim();
     const url = id ? '/api/upload-categories/' + id : '/api/upload-categories';
     fetch(url, {
         method: id ? 'PUT' : 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ label })
+        body: JSON.stringify({ label, label_fr })
     })
     .then(r => r.json())
     .then(d => {

@@ -10,6 +10,8 @@ const UploadCategory = sequelize.define('UploadCategory', {
     allowNull: false,
     validate: { notEmpty: true, len: [1, 120] },
   },
+  // Französische Bezeichnung; optional. Fallback im UI auf `label` (DE).
+  label_fr: { type: DataTypes.TEXT, allowNull: true },
   is_active: {
     type: DataTypes.BOOLEAN,
     allowNull: false,

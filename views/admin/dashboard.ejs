@@ -1,7 +1,7 @@
 <%- include('../partials/header', { title: 'Administrator-Dashboard - ThesisBuddy', user: user }) %>
 
 <div class="page-header">
-    <h1 class="page-title">Diplomarbeit-Verwaltung</h1>
+    <h1 class="page-title"><%= t('dashboard.titleAdmin') %></h1>
     <div class="page-actions">
         <%- include('../partials/year-switcher', { availableYears: availableYears, selectedYearId: selectedYearId }) %>
         <%- include('../partials/role-switcher', { availableRoles: availableRoles, currentRole: currentRole }) %>
@@ -10,28 +10,28 @@
                 <i class="bi bi-three-dots-vertical"></i>
             </button>
             <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="dashboardActionsMenu">
-                <li><button class="dropdown-item" type="button" onclick="openAddThesisModal()"><i class="bi bi-plus"></i> Diplomarbeit hinzufügen</button></li>
+                <li><button class="dropdown-item" type="button" onclick="openAddThesisModal()"><i class="bi bi-plus"></i> <%= t('dashboard.actions.addThesis') %></button></li>
                 <li><hr class="dropdown-divider"></li>
-                <li><a class="dropdown-item" href="/dashboard/admin/years"><i class="bi bi-calendar"></i> Diplomjahre</a></li>
-                <li><a class="dropdown-item" href="/dashboard/admin/milestones"><i class="bi bi-flag"></i> Meilensteine</a></li>
-                <li><a class="dropdown-item" href="/dashboard/admin/evaluation-forms"><i class="bi bi-clipboard-check"></i> Bewertungsformulare</a></li>
-                <li><a class="dropdown-item" href="/dashboard/admin/upload-categories"><i class="bi bi-tag"></i> Upload-Kategorien</a></li>
+                <li><a class="dropdown-item" href="/dashboard/admin/years"><i class="bi bi-calendar"></i> <%= t('dashboard.actions.years') %></a></li>
+                <li><a class="dropdown-item" href="/dashboard/admin/milestones"><i class="bi bi-flag"></i> <%= t('dashboard.actions.milestones') %></a></li>
+                <li><a class="dropdown-item" href="/dashboard/admin/evaluation-forms"><i class="bi bi-clipboard-check"></i> <%= t('dashboard.actions.evaluationForms') %></a></li>
+                <li><a class="dropdown-item" href="/dashboard/admin/upload-categories"><i class="bi bi-tag"></i> <%= t('dashboard.actions.uploadCategories') %></a></li>
                 <li><hr class="dropdown-divider"></li>
-                <li><a class="dropdown-item" href="/api/theses-list.pdf<%= selectedDepartment ? '?department=' + encodeURIComponent(selectedDepartment) : '' %>" target="_blank"><i class="bi bi-file-earmark-pdf"></i> Diplomarbeitenliste als PDF</a></li>
-                <li><a class="dropdown-item" href="/api/theses-list.csv<%= selectedDepartment ? '?department=' + encodeURIComponent(selectedDepartment) : '' %>"><i class="bi bi-file-earmark-spreadsheet"></i> Diplomarbeitenliste als CSV</a></li>
-                <li><a class="dropdown-item" href="/api/transfer-project-overview.pdf" target="_blank"><i class="bi bi-arrow-left-right"></i> Gesamtübersicht Transferprojekt</a></li>
-                <li><button class="dropdown-item" type="button" onclick="openBulkDownloadModal()"><i class="bi bi-archive"></i> Dokumente als ZIP herunterladen…</button></li>
+                <li><a class="dropdown-item" href="/api/theses-list.pdf<%= selectedDepartment ? '?department=' + encodeURIComponent(selectedDepartment) : '' %>" target="_blank"><i class="bi bi-file-earmark-pdf"></i> <%= t('dashboard.actions.thesesListPdf') %></a></li>
+                <li><a class="dropdown-item" href="/api/theses-list.csv<%= selectedDepartment ? '?department=' + encodeURIComponent(selectedDepartment) : '' %>"><i class="bi bi-file-earmark-spreadsheet"></i> <%= t('dashboard.actions.thesesListCsv') %></a></li>
+                <li><a class="dropdown-item" href="/api/transfer-project-overview.pdf" target="_blank"><i class="bi bi-arrow-left-right"></i> <%= t('dashboard.actions.transferOverview') %></a></li>
+                <li><button class="dropdown-item" type="button" onclick="openBulkDownloadModal()"><i class="bi bi-archive"></i> <%= t('dashboard.actions.bulkDownload') %></button></li>
                 <li><hr class="dropdown-divider"></li>
-                <li><button class="dropdown-item" type="button" onclick="openUserManagementModal()"><i class="bi bi-person-gear"></i> Benutzer verwalten</button></li>
-                <li><button class="dropdown-item" type="button" onclick="openStudentManagement()"><i class="bi bi-mortarboard"></i> Studierende verwalten</button></li>
-                <li><button class="dropdown-item" type="button" onclick="openDepartmentManagementModal()"><i class="bi bi-building"></i> Fachbereiche verwalten</button></li>
+                <li><button class="dropdown-item" type="button" onclick="openUserManagementModal()"><i class="bi bi-person-gear"></i> <%= t('dashboard.actions.userManagement') %></button></li>
+                <li><button class="dropdown-item" type="button" onclick="openStudentManagement()"><i class="bi bi-mortarboard"></i> <%= t('dashboard.actions.studentManagement') %></button></li>
+                <li><button class="dropdown-item" type="button" onclick="openDepartmentManagementModal()"><i class="bi bi-building"></i> <%= t('dashboard.actions.departmentManagement') %></button></li>
             </ul>
         </div>
     </div>
 </div>
 
 <div class="stat-card mb-4">
-    <div class="stat-label"><i class="bi bi-mortarboard"></i> Diplomarbeiten gesamt</div>
+    <div class="stat-label"><i class="bi bi-mortarboard"></i> <%= t('dashboard.totalCount') %></div>
     <div class="stat-value"><%= theses.length %></div>
 </div>
 
@@ -39,7 +39,7 @@
     <div class="col-md-4">
         <form method="GET" action="/dashboard" class="d-flex">
             <select name="department" class="form-select me-2" onchange="this.form.submit()">
-                <option value="">Alle Fachbereiche</option>
+                <option value=""><%= t('dashboard.allDepartments') %></option>
                 <% departments.forEach(function(dept) { %>
                     <option value="<%= dept.id %>" <%= selectedDepartment == dept.id ? 'selected' : '' %>>
                         <%= dept.name %>
@@ -56,21 +56,21 @@
 <% if (theses.length === 0) { %>
     <div class="alert alert-info" role="alert">
         <i class="bi bi-info-circle"></i>
-        Keine Diplomarbeiten für die ausgewählten Kriterien gefunden.
+        <%= t('dashboard.noTheses') %>
     </div>
 <% } else { %>
     <div class="table-responsive">
         <table class="table table-striped">
             <thead>
                 <tr>
-                    <th>Titel der Diplomarbeit</th>
-                    <th>Fachbereich</th>
-                    <th>Studenten</th>
-                    <th>Dozent/innen</th>
-                    <th>Dozenten Transferprojekt</th>
-                    <th>Experten</th>
-                    <th>Auftraggeber</th>
-                    <th>Aktionen</th>
+                    <th><%= t('dashboard.headers.title') %></th>
+                    <th><%= t('dashboard.headers.department') %></th>
+                    <th><%= t('dashboard.headers.students') %></th>
+                    <th><%= t('dashboard.headers.coaches') %></th>
+                    <th><%= t('dashboard.headers.fieldProjectCoaches') %></th>
+                    <th><%= t('dashboard.headers.experts') %></th>
+                    <th><%= t('dashboard.headers.sponsor') %></th>
+                    <th><%= t('dashboard.headers.actions') %></th>
                 </tr>
             </thead>
             <tbody>

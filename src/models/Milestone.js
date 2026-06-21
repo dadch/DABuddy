@@ -23,6 +23,11 @@ const Milestone = sequelize.define('Milestone', {
       notEmpty: true,
     },
   },
+  // Französischer Titel; optional. Fallback im UI auf `label` (DE).
+  label_fr: {
+    type: DataTypes.TEXT,
+    allowNull: true,
+  },
   due_at: {
     type: DataTypes.DATE,
     allowNull: false,

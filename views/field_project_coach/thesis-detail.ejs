@@ -75,7 +75,7 @@ const fmtDateTime = (d) => new Date(d).toLocaleDateString('de-CH') + ' ' + new D
                         <div class="milestone-card mb-3">
                             <div class="d-flex justify-content-between align-items-start flex-wrap">
                                 <div>
-                                    <h6 class="mb-1"><%= m.label %></h6>
+                                    <h6 class="mb-1"><%= milestoneLabel(m) %></h6>
                                     <div class="small">
                                         <span class="<%= overdue ? 'text-danger fw-bold' : 'text-muted' %>">
                                             <i class="bi bi-calendar-event"></i> <%= fmtDateTime(m.due_at) %>
@@ -182,12 +182,12 @@ const fmtDateTime = (d) => new Date(d).toLocaleDateString('de-CH') + ' ' + new D
                                         <div class="rounded border mb-2 p-2">
                                             <div class="d-flex justify-content-between align-items-center">
                                                 <div>
-                                                    <strong><i class="bi bi-tag"></i> <%= cat.label %></strong>
+                                                    <strong><i class="bi bi-tag"></i> <%= categoryLabel(cat) %></strong>
                                                 </div>
                                                 <div>
                                                     <% if (catShowUpload) { %>
                                                         <button class="btn btn-outline-primary btn-sm"
-                                                                onclick="openUploadModal(<%= m.id %>, '<%= m.label.replace(/'/g, "\\'") %>', <%= cat.id %>, '<%= cat.label.replace(/'/g, "\\'") %>')">
+                                                                onclick="openUploadModal(<%= m.id %>, '<%= m.label.replace(/'/g, "\\'") %>', <%= cat.id %>, '<%= categoryLabel(cat).replace(/'/g, "\\'") %>')">
                                                             <i class="bi bi-upload"></i> <%= catHasDocs ? 'Aktualisieren' : 'Hochladen' %>
                                                         </button>
                                                     <% } else if (!m.released) { %>

@@ -23,6 +23,11 @@ const Year = sequelize.define('Year', {
     allowNull: false,
     defaultValue: false,
   },
+  // Frei wählbare zweisprachige Bezeichnung. Wenn gesetzt, wird sie in
+  // Dashboards/Switchern statt der reinen Jahreszahl angezeigt.
+  // Fallback: String(year).
+  label_de: { type: DataTypes.TEXT, allowNull: true },
+  label_fr: { type: DataTypes.TEXT, allowNull: true },
 }, {
   tableName: 'years',
 });

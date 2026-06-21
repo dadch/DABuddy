@@ -55,7 +55,14 @@ const ROLE_LABELS = { student: 'Student', coach: 'Dozent/in', expert: 'ExpertIn'
                     <tbody>
                         <% milestones.forEach(function(m) { %>
                             <tr>
-                                <td><strong><%= m.label %></strong></td>
+                                <td>
+                                    <strong><%= milestoneLabel(m) %></strong>
+                                    <% if (m.label_fr && m.label_fr !== m.label) { %>
+                                        <div class="small text-muted">
+                                            <%= lang === 'fr' ? m.label : m.label_fr %>
+                                        </div>
+                                    <% } %>
+                                </td>
                                 <td>
                                     <i class="bi bi-calendar-event"></i>
                                     <%= new Date(m.due_at).toLocaleDateString('de-CH') %>
@@ -112,7 +119,7 @@ const ROLE_LABELS = { student: 'Student', coach: 'Dozent/in', expert: 'ExpertIn'
                                     <% } %>
                                     <% (m.uploadCategories || []).forEach(function(uc) { %>
                                         <span class="badge bg-secondary" title="Upload-Kategorie">
-                                            <i class="bi bi-tag"></i> <%= uc.label %>
+                                            <i class="bi bi-tag"></i> <%= categoryLabel(uc) %>
                                         </span>
                                     <% }); %>
                                 </td>
@@ -146,8 +153,12 @@ const ROLE_LABELS = { student: 'Student', coach: 'Dozent/in', expert: 'ExpertIn'
             <form id="addMilestoneForm">
                 <div class="modal-body">
                     <div class="mb-3">
-                        <label class="form-label">Bezeichnung</label>
+                        <label class="form-label">Bezeichnung (Deutsch)</label>
                         <input type="text" class="form-control" name="label" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Bezeichnung (Französisch)</label>
+                        <input type="text" class="form-control" name="label_fr" placeholder="optional – Fallback auf DE">
                     </div>
                     <div class="mb-3">
                         <label class="form-label">Termin (Datum & Zeit)</label>
@@ -256,7 +267,7 @@ const ROLE_LABELS = { student: 'Student', coach: 'Dozent/in', expert: 'ExpertIn'
                         <label for="addUploadCategories" class="form-label">Upload-Kategorien</label>
                         <select class="form-select" id="addUploadCategories" name="upload_categories" multiple size="4">
                             <% (uploadCategories || []).forEach(function(c) { %>
-                                <option value="<%= c.id %>" <%= c.is_active ? '' : 'data-inactive="1"' %>><%= c.label %><%= c.is_active ? '' : ' (deaktiviert)' %></option>
+                                <option value="<%= c.id %>" <%= c.is_active ? '' : 'data-inactive="1"' %>><%= categoryLabel(c) %><%= c.is_active ? '' : ' (deaktiviert)' %></option>
                             <% }); %>
                         </select>
                         <div class="form-text">Mehrere wählbar (Strg/Cmd). Leer lassen = ein einzelner Upload-Slot ohne Kategorie (wie bisher).</div>
@@ -292,8 +303,12 @@ const ROLE_LABELS = { student: 'Student', coach: 'Dozent/in', expert: 'ExpertIn'
                 <div class="modal-body">
                     <input type="hidden" name="id" id="editMilestoneId">
                     <div class="mb-3">
-                        <label class="form-label">Bezeichnung</label>
+                        <label class="form-label">Bezeichnung (Deutsch)</label>
                         <input type="text" class="form-control" name="label" id="editMilestoneLabel" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Bezeichnung (Französisch)</label>
+                        <input type="text" class="form-control" name="label_fr" id="editMilestoneLabelFr" placeholder="optional – Fallback auf DE">
                     </div>
                     <div class="mb-3">
                         <label class="form-label">Termin (Datum & Zeit)</label>
@@ -401,7 +416,7 @@ const ROLE_LABELS = { student: 'Student', coach: 'Dozent/in', expert: 'ExpertIn'
                         <label for="editUploadCategories" class="form-label">Upload-Kategorien</label>
                         <select class="form-select" id="editUploadCategories" name="upload_categories" multiple size="4">
                             <% (uploadCategories || []).forEach(function(c) { %>
-                                <option value="<%= c.id %>"><%= c.label %><%= c.is_active ? '' : ' (deaktiviert)' %></option>
+                                <option value="<%= c.id %>"><%= categoryLabel(c) %><%= c.is_active ? '' : ' (deaktiviert)' %></option>
                             <% }); %>
                         </select>
                         <div class="form-text">Snapshots existierender DAs werden beim „Anwenden auf existierende" nur ergänzt, nie reduziert.</div>
@@ -530,6 +545,7 @@ function openAddMilestoneModal() {
 function editMilestone(m) {
     document.getElementById('editMilestoneId').value = m.id;
     document.getElementById('editMilestoneLabel').value = m.label;
+    document.getElementById('editMilestoneLabelFr').value = m.label_fr || '';
     document.getElementById('editMilestoneDueAt').value = toLocalInput(m.due_at);
     document.getElementById('editMilestoneRole').value = m.responsible_role;
     document.getElementById('editAllowUpload').checked = !!m.allow_upload;

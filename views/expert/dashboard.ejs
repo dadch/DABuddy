@@ -1,9 +1,9 @@
 <%- include('../partials/header', { title: 'ExpertIn-Dashboard - ThesisBuddy', user: user }) %>
 
 <div class="d-flex justify-content-between align-items-center mb-4">
-    <h1>Diplomarbeiten zur Begutachtung</h1>
+    <h1><%= t('dashboard.titleExpert') %></h1>
     <div class="d-flex align-items-center gap-3">
-        <span class="text-muted"><i class="bi bi-calendar"></i> Diplomjahr: <%= selectedYear %></span>
+        <span class="text-muted"><i class="bi bi-calendar"></i> <%= t('dashboard.year') %>: <%= yearLabel(selectedYearObj) %></span>
         <%- include('../partials/role-switcher', { availableRoles: availableRoles, currentRole: currentRole }) %>
     </div>
 </div>
@@ -11,20 +11,20 @@
 <% if (theses.length === 0) { %>
     <div class="alert alert-info" role="alert">
         <i class="bi bi-info-circle"></i>
-        Im ausgewählten Diplomjahr sind Ihnen keine Diplomarbeiten zur Begutachtung zugewiesen.
+        <%= t('dashboard.noTheses_role') %>
     </div>
 <% } else { %>
     <div class="table-responsive">
         <table class="table table-striped">
             <thead>
                 <tr>
-                    <th>Titel der Diplomarbeit</th>
-                    <th>Fachbereich</th>
-                    <th>Studenten</th>
-                    <th>Dozent/in</th>
-                    <th>Dozent Transferprojekt</th>
-                    <th>Auftraggeber</th>
-                    <th>Aktionen</th>
+                    <th><%= t('dashboard.headers.title') %></th>
+                    <th><%= t('dashboard.headers.department') %></th>
+                    <th><%= t('dashboard.headers.students') %></th>
+                    <th><%= t('dashboard.headers.coaches') %></th>
+                    <th><%= t('dashboard.headers.fieldProjectCoaches') %></th>
+                    <th><%= t('dashboard.headers.sponsor') %></th>
+                    <th><%= t('dashboard.headers.actions') %></th>
                 </tr>
             </thead>
             <tbody>

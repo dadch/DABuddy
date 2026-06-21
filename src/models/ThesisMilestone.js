@@ -34,6 +34,11 @@ const ThesisMilestone = sequelize.define('ThesisMilestone', {
       notEmpty: true,
     },
   },
+  // Französischer Titel (Snapshot zum Zeitpunkt der DA-Erstellung).
+  label_fr: {
+    type: DataTypes.TEXT,
+    allowNull: true,
+  },
   due_at: {
     type: DataTypes.DATE,
     allowNull: false,

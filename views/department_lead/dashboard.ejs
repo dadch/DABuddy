@@ -1,7 +1,105 @@
 <%- include('../partials/header', { title: 'FachbereichsleiterIn-Dashboard - ThesisBuddy', user: user }) %>
 
+<style>
+/* Sticky-Spalten-Tabelle für die FBL-Übersicht ------------------------------ */
+.fbl-overview {
+    overflow-x: auto;
+    border: 1px solid #dee2e6;
+    border-radius: 6px;
+    max-width: 100%;
+}
+.fbl-table {
+    border-collapse: separate;
+    border-spacing: 0;
+    width: max-content;
+    min-width: 100%;
+    font-size: 0.875rem;
+}
+.fbl-table th, .fbl-table td {
+    padding: 6px 8px;
+    border-bottom: 1px solid #e9ecef;
+    background: #fff;
+    vertical-align: top;
+    white-space: nowrap;
+}
+.fbl-table thead th {
+    position: sticky;
+    top: 0;
+    z-index: 3;
+    background: #f1f3f5;
+    border-bottom: 2px solid #adb5bd;
+    text-align: left;
+    font-weight: 600;
+    font-size: 0.75rem;
+}
+.fbl-table tbody tr:hover td { background-color: #f8f9fa; }
+.fbl-table tbody tr.row-locked td { background-color: #fff3cd !important; }
+
+/* Sticky left columns */
+.fbl-table .stick {
+    position: sticky;
+    z-index: 2;
+    background: #fff;
+}
+.fbl-table thead .stick { z-index: 4; background: #f1f3f5; }
+.fbl-table .stick-actions { left: 0;                 min-width: 110px; }
+.fbl-table .stick-title   { left: 110px;             min-width: 240px; max-width: 280px; white-space: normal; }
+.fbl-table .stick-dept    { left: 350px;             min-width: 120px; }
+.fbl-table .stick-student { left: 470px;             min-width: 160px; border-right: 2px solid #ced4da; white-space: normal; }
+.fbl-table tbody tr:hover .stick { background-color: #f8f9fa; }
+.fbl-table tbody tr.row-locked .stick { background-color: #fff3cd !important; }
+
+/* Meilenstein-Spaltenköpfe */
+.fbl-table th.ms-col { min-width: 110px; vertical-align: top; }
+.ms-head { font-size: 0.7rem; color: #495057; }
+.ms-head-label {
+    font-size: 0.75rem; font-weight: 600; color: #212529;
+    max-width: 110px; overflow: hidden; text-overflow: ellipsis;
+}
+.ms-head-due { font-size: 0.7rem; color: #6c757d; font-weight: normal; }
+
+/* Status-Hintergründe (helle Tönung, plus Icon im Markup) */
+.ms-cell { min-width: 110px; }
+.ms-cell-ok       { background-color: #d1e7dd; }
+.ms-cell-pending  { background-color: #fff3cd; }
+.ms-cell-overdue  { background-color: #f8d7da; }
+.ms-cell-na       { background-color: #f8f9fa; color: #6c757d; }
+
+.ms-doc-link {
+    display: inline-flex; align-items: center; gap: 2px;
+    padding: 2px 6px; border-radius: 4px;
+    background: rgba(255,255,255,0.6);
+    color: #0d6efd; text-decoration: none;
+    font-size: 0.875rem;
+}
+.ms-doc-link:hover { background: rgba(255,255,255,0.95); }
+.ms-doc-cat-dot {
+    display: inline-block; width: 6px; height: 6px; border-radius: 50%; background: #6610f2;
+}
+
+/* Bewertungs-Badges */
+.grade-badge, .grade-placeholder {
+    display: inline-flex; align-items: center; justify-content: center;
+    min-width: 26px; height: 22px; padding: 0 6px;
+    font-size: 0.75rem; font-weight: 600; border-radius: 4px;
+    background: #fff; border: 1px solid #adb5bd;
+}
+.grade-final { background: #0d6efd; color: #fff; border-color: #0d6efd; }
+.grade-placeholder { color: #adb5bd; border-style: dashed; background: transparent; }
+
+/* Legende */
+.legend-swatch {
+    display: inline-block; width: 14px; height: 14px;
+    border: 1px solid #adb5bd; border-radius: 3px; vertical-align: middle; margin-right: 4px;
+}
+.legend-ok      { background: #d1e7dd; }
+.legend-pending { background: #fff3cd; }
+.legend-overdue { background: #f8d7da; }
+.legend-na      { background: #f8f9fa; }
+</style>
+
 <div class="page-header">
-    <h1 class="page-title">Fachbereichsverwaltung</h1>
+    <h1 class="page-title"><%= t('dashboard.titleDepartmentLead') %></h1>
     <div class="page-actions">
         <%- include('../partials/year-switcher', { availableYears: availableYears, selectedYearId: selectedYearId }) %>
         <%- include('../partials/role-switcher', { availableRoles: availableRoles, currentRole: currentRole }) %>
@@ -50,7 +148,7 @@
     <div class="col-12">
         <div class="card">
             <div class="card-header">
-                <h5>Diplomarbeiten im Fachbereich</h5>
+                <h5><%= t('dashboard.departmentCount') %></h5>
             </div>
             <div class="card-body">
                 <% if (theses.length === 0) { %>
@@ -58,82 +156,230 @@
                         <i class="bi bi-info-circle"></i> Für Ihre Fachbereiche wurden keine Diplomarbeiten gefunden.
                     </div>
                 <% } else { %>
-                    <div class="table-responsive">
-                        <table class="table table-striped">
+                    <%
+                    // ---- Helpers für die FBL-Übersichtstabelle -------------------
+                    const ROLE_LABELS = {
+                        student: t('roles.student'), coach: t('roles.coach'), expert: t('roles.expert'),
+                        admin: t('roles.admin'), department_lead: t('roles.department_lead'), field_project_coach: t('roles.field_project_coach')
+                    };
+                    const dateLocale = lang === 'fr' ? 'fr-CH' : 'de-CH';
+                    const fmtDate = (d) => d ? new Date(d).toLocaleDateString(dateLocale) : '';
+                    const escapeAttr = (s) => String(s == null ? '' : s).replace(/"/g, '&quot;').replace(/</g, '&lt;');
+                    // Lokalisierten Meilenstein-Titel aus zentralem Helper beziehen.
+                    const localizedLabel = (m) => milestoneLabel(m);
+
+                    // Liefert die Personen einer Rolle aus der Diplomarbeit
+                    // (für Bewerter-Tooltip wenn noch keine Bewertung existiert).
+                    const peopleForRole = (thesis, role) => {
+                        if (role === 'coach') return thesis.coaches || [];
+                        if (role === 'expert') return thesis.experts || [];
+                        if (role === 'field_project_coach') return thesis.fieldProjectCoaches || [];
+                        return [];
+                    };
+                    const personNames = (arr) => (arr || []).map(p => `${p.name || ''}, ${p.firstname || ''}`).join('; ') || '—';
+
+                    const milestoneTemplates = locals.milestoneTemplates || [];
+                    %>
+
+                    <% if (milestoneTemplates.length === 0) { %>
+                        <div class="alert alert-warning">
+                            <i class="bi bi-exclamation-triangle"></i>
+                            <%= t('dashboard.fbl.noTemplates') %>
+                        </div>
+                    <% } %>
+
+                    <div class="fbl-overview">
+                        <table class="fbl-table">
                             <thead>
                                 <tr>
-                                    <th>Titel der Diplomarbeit</th>
-                                    <th>Fachbereich</th>
-                                    <th>Studenten</th>
-                                    <th>Dozent/innen</th>
-                                    <th>Dozenten Transferprojekt</th>
-                                    <th>Experten</th>
-                                    <th>Auftraggeber</th>
-                                    <th>Aktionen</th>
+                                    <th class="stick stick-actions"><%= t('dashboard.headers.actions') %></th>
+                                    <th class="stick stick-title"><%= t('dashboard.headers.title') %></th>
+                                    <th class="stick stick-dept"><%= t('dashboard.headers.department') %></th>
+                                    <th class="stick stick-student"><%= t('dashboard.headers.students') %></th>
+                                    <th><%= t('dashboard.headers.coaches') %></th>
+                                    <th><%= t('dashboard.headers.experts') %></th>
+                                    <th><%= t('dashboard.headers.sponsor') %></th>
+                                    <% milestoneTemplates.forEach(function(mt) { %>
+                                        <% const lbl = localizedLabel(mt); %>
+                                        <th class="ms-col ms-col-doc">
+                                            <div class="ms-head"><i class="bi bi-paperclip"></i> <%= t('dashboard.fbl.col.documents') %></div>
+                                            <div class="ms-head-label" title="<%= escapeAttr(lbl) %>"><%= lbl %></div>
+                                            <div class="ms-head-due"><%= t('dashboard.fbl.col.dueBy') %> <%= fmtDate(mt.due_at) %></div>
+                                        </th>
+                                        <th class="ms-col ms-col-eval">
+                                            <div class="ms-head"><i class="bi bi-clipboard-check"></i> <%= t('dashboard.fbl.col.evaluation') %></div>
+                                            <div class="ms-head-label" title="<%= escapeAttr(lbl) %>"><%= lbl %></div>
+                                            <div class="ms-head-due">
+                                                <% if (mt.requires_evaluation) { %>
+                                                    <%= mt.double_evaluation ? t('dashboard.fbl.col.evalLegendDouble') : '·' %>
+                                                <% } else { %><%= t('dashboard.fbl.col.evalLegendNone') %><% } %>
+                                            </div>
+                                        </th>
+                                    <% }); %>
                                 </tr>
                             </thead>
                             <tbody>
                                 <% theses.forEach(function(thesis) { %>
-                                    <tr<% if (thesis.is_locked) { %> class="table-warning"<% } %>>
-                                        <td>
-                                            <% if (thesis.is_locked) { %><i class="bi bi-slash-circle-fill text-danger me-2" title="Diplomarbeit gesperrt"></i><% } %>
-                                            <strong><%= thesis.title %></strong>
-                                        </td>
-                                        <td><%= thesis.department.name %></td>
-                                        <td>
-                                            <% if (thesis.students.length > 0) { %>
-                                                <% thesis.students.forEach(function(student, index) { %>
-                                                    <span class="badge bg-primary me-1"><%= student.name %>, <%= student.firstname %></span>
-                                                <% }); %>
-                                            <% } else { %>
-                                                <span class="text-muted">Keine Studenten zugewiesen</span>
-                                            <% } %>
-                                        </td>
-                                        <td>
-                                            <% if (thesis.coaches.length > 0) { %>
-                                                <% thesis.coaches.forEach(function(coach, index) { %>
-                                                    <span class="badge bg-success me-1"><%= coach.name %>, <%= coach.firstname %></span>
-                                                <% }); %>
-                                            <% } else { %>
-                                                <span class="text-muted">Keine Dozent/innen zugewiesen</span>
-                                            <% } %>
-                                        </td>
-                                        <td>
-                                            <% if (thesis.fieldProjectCoaches && thesis.fieldProjectCoaches.length > 0) { %>
-                                                <% thesis.fieldProjectCoaches.forEach(function(fpc, index) { %>
-                                                    <span class="badge bg-warning text-dark me-1"><%= fpc.name %>, <%= fpc.firstname %></span>
-                                                <% }); %>
-                                            <% } else { %>
-                                                <span class="text-muted">Keine zugewiesen</span>
-                                            <% } %>
-                                        </td>
-                                        <td>
-                                            <% if (thesis.experts.length > 0) { %>
-                                                <% thesis.experts.forEach(function(expert, index) { %>
-                                                    <span class="badge bg-info me-1"><%= expert.name %>, <%= expert.firstname %></span>
-                                                <% }); %>
-                                            <% } else { %>
-                                                <span class="text-muted">Keine Experten zugewiesen</span>
-                                            <% } %>
-                                        </td>
-                                        <td><%= thesis.sponsor || '-' %></td>
-                                        <td>
-                                            <div class="btn-group" role="group">
-                                                <a href="/dashboard/thesis/<%= thesis.id %>" class="btn btn-primary btn-sm">
+                                    <%
+                                    const tmByTemplate = {};
+                                    (thesis.milestones || []).forEach(tm => {
+                                        if (tm.milestone_id != null) tmByTemplate[tm.milestone_id] = tm;
+                                    });
+                                    %>
+                                    <tr class="<%= thesis.is_locked ? 'row-locked' : '' %>">
+                                        <td class="stick stick-actions">
+                                            <div class="btn-group btn-group-sm" role="group">
+                                                <a href="/dashboard/thesis/<%= thesis.id %>" class="btn btn-primary btn-sm" title="Details">
                                                     <i class="bi bi-eye"></i>
                                                 </a>
-                                                <button type="button" class="btn btn-outline-primary btn-sm" onclick="editThesis(<%= thesis.id %>)">
+                                                <button type="button" class="btn btn-outline-primary btn-sm" onclick="editThesis(<%= thesis.id %>)" title="Bearbeiten">
                                                     <i class="bi bi-pencil"></i>
                                                 </button>
-                                                <button type="button" class="btn btn-outline-danger btn-sm" onclick="deleteThesis(<%= thesis.id %>)">
+                                                <button type="button" class="btn btn-outline-danger btn-sm" onclick="deleteThesis(<%= thesis.id %>)" title="Löschen">
                                                     <i class="bi bi-trash"></i>
                                                 </button>
                                             </div>
                                         </td>
+                                        <td class="stick stick-title">
+                                            <% if (thesis.is_locked) { %><i class="bi bi-slash-circle-fill text-danger me-1" title="<%= t('dashboard.thesisLocked') %>"></i><% } %>
+                                            <a href="/dashboard/thesis/<%= thesis.id %>" class="fw-medium text-decoration-none text-body"><%= thesis.title %></a>
+                                        </td>
+                                        <td class="stick stick-dept small"><%= thesis.department ? thesis.department.name : '' %></td>
+                                        <td class="stick stick-student small">
+                                            <% if (thesis.students.length > 0) { %>
+                                                <% thesis.students.forEach(function(s) { %>
+                                                    <div><%= s.name %>, <%= s.firstname %></div>
+                                                <% }); %>
+                                            <% } else { %>
+                                                <span class="text-muted">—</span>
+                                            <% } %>
+                                        </td>
+                                        <td class="small">
+                                            <% if (thesis.coaches.length > 0) { %>
+                                                <% thesis.coaches.forEach(function(c) { %><div><%= c.name %>, <%= c.firstname %></div><% }); %>
+                                            <% } else { %><span class="text-muted">—</span><% } %>
+                                        </td>
+                                        <td class="small">
+                                            <% if (thesis.experts.length > 0) { %>
+                                                <% thesis.experts.forEach(function(e) { %><div><%= e.name %>, <%= e.firstname %></div><% }); %>
+                                            <% } else { %><span class="text-muted">—</span><% } %>
+                                        </td>
+                                        <td class="small"><%= thesis.sponsor || '—' %></td>
+
+                                        <% milestoneTemplates.forEach(function(mt) { %>
+                                            <%
+                                            const tm = tmByTemplate[mt.id];
+                                            const docs = tm ? (tm.documents || []).slice().sort((a,b) => (a.version||0) - (b.version||0)) : [];
+                                            const hasDocs = docs.length > 0;
+                                            const dueAt = tm ? tm.due_at : mt.due_at;
+                                            const isOverdue = !hasDocs && dueAt && new Date(dueAt) < new Date();
+                                            const allowUpload = tm ? tm.allow_upload : mt.allow_upload;
+                                            // Status-Klasse Doc-Zelle
+                                            let docStatus = 'na';
+                                            if (allowUpload) {
+                                                if (hasDocs) docStatus = 'ok';
+                                                else if (isOverdue) docStatus = 'overdue';
+                                                else docStatus = 'pending';
+                                            }
+                                            const tmCats = tm ? (tm.uploadCategories || []) : [];
+                                            const showCatTooltip = tmCats.length > 1; // nur wenn mehrere Kategorien konfiguriert
+                                            %>
+                                            <td class="ms-cell ms-cell-<%= docStatus %>">
+                                                <% if (!allowUpload) { %>
+                                                    <span class="text-muted">—</span>
+                                                <% } else if (hasDocs) { %>
+                                                    <div class="d-flex flex-wrap gap-1">
+                                                        <% docs.forEach(function(d) {
+                                                            const catLabel = d.uploadCategory ? categoryLabel(d.uploadCategory) : '';
+                                                            const tip = showCatTooltip
+                                                                ? (catLabel ? `${t('dashboard.fbl.tooltip.categoryPrefix')}: ${catLabel}` : t('dashboard.fbl.tooltip.noCategory')) + ' · ' + t('dashboard.fbl.tooltip.version', { n: d.version })
+                                                                : t('dashboard.fbl.tooltip.version', { n: d.version });
+                                                        %>
+                                                            <a href="/api/thesis-milestone-documents/<%= d.id %>/download"
+                                                               class="ms-doc-link"
+                                                               title="<%= escapeAttr(tip) %>">
+                                                                <i class="bi bi-file-earmark-pdf"></i>
+                                                                <% if (showCatTooltip && catLabel) { %><span class="ms-doc-cat-dot"></span><% } %>
+                                                            </a>
+                                                        <% }); %>
+                                                    </div>
+                                                <% } else if (isOverdue) { %>
+                                                    <span title="<%= t('dashboard.fbl.tooltip.deadlineMissed', { date: fmtDate(dueAt) }) %>"><i class="bi bi-exclamation-triangle-fill text-danger"></i></span>
+                                                <% } else { %>
+                                                    <span title="<%= t('dashboard.fbl.tooltip.by', { date: fmtDate(dueAt) }) %>"><i class="bi bi-hourglass-split text-muted"></i></span>
+                                                <% } %>
+                                            </td>
+
+                                            <%
+                                            // Bewertungs-Zelle
+                                            const requiresEval = tm ? tm.requires_evaluation : mt.requires_evaluation;
+                                            const doubleEval = tm ? tm.double_evaluation : mt.double_evaluation;
+                                            const evalRole1 = tm ? tm.evaluator_role : mt.evaluator_role;
+                                            const evalRole2 = tm ? tm.evaluator_role_2 : mt.evaluator_role_2;
+                                            const evalByKind = {};
+                                            if (tm) (tm.thesisEvaluations || []).forEach(e => { evalByKind[e.kind] = e; });
+                                            let evalStatus = 'na';
+                                            if (requiresEval) {
+                                                const need = doubleEval ? ['first','second','final'] : ['single'];
+                                                const allDone = need.every(k => evalByKind[k] && evalByKind[k].overall_grade != null);
+                                                if (allDone) evalStatus = 'ok';
+                                                else if (dueAt && new Date(dueAt) < new Date()) evalStatus = 'overdue';
+                                                else evalStatus = 'pending';
+                                            }
+
+                                            // Tooltip-Text pro Bewertungsbadge: vergebene Note + Bewerterperson(en).
+                                            const tipForKind = (kind, roleKey) => {
+                                                const ev = evalByKind[kind];
+                                                const roleLabel = ROLE_LABELS[roleKey] || roleKey || '';
+                                                const kindLabel = kind === 'first'  ? t('dashboard.fbl.eval.first')
+                                                    :              kind === 'second' ? t('dashboard.fbl.eval.second')
+                                                    :              kind === 'final'  ? t('dashboard.fbl.eval.final')
+                                                    :                                  t('dashboard.fbl.eval.single');
+                                                if (ev && ev.overall_grade != null) {
+                                                    const ev_who = ev.evaluator ? `${ev.evaluator.name}, ${ev.evaluator.firstname}` : t('dashboard.fbl.eval.unknownEvaluator');
+                                                    return `${kindLabel} (${roleLabel}): ${Number(ev.overall_grade).toFixed(1)} — ${ev_who}`;
+                                                }
+                                                const candidates = personNames(peopleForRole(thesis, roleKey));
+                                                return `${kindLabel} (${roleLabel}) — ${t('dashboard.fbl.eval.openResponsible', { names: candidates })}`;
+                                            };
+                                            %>
+                                            <td class="ms-cell ms-cell-<%= evalStatus %>">
+                                                <% if (!requiresEval) { %>
+                                                    <span class="text-muted">—</span>
+                                                <% } else if (doubleEval) { %>
+                                                    <div class="d-flex gap-1 align-items-center">
+                                                        <% ['first','second','final'].forEach(function(k) {
+                                                            const ev = evalByKind[k];
+                                                            const grade = (ev && ev.overall_grade != null) ? Number(ev.overall_grade).toFixed(1) : '';
+                                                            const klass = grade ? (k === 'final' ? 'grade-badge grade-final' : 'grade-badge') : 'grade-placeholder';
+                                                            const roleKey = (k === 'second') ? evalRole2 : evalRole1;
+                                                        %>
+                                                            <span class="<%= klass %>" title="<%= escapeAttr(tipForKind(k, roleKey)) %>">
+                                                                <%= grade || '·' %>
+                                                            </span>
+                                                        <% }); %>
+                                                    </div>
+                                                <% } else { %>
+                                                    <%
+                                                    const ev = evalByKind['single'];
+                                                    const grade = (ev && ev.overall_grade != null) ? Number(ev.overall_grade).toFixed(1) : '';
+                                                    const klass = grade ? 'grade-badge grade-final' : 'grade-placeholder';
+                                                    %>
+                                                    <span class="<%= klass %>" title="<%= escapeAttr(tipForKind('single', evalRole1)) %>"><%= grade || '·' %></span>
+                                                <% } %>
+                                            </td>
+                                        <% }); %>
                                     </tr>
                                 <% }); %>
                             </tbody>
                         </table>
+                    </div>
+
+                    <div class="mt-3 small text-muted d-flex flex-wrap gap-3 align-items-center">
+                        <span><span class="legend-swatch legend-ok"></span> <%= t('dashboard.fbl.legend.done') %></span>
+                        <span><span class="legend-swatch legend-pending"></span> <%= t('dashboard.fbl.legend.pending') %></span>
+                        <span><span class="legend-swatch legend-overdue"></span> <%= t('dashboard.fbl.legend.overdue') %></span>
+                        <span><span class="legend-swatch legend-na"></span> <%= t('dashboard.fbl.legend.notApplicable') %></span>
                     </div>
                 <% } %>
             </div>

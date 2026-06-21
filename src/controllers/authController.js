@@ -126,6 +126,7 @@ const microsoftCallback = async (req, res) => {
     req.session.selectedYear = selectedYear.id;
     req.session.username = user.username;
     req.session.fullName = `${user.name}, ${user.firstname}`;
+    req.session.language = user.language || 'de';
 
     req.flash('success', `Willkommen zurück, ${user.firstname}!`);
     return res.redirect('/dashboard');
@@ -234,6 +235,7 @@ const processLogin = async (req, res) => {
     req.session.selectedYear = selectedYear.id;
     req.session.username = user.username;
     req.session.fullName = `${user.name}, ${user.firstname}`;
+    req.session.language = user.language || 'de';
 
     req.flash('success', `Willkommen zurück, ${user.firstname}!`);
     res.redirect('/dashboard');

@@ -79,6 +79,12 @@ const User = sequelize.define('User', {
     type: DataTypes.ENUM('student', 'coach', 'expert', 'admin', 'department_lead', 'field_project_coach'),
     allowNull: true,
   },
+  // Bevorzugte GUI-Sprache. Über die Profil-Seite einstellbar.
+  language: {
+    type: DataTypes.STRING(8),
+    allowNull: false,
+    defaultValue: 'de',
+  },
 }, {
   tableName: 'users',
   hooks: {
