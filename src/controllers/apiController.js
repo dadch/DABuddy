@@ -184,6 +184,76 @@ const createThesisMilestoneFromTemplate = (thesisId, template, released = false)
   feedback_form_enabled: template.feedback_form_enabled,
 });
 
+// Rollen-Zuweisungen (Setter-Methode + Sequelize-Getter), die bei Departement-Wechsel
+// neu validiert bzw. bei einem Einzelwert ersetzt werden. Studierende laufen separat,
+// da sie ein Array statt eines Einzelwerts sind.
+const SINGLE_ROLE_ASSIGNMENTS = [
+  { role: 'coach', getter: 'getCoaches', setter: 'setCoaches' },
+  { role: 'expert', getter: 'getExperts', setter: 'setExperts' },
+  { role: 'field_project_coach', getter: 'getFieldProjectCoaches', setter: 'setFieldProjectCoaches' },
+];
+
+// Findet einen User mit gegebener Rolle im Fachbereich und weist ihn der Diplomarbeit zu
+// (coach/expert/field_project_coach sind Einzel-Zuweisungen trotz Many-to-Many-Beziehung).
+async function assignSingleRoleUser(thesis, { userId, role, departmentId, setter }) {
+  if (!userId) return;
+  const user = await User.findOne({
+    where: { id: userId, role },
+    include: [{ model: Department, as: 'departments', where: { id: departmentId }, required: true }]
+  });
+  if (user) await thesis[setter]([user]);
+}
+
+// Setzt oder löscht eine Einzel-Zuweisung, je nachdem ob ein Wert übergeben wurde.
+async function setSingleRoleAssignment(thesis, { value, role, departmentId, setter }) {
+  if (value) await assignSingleRoleUser(thesis, { userId: value, role, departmentId, setter });
+  else await thesis[setter]([]);
+}
+
+// Entfernt bei Departement-Wechsel alle zugewiesenen Personen, die nicht (mehr) im neuen
+// Fachbereich sind (Studierende + alle Einzel-Rollen).
+async function revalidateAssignmentsForDepartment(thesis, departmentId) {
+  const currentStudents = await thesis.getStudents();
+  const validStudents = await User.findAll({
+    where: { id: currentStudents.map(s => s.id), role: 'student' },
+    include: [{ model: Department, as: 'departments', where: { id: departmentId }, required: true }]
+  });
+  await thesis.setStudents(validStudents);
+
+  for (const { role, getter, setter } of SINGLE_ROLE_ASSIGNMENTS) {
+    const current = await thesis[getter]();
+    const valid = await User.findAll({
+      where: { id: current.map(u => u.id), role },
+      include: [{ model: Department, as: 'departments', where: { id: departmentId }, required: true }]
+    });
+    await thesis[setter](valid);
+  }
+}
+
+// Prüft, ob der eingeloggte department_lead alle übergebenen (Ziel-)Fachbereiche leitet.
+// Falsy IDs (z.B. unverändertes department_id bei einem Update) werden übersprungen.
+async function assertDepartmentLeadOwns(userId, departmentIds) {
+  const ledDepartments = await Department.findAll({ where: { department_lead_id: userId }, attributes: ['id'] });
+  const ledIds = ledDepartments.map(d => d.id);
+  return departmentIds.every(id => !id || ledIds.includes(parseInt(id)));
+}
+
+// Erstellt die ThesisMilestone-Snapshots für eine neue Diplomarbeit aus den
+// Meilenstein-Vorlagen des Diplomjahres (frühester Meilenstein wird freigegeben).
+async function createMilestonesForThesis(thesisId, yearId) {
+  const templates = await Milestone.findAll({
+    where: { year_id: yearId },
+    include: [{ model: UploadCategory, as: 'uploadCategories', through: { attributes: [] } }],
+    order: [['due_at', 'ASC'], ['id', 'ASC']],
+  });
+  for (let i = 0; i < templates.length; i++) {
+    const tm = await ThesisMilestone.create(createThesisMilestoneFromTemplate(thesisId, templates[i], i === 0));
+    if (templates[i].uploadCategories && templates[i].uploadCategories.length > 0) {
+      await tm.setUploadCategories(templates[i].uploadCategories.map(c => c.id));
+    }
+  }
+}
+
 const createThesis = async (req, res) => {
   try {
     const { title, department_id, sponsor, students, coach, expert, field_project_coach, language, is_confidential } = req.body;
@@ -191,12 +261,8 @@ const createThesis = async (req, res) => {
     const userRole = req.session.userRole;
     const userId = req.session.userId;
 
-    if (userRole === 'department_lead') {
-      const ledDepartments = await Department.findAll({ where: { department_lead_id: userId }, attributes: ['id'] });
-      const ledIds = ledDepartments.map(d => d.id);
-      if (!ledIds.includes(parseInt(department_id))) {
-        return res.status(403).json({ success: false, message: 'Sie können nur Diplomarbeiten für Fachbereiche erstellen, die Sie leiten.' });
-      }
+    if (userRole === 'department_lead' && !(await assertDepartmentLeadOwns(userId, [department_id]))) {
+      return res.status(403).json({ success: false, message: 'Sie können nur Diplomarbeiten für Fachbereiche erstellen, die Sie leiten.' });
     }
 
     if (students && students.length > 2) {
@@ -219,44 +285,11 @@ const createThesis = async (req, res) => {
       });
       await thesis.setStudents(studentUsers);
     }
-    if (coach) {
-      const coachUser = await User.findOne({
-        where: { id: coach, role: 'coach' },
-        include: [{ model: Department, as: 'departments', where: { id: department_id }, required: true }]
-      });
-      if (coachUser) await thesis.setCoaches([coachUser]);
-    }
-    if (expert) {
-      const expertUser = await User.findOne({
-        where: { id: expert, role: 'expert' },
-        include: [{ model: Department, as: 'departments', where: { id: department_id }, required: true }]
-      });
-      if (expertUser) await thesis.setExperts([expertUser]);
-    }
-    if (field_project_coach) {
-      const fpcUser = await User.findOne({
-        where: { id: field_project_coach, role: 'field_project_coach' },
-        include: [{ model: Department, as: 'departments', where: { id: department_id }, required: true }]
-      });
-      if (fpcUser) await thesis.setFieldProjectCoaches([fpcUser]);
-    }
+    await assignSingleRoleUser(thesis, { userId: coach, role: 'coach', departmentId: department_id, setter: 'setCoaches' });
+    await assignSingleRoleUser(thesis, { userId: expert, role: 'expert', departmentId: department_id, setter: 'setExperts' });
+    await assignSingleRoleUser(thesis, { userId: field_project_coach, role: 'field_project_coach', departmentId: department_id, setter: 'setFieldProjectCoaches' });
 
-    // Snapshot milestones for the thesis (earliest milestone is released by default)
-    const templates = await Milestone.findAll({
-      where: { year_id: selectedYearId },
-      include: [{ model: UploadCategory, as: 'uploadCategories', through: { attributes: [] } }],
-      order: [['due_at', 'ASC'], ['id', 'ASC']],
-    });
-    if (templates.length > 0) {
-      const createdTms = [];
-      for (let i = 0; i < templates.length; i++) {
-        const tm = await ThesisMilestone.create(createThesisMilestoneFromTemplate(thesis.id, templates[i], i === 0));
-        if (templates[i].uploadCategories && templates[i].uploadCategories.length > 0) {
-          await tm.setUploadCategories(templates[i].uploadCategories.map(c => c.id));
-        }
-        createdTms.push(tm);
-      }
-    }
+    await createMilestonesForThesis(thesis.id, selectedYearId);
 
     res.json({ success: true, thesis });
   } catch (error) {
@@ -279,16 +312,11 @@ const updateThesis = async (req, res) => {
     const thesis = await Thesis.findByPk(id);
     if (!thesis) return res.status(404).json({ success: false, message: 'Diplomarbeit nicht gefunden' });
 
-    if (userRole === 'department_lead') {
-      const ledDepartments = await Department.findAll({ where: { department_lead_id: userId }, attributes: ['id'] });
-      const ledIds = ledDepartments.map(d => d.id);
-      if (!ledIds.includes(thesis.department_id) || (department_id && !ledIds.includes(parseInt(department_id)))) {
-        return res.status(403).json({ success: false, message: 'Sie können nur Diplomarbeiten aus Fachbereichen bearbeiten, die Sie leiten.' });
-      }
+    if (userRole === 'department_lead' && !(await assertDepartmentLeadOwns(userId, [thesis.department_id, department_id]))) {
+      return res.status(403).json({ success: false, message: 'Sie können nur Diplomarbeiten aus Fachbereichen bearbeiten, die Sie leiten.' });
     }
 
-    const oldDepartmentId = thesis.department_id;
-    const departmentChanged = oldDepartmentId !== department_id;
+    const departmentChanged = thesis.department_id !== department_id;
 
     await thesis.update({
       title,
@@ -299,33 +327,7 @@ const updateThesis = async (req, res) => {
     });
 
     if (departmentChanged) {
-      const currentStudents = await thesis.getStudents();
-      const validStudents = await User.findAll({
-        where: { id: currentStudents.map(s => s.id), role: 'student' },
-        include: [{ model: Department, as: 'departments', where: { id: department_id }, required: true }]
-      });
-      await thesis.setStudents(validStudents);
-
-      const currentCoaches = await thesis.getCoaches();
-      const validCoaches = await User.findAll({
-        where: { id: currentCoaches.map(c => c.id), role: 'coach' },
-        include: [{ model: Department, as: 'departments', where: { id: department_id }, required: true }]
-      });
-      await thesis.setCoaches(validCoaches);
-
-      const currentExperts = await thesis.getExperts();
-      const validExperts = await User.findAll({
-        where: { id: currentExperts.map(e => e.id), role: 'expert' },
-        include: [{ model: Department, as: 'departments', where: { id: department_id }, required: true }]
-      });
-      await thesis.setExperts(validExperts);
-
-      const currentFpcs = await thesis.getFieldProjectCoaches();
-      const validFpcs = await User.findAll({
-        where: { id: currentFpcs.map(f => f.id), role: 'field_project_coach' },
-        include: [{ model: Department, as: 'departments', where: { id: department_id }, required: true }]
-      });
-      await thesis.setFieldProjectCoaches(validFpcs);
+      await revalidateAssignmentsForDepartment(thesis, department_id);
     }
 
     if (students !== undefined) {
@@ -341,39 +343,13 @@ const updateThesis = async (req, res) => {
     }
 
     if (coach !== undefined) {
-      if (coach) {
-        const coachUser = await User.findOne({
-          where: { id: coach, role: 'coach' },
-          include: [{ model: Department, as: 'departments', where: { id: department_id }, required: true }]
-        });
-        if (coachUser) await thesis.setCoaches([coachUser]);
-      } else {
-        await thesis.setCoaches([]);
-      }
+      await setSingleRoleAssignment(thesis, { value: coach, role: 'coach', departmentId: department_id, setter: 'setCoaches' });
     }
-
     if (expert !== undefined) {
-      if (expert) {
-        const expertUser = await User.findOne({
-          where: { id: expert, role: 'expert' },
-          include: [{ model: Department, as: 'departments', where: { id: department_id }, required: true }]
-        });
-        if (expertUser) await thesis.setExperts([expertUser]);
-      } else {
-        await thesis.setExperts([]);
-      }
+      await setSingleRoleAssignment(thesis, { value: expert, role: 'expert', departmentId: department_id, setter: 'setExperts' });
     }
-
     if (field_project_coach !== undefined) {
-      if (field_project_coach) {
-        const fpcUser = await User.findOne({
-          where: { id: field_project_coach, role: 'field_project_coach' },
-          include: [{ model: Department, as: 'departments', where: { id: department_id }, required: true }]
-        });
-        if (fpcUser) await thesis.setFieldProjectCoaches([fpcUser]);
-      } else {
-        await thesis.setFieldProjectCoaches([]);
-      }
+      await setSingleRoleAssignment(thesis, { value: field_project_coach, role: 'field_project_coach', departmentId: department_id, setter: 'setFieldProjectCoaches' });
     }
 
     res.json({ success: true, thesis });
@@ -713,6 +689,23 @@ const generateUsername = async (email) => {
   return candidate;
 };
 
+// Findet einen Fachbereich per numerischer ID oder per Name (case-insensitiv).
+function findDepartmentByIdOrName(allDepartments, value) {
+  const str = String(value || '').trim();
+  if (/^\d+$/.test(str)) {
+    const byId = allDepartments.find(d => d.id === parseInt(str));
+    if (byId) return byId;
+  }
+  return allDepartments.find(d => d.name.toLowerCase() === str.toLowerCase()) || null;
+}
+
+// Prüft, ob ein department_lead Zugriff auf einen User mit den gegebenen
+// Fachbereichs-IDs hat (mind. ein gemeinsamer Fachbereich). Andere Rollen: immer erlaubt.
+function actorOwnsUserDepartments(actorRole, userDeptIds, ledIds) {
+  if (actorRole !== 'department_lead') return true;
+  return userDeptIds.some(d => ledIds.includes(d));
+}
+
 // Validiert + legt einen Studierenden an. allDepartments: vorab geladene Liste.
 // Wirft Error mit verständlicher Meldung bei Problemen.
 const createStudentRecord = async ({ name, firstname, email, gender, department, phone }, { actorRole, ledIds, allDepartments }) => {
@@ -727,9 +720,7 @@ const createStudentRecord = async ({ name, firstname, email, gender, department,
   if (!email.includes('@')) throw new Error('Ungültige E-Mail-Adresse: ' + email);
   if (!VALID_GENDERS.includes(gender)) throw new Error('Ungültiges Geschlecht (m/w/d): "' + gender + '"');
 
-  let dep = null;
-  if (/^\d+$/.test(depStr)) dep = allDepartments.find(d => d.id === parseInt(depStr));
-  if (!dep) dep = allDepartments.find(d => d.name.toLowerCase() === depStr.toLowerCase());
+  const dep = findDepartmentByIdOrName(allDepartments, depStr);
   if (!dep) throw new Error('Fachbereich nicht gefunden: "' + depStr + '"');
   if (actorRole === 'department_lead' && !ledIds.includes(dep.id)) {
     throw new Error('Sie können Studierende nur Ihren Fachbereichen zuweisen: ' + dep.name);
@@ -788,6 +779,36 @@ const createStudent = async (req, res) => {
   }
 };
 
+// Validiert Geschlecht + E-Mail bei einem Studierenden-Update. Liefert eine
+// Fehlermeldung oder null, wenn alles gültig ist.
+async function validateStudentUpdate({ gender, email }, currentUser) {
+  if (gender !== undefined && gender !== null && gender !== '' && !VALID_GENDERS.includes(String(gender).toLowerCase())) {
+    return 'Ungültiges Geschlecht (m/w/d)';
+  }
+  if (email && !String(email).includes('@')) {
+    return 'Ungültige E-Mail-Adresse';
+  }
+  if (email && email !== currentUser.email) {
+    const exists = await User.findOne({ where: { email, id: { [Op.ne]: currentUser.id } } });
+    if (exists) return 'E-Mail existiert bereits';
+  }
+  return null;
+}
+
+// Weist den Studierenden bei Bedarf einem (neuen) Fachbereich zu.
+// Liefert { status, message } bei einem Fehler, sonst null.
+async function reassignStudentDepartment(user, department, { actorRole, ledIds }) {
+  if (department === undefined || department === null || String(department).trim() === '') return null;
+  const allDepartments = await Department.findAll({ attributes: ['id', 'name'] });
+  const dep = findDepartmentByIdOrName(allDepartments, department);
+  if (!dep) return { status: 400, message: 'Fachbereich nicht gefunden' };
+  if (actorRole === 'department_lead' && !ledIds.includes(dep.id)) {
+    return { status: 403, message: 'Sie können Studierende nur Ihren Fachbereichen zuweisen.' };
+  }
+  await user.setDepartments([dep.id]);
+  return null;
+}
+
 const updateStudent = async (req, res) => {
   try {
     const { id } = req.params;
@@ -800,23 +821,12 @@ const updateStudent = async (req, res) => {
     if (!user || user.role !== 'student') return res.status(404).json({ success: false, message: 'Studierende/r nicht gefunden' });
 
     const ledIds = actorRole === 'department_lead' ? await getLedDepartmentIds(req.session.userId) : [];
-    if (actorRole === 'department_lead') {
-      const userDeptIds = user.departments.map(d => d.id);
-      if (!userDeptIds.some(d => ledIds.includes(d))) {
-        return res.status(403).json({ success: false, message: 'Sie können nur Studierende aus Ihren Fachbereichen bearbeiten.' });
-      }
+    if (!actorOwnsUserDepartments(actorRole, user.departments.map(d => d.id), ledIds)) {
+      return res.status(403).json({ success: false, message: 'Sie können nur Studierende aus Ihren Fachbereichen bearbeiten.' });
     }
 
-    if (gender !== undefined && gender !== null && gender !== '' && !VALID_GENDERS.includes(String(gender).toLowerCase())) {
-      return res.status(400).json({ success: false, message: 'Ungültiges Geschlecht (m/w/d)' });
-    }
-    if (email && !String(email).includes('@')) {
-      return res.status(400).json({ success: false, message: 'Ungültige E-Mail-Adresse' });
-    }
-    if (email && email !== user.email) {
-      const exists = await User.findOne({ where: { email, id: { [Op.ne]: id } } });
-      if (exists) return res.status(400).json({ success: false, message: 'E-Mail existiert bereits' });
-    }
+    const validationError = await validateStudentUpdate({ gender, email }, user);
+    if (validationError) return res.status(400).json({ success: false, message: validationError });
 
     await user.update({
       name: name ?? user.name,
@@ -826,17 +836,8 @@ const updateStudent = async (req, res) => {
       phone: (phone === undefined) ? user.phone : ((String(phone).trim() || null)),
     });
 
-    if (department !== undefined && department !== null && String(department).trim() !== '') {
-      const allDepartments = await Department.findAll({ attributes: ['id', 'name'] });
-      const depStr = String(department).trim();
-      let dep = /^\d+$/.test(depStr) ? allDepartments.find(d => d.id === parseInt(depStr)) : null;
-      if (!dep) dep = allDepartments.find(d => d.name.toLowerCase() === depStr.toLowerCase());
-      if (!dep) return res.status(400).json({ success: false, message: 'Fachbereich nicht gefunden' });
-      if (actorRole === 'department_lead' && !ledIds.includes(dep.id)) {
-        return res.status(403).json({ success: false, message: 'Sie können Studierende nur Ihren Fachbereichen zuweisen.' });
-      }
-      await user.setDepartments([dep.id]);
-    }
+    const deptError = await reassignStudentDepartment(user, department, { actorRole, ledIds });
+    if (deptError) return res.status(deptError.status).json({ success: false, message: deptError.message });
 
     res.json({ success: true });
   } catch (error) {
@@ -854,12 +855,9 @@ const deleteStudent = async (req, res) => {
     });
     if (!user || user.role !== 'student') return res.status(404).json({ success: false, message: 'Studierende/r nicht gefunden' });
 
-    if (actorRole === 'department_lead') {
-      const ledIds = await getLedDepartmentIds(req.session.userId);
-      const userDeptIds = user.departments.map(d => d.id);
-      if (!userDeptIds.some(d => ledIds.includes(d))) {
-        return res.status(403).json({ success: false, message: 'Sie können nur Studierende aus Ihren Fachbereichen löschen.' });
-      }
+    const ledIds = actorRole === 'department_lead' ? await getLedDepartmentIds(req.session.userId) : [];
+    if (!actorOwnsUserDepartments(actorRole, user.departments.map(d => d.id), ledIds)) {
+      return res.status(403).json({ success: false, message: 'Sie können nur Studierende aus Ihren Fachbereichen löschen.' });
     }
 
     await user.destroy();
@@ -1103,24 +1101,102 @@ const getMilestones = async (req, res) => {
   }
 };
 
+const boolField = (body, key, def) => (body[key] === undefined ? def : !!body[key]);
+
 // Normalize + validate milestone config fields from a request body.
 const parseMilestoneConfig = (body) => {
-  const allow_upload = body.allow_upload === undefined ? true : !!body.allow_upload;
-  const allow_update = body.allow_update === undefined ? false : !!body.allow_update;
-  const requires_evaluation = body.requires_evaluation === undefined ? false : !!body.requires_evaluation;
-  let evaluator_role = requires_evaluation ? (body.evaluator_role || null) : null;
+  const allow_upload = boolField(body, 'allow_upload', true);
+  const allow_update = boolField(body, 'allow_update', false);
+  const requires_evaluation = boolField(body, 'requires_evaluation', false);
+  const evaluator_role = requires_evaluation ? (body.evaluator_role || null) : null;
   let evaluation_form_id = requires_evaluation && body.evaluation_form_id ? parseInt(body.evaluation_form_id) : null;
   if (Number.isNaN(evaluation_form_id)) evaluation_form_id = null;
-  const double_evaluation = requires_evaluation && (body.double_evaluation === undefined ? false : !!body.double_evaluation);
+  const double_evaluation = requires_evaluation && boolField(body, 'double_evaluation', false);
   const evaluator_role_2 = double_evaluation ? (body.evaluator_role_2 || null) : null;
-  const requires_approval = body.requires_approval === undefined ? false : !!body.requires_approval;
+  const requires_approval = boolField(body, 'requires_approval', false);
   const approver_role = requires_approval ? (body.approver_role || null) : null;
-  const requires_approval_2 = body.requires_approval_2 === undefined ? false : !!body.requires_approval_2;
+  const requires_approval_2 = boolField(body, 'requires_approval_2', false);
   const approver_role_2 = requires_approval_2 ? (body.approver_role_2 || null) : null;
-  const is_transfer_project = body.is_transfer_project === undefined ? false : !!body.is_transfer_project;
-  const feedback_form_enabled = body.feedback_form_enabled === undefined ? false : !!body.feedback_form_enabled;
+  const is_transfer_project = boolField(body, 'is_transfer_project', false);
+  const feedback_form_enabled = boolField(body, 'feedback_form_enabled', false);
   return { allow_upload, allow_update, requires_evaluation, evaluator_role, double_evaluation, evaluator_role_2, evaluation_form_id, requires_approval, approver_role, requires_approval_2, approver_role_2, is_transfer_project, feedback_form_enabled };
 };
+
+// Validiert die Bewertungs-/Freigabe-Konfiguration eines Meilensteins
+// (gemeinsame Regeln für createMilestone + updateMilestone).
+// Liefert eine Fehlermeldung oder null, wenn alles gültig ist.
+function validateMilestoneConfig(config) {
+  if (config.requires_evaluation) {
+    if (!config.evaluator_role) return 'Bei aktivierter Bewertung muss eine bewertende Rolle gewählt werden';
+    if (!ASSESSOR_ROLES.includes(config.evaluator_role)) return 'Ungültige bewertende Rolle';
+    if (config.double_evaluation) {
+      if (!config.evaluation_form_id) return 'Für eine Doppelbewertung muss ein Bewertungsformular zugewiesen werden';
+      if (!config.evaluator_role_2 || !ASSESSOR_ROLES.includes(config.evaluator_role_2)) {
+        return 'Für eine Doppelbewertung muss eine gültige zweite bewertende Rolle gewählt werden';
+      }
+      if (config.evaluator_role_2 === config.evaluator_role) return 'Die beiden bewertenden Rollen müssen unterschiedlich sein';
+    }
+  }
+  if (config.requires_approval) {
+    if (!config.approver_role) return 'Bei aktivierter Freigabe 1 muss eine freigebende Rolle gewählt werden';
+    if (!VALID_ROLES.includes(config.approver_role)) return 'Ungültige freigebende Rolle (Freigabe 1)';
+  }
+  if (config.requires_approval_2) {
+    if (!config.approver_role_2) return 'Bei aktivierter Freigabe 2 muss eine freigebende Rolle gewählt werden';
+    if (!VALID_ROLES.includes(config.approver_role_2)) return 'Ungültige freigebende Rolle (Freigabe 2)';
+  }
+  return null;
+}
+
+// Erstellt für ein neues Meilenstein-Template sofort ThesisMilestone-Snapshots
+// für alle bereits existierenden Diplomarbeiten des Jahres.
+async function createMilestoneSnapshotsForExisting(yearId, milestone, catIds) {
+  const theses = await Thesis.findAll({ where: { year_id: yearId }, attributes: ['id'] });
+  if (theses.length === 0) return;
+  const tms = await ThesisMilestone.bulkCreate(
+    theses.map(t => createThesisMilestoneFromTemplate(t.id, milestone)),
+    { returning: true }
+  );
+  if (catIds.length > 0) {
+    for (const tm of tms) await tm.setUploadCategories(catIds);
+  }
+}
+
+// Übernimmt die aktualisierten Felder eines Meilenstein-Templates auf alle
+// existierenden Snapshots. due_at wird nur übernommen, wo nicht individuell
+// überschrieben (Override-Schutz). Kategorien werden nur ergänzt, nie entfernt
+// (Datenschutz für bereits hochgeladene Dokumente).
+async function applyMilestoneUpdateToExisting(milestone, newCatIds) {
+  await ThesisMilestone.update(
+    {
+      label: milestone.label,
+      label_fr: milestone.label_fr,
+      responsible_role: milestone.responsible_role,
+      allow_upload: milestone.allow_upload,
+      allow_update: milestone.allow_update,
+      requires_evaluation: milestone.requires_evaluation,
+      evaluator_role: milestone.evaluator_role,
+      double_evaluation: milestone.double_evaluation,
+      evaluator_role_2: milestone.evaluator_role_2,
+      evaluation_form_id: milestone.evaluation_form_id,
+      requires_approval: milestone.requires_approval,
+      approver_role: milestone.approver_role,
+      requires_approval_2: milestone.requires_approval_2,
+      approver_role_2: milestone.approver_role_2,
+      is_transfer_project: milestone.is_transfer_project,
+      feedback_form_enabled: milestone.feedback_form_enabled,
+    },
+    { where: { milestone_id: milestone.id } }
+  );
+  await ThesisMilestone.update(
+    { due_at: milestone.due_at },
+    { where: { milestone_id: milestone.id, due_at_overridden: false } }
+  );
+  if (newCatIds && newCatIds.length > 0) {
+    const snapshots = await ThesisMilestone.findAll({ where: { milestone_id: milestone.id } });
+    for (const tm of snapshots) await tm.addUploadCategories(newCatIds);
+  }
+}
 
 const createMilestone = async (req, res) => {
   try {
@@ -1135,41 +1211,8 @@ const createMilestone = async (req, res) => {
     }
 
     const config = parseMilestoneConfig(req.body);
-    if (config.requires_evaluation) {
-      if (!config.evaluator_role) {
-        return res.status(400).json({ success: false, message: 'Bei aktivierter Bewertung muss eine bewertende Rolle gewählt werden' });
-      }
-      if (!ASSESSOR_ROLES.includes(config.evaluator_role)) {
-        return res.status(400).json({ success: false, message: 'Ungültige bewertende Rolle' });
-      }
-      if (config.double_evaluation) {
-        if (!config.evaluation_form_id) {
-          return res.status(400).json({ success: false, message: 'Für eine Doppelbewertung muss ein Bewertungsformular zugewiesen werden' });
-        }
-        if (!config.evaluator_role_2 || !ASSESSOR_ROLES.includes(config.evaluator_role_2)) {
-          return res.status(400).json({ success: false, message: 'Für eine Doppelbewertung muss eine gültige zweite bewertende Rolle gewählt werden' });
-        }
-        if (config.evaluator_role_2 === config.evaluator_role) {
-          return res.status(400).json({ success: false, message: 'Die beiden bewertenden Rollen müssen unterschiedlich sein' });
-        }
-      }
-    }
-    if (config.requires_approval) {
-      if (!config.approver_role) {
-        return res.status(400).json({ success: false, message: 'Bei aktivierter Freigabe 1 muss eine freigebende Rolle gewählt werden' });
-      }
-      if (!VALID_ROLES.includes(config.approver_role)) {
-        return res.status(400).json({ success: false, message: 'Ungültige freigebende Rolle (Freigabe 1)' });
-      }
-    }
-    if (config.requires_approval_2) {
-      if (!config.approver_role_2) {
-        return res.status(400).json({ success: false, message: 'Bei aktivierter Freigabe 2 muss eine freigebende Rolle gewählt werden' });
-      }
-      if (!VALID_ROLES.includes(config.approver_role_2)) {
-        return res.status(400).json({ success: false, message: 'Ungültige freigebende Rolle (Freigabe 2)' });
-      }
-    }
+    const configError = validateMilestoneConfig(config);
+    if (configError) return res.status(400).json({ success: false, message: configError });
 
     const year = await Year.findByPk(yearId);
     if (!year) return res.status(404).json({ success: false, message: 'Diplomjahr nicht gefunden' });
@@ -1184,17 +1227,7 @@ const createMilestone = async (req, res) => {
     if (catIds.length > 0) await milestone.setUploadCategories(catIds);
 
     if (applyToExisting) {
-      const theses = await Thesis.findAll({ where: { year_id: yearId }, attributes: ['id'] });
-      if (theses.length > 0) {
-        const tms = await ThesisMilestone.bulkCreate(
-          theses.map(t => createThesisMilestoneFromTemplate(t.id, milestone)),
-          { returning: true }
-        );
-        // Kategorien an die neuen Snapshots verteilen
-        if (catIds.length > 0) {
-          for (const tm of tms) await tm.setUploadCategories(catIds);
-        }
-      }
+      await createMilestoneSnapshotsForExisting(yearId, milestone, catIds);
     }
 
     res.json({ success: true, milestone });
@@ -1217,41 +1250,8 @@ const updateMilestone = async (req, res) => {
     if (!milestone) return res.status(404).json({ success: false, message: 'Meilenstein nicht gefunden' });
 
     const config = parseMilestoneConfig(req.body);
-    if (config.requires_evaluation) {
-      if (!config.evaluator_role) {
-        return res.status(400).json({ success: false, message: 'Bei aktivierter Bewertung muss eine bewertende Rolle gewählt werden' });
-      }
-      if (!ASSESSOR_ROLES.includes(config.evaluator_role)) {
-        return res.status(400).json({ success: false, message: 'Ungültige bewertende Rolle' });
-      }
-      if (config.double_evaluation) {
-        if (!config.evaluation_form_id) {
-          return res.status(400).json({ success: false, message: 'Für eine Doppelbewertung muss ein Bewertungsformular zugewiesen werden' });
-        }
-        if (!config.evaluator_role_2 || !ASSESSOR_ROLES.includes(config.evaluator_role_2)) {
-          return res.status(400).json({ success: false, message: 'Für eine Doppelbewertung muss eine gültige zweite bewertende Rolle gewählt werden' });
-        }
-        if (config.evaluator_role_2 === config.evaluator_role) {
-          return res.status(400).json({ success: false, message: 'Die beiden bewertenden Rollen müssen unterschiedlich sein' });
-        }
-      }
-    }
-    if (config.requires_approval) {
-      if (!config.approver_role) {
-        return res.status(400).json({ success: false, message: 'Bei aktivierter Freigabe 1 muss eine freigebende Rolle gewählt werden' });
-      }
-      if (!VALID_ROLES.includes(config.approver_role)) {
-        return res.status(400).json({ success: false, message: 'Ungültige freigebende Rolle (Freigabe 1)' });
-      }
-    }
-    if (config.requires_approval_2) {
-      if (!config.approver_role_2) {
-        return res.status(400).json({ success: false, message: 'Bei aktivierter Freigabe 2 muss eine freigebende Rolle gewählt werden' });
-      }
-      if (!VALID_ROLES.includes(config.approver_role_2)) {
-        return res.status(400).json({ success: false, message: 'Ungültige freigebende Rolle (Freigabe 2)' });
-      }
-    }
+    const configError = validateMilestoneConfig(config);
+    if (configError) return res.status(400).json({ success: false, message: configError });
 
     // label_fr: leerer String → null, undefined → unverändert
     const labelFrUpdate = (label_fr === undefined)
@@ -1273,43 +1273,7 @@ const updateMilestone = async (req, res) => {
     }
 
     if (applyToExisting) {
-      // Alle anderen Felder werden auf allen Snapshots aktualisiert. due_at wird
-      // nur dort gesetzt, wo es nicht individuell überschrieben wurde — siehe
-      // separates Update unten.
-      await ThesisMilestone.update(
-        {
-          label: milestone.label,
-          label_fr: milestone.label_fr,
-          responsible_role: milestone.responsible_role,
-          allow_upload: milestone.allow_upload,
-          allow_update: milestone.allow_update,
-          requires_evaluation: milestone.requires_evaluation,
-          evaluator_role: milestone.evaluator_role,
-          double_evaluation: milestone.double_evaluation,
-          evaluator_role_2: milestone.evaluator_role_2,
-          evaluation_form_id: milestone.evaluation_form_id,
-          requires_approval: milestone.requires_approval,
-          approver_role: milestone.approver_role,
-          requires_approval_2: milestone.requires_approval_2,
-          approver_role_2: milestone.approver_role_2,
-          is_transfer_project: milestone.is_transfer_project,
-          feedback_form_enabled: milestone.feedback_form_enabled,
-        },
-        { where: { milestone_id: milestone.id } }
-      );
-      // Termin nur dort übernehmen, wo der FBL/Admin ihn nicht individuell
-      // gesetzt hat (Override-Schutz).
-      await ThesisMilestone.update(
-        { due_at: milestone.due_at },
-        { where: { milestone_id: milestone.id, due_at_overridden: false } }
-      );
-      // Snapshot-Kategorien werden NUR ergänzt, nie entfernt (Datenschutz für
-      // bereits hochgeladene Dokumente). Existierende Snapshot-Kategorien bleiben
-      // bestehen, neue aus dem Template kommen dazu.
-      if (newCatIds && newCatIds.length > 0) {
-        const snapshots = await ThesisMilestone.findAll({ where: { milestone_id: milestone.id } });
-        for (const tm of snapshots) await tm.addUploadCategories(newCatIds);
-      }
+      await applyMilestoneUpdateToExisting(milestone, newCatIds);
     }
 
     res.json({ success: true, milestone });
@@ -1570,12 +1534,64 @@ const setThesisMilestoneReleased = async (req, res) => {
 const canUploadForMilestone = (tm, userRole) =>
   userRole === 'admin' || userRole === tm.responsible_role;
 
+// Prüft, ob ein User für diesen Meilenstein überhaupt ein Dokument hochladen
+// darf. Liefert { status, message } bei einem Fehler, sonst null.
+async function checkMilestoneUploadEligibility(tm, userId, userRole) {
+  if (isFpcBlocked(tm, userRole)) return { status: 403, message: 'Keine Berechtigung für diesen Meilenstein' };
+  const access = await userHasThesisAccess(userId, userRole, tm.thesis_id);
+  if (!access) return { status: 403, message: 'Sie haben keine Berechtigung, für diese Diplomarbeit Dokumente hochzuladen' };
+  if (!tm.released && userRole !== 'admin') return { status: 403, message: 'Dieser Meilenstein ist noch nicht freigegeben.' };
+  if (!tm.allow_upload) return { status: 403, message: 'Für diesen Meilenstein ist kein Dokument-Upload vorgesehen' };
+  if (!canUploadForMilestone(tm, userRole)) return { status: 403, message: 'Ihre Rolle ist nicht berechtigt, dieses Dokument hochzuladen' };
+  return null;
+}
+
+// Ermittelt + validiert die Upload-Kategorie-ID. Wenn der Meilenstein Kategorien
+// zugewiesen hat, muss eine gültige gewählt werden; ohne zugewiesene Kategorien
+// ist NULL der Default-Slot (abwärtskompatibel). Liefert { categoryId } oder { error }.
+function resolveUploadCategoryId(tm, body) {
+  const categoryIds = (tm.uploadCategories || []).map(c => c.id);
+  let categoryId = null;
+  if (body.upload_category_id !== undefined && body.upload_category_id !== '' && body.upload_category_id !== null) {
+    categoryId = parseInt(body.upload_category_id, 10);
+    if (!Number.isInteger(categoryId)) return { error: { status: 400, message: 'Ungültige Upload-Kategorie' } };
+  }
+  if (categoryIds.length > 0) {
+    if (categoryId === null) return { error: { status: 400, message: 'Bitte eine Upload-Kategorie wählen' } };
+    if (!categoryIds.includes(categoryId)) return { error: { status: 400, message: 'Diese Kategorie ist für den Meilenstein nicht zugelassen' } };
+  } else {
+    categoryId = null; // ignoriere fälschlich übergebene IDs
+  }
+  return { categoryId };
+}
+
+// Markiert die bisher aktuelle Dokumentversion (gleiche Kategorie) als abgelöst
+// und liefert die nächste Versionsnummer. Versionen werden pro (TM, Kategorie)
+// geführt — gleiche Kategorie => neue Version. Liefert { hasExisting, nextVersion } oder { error }.
+async function supersedeExistingMilestoneDocument(tm, categoryId) {
+  const existing = (tm.documents || []).filter(d => (d.upload_category_id || null) === categoryId);
+  const hasExisting = existing.length > 0;
+  if (hasExisting && !tm.allow_update) {
+    return { error: { status: 403, message: 'Für diesen Meilenstein ist keine Aktualisierung erlaubt' } };
+  }
+
+  const nextVersion = existing.reduce((max, d) => Math.max(max, d.version), 0) + 1;
+  if (hasExisting) {
+    await ThesisMilestoneDocument.update(
+      { is_current: false, superseded_at: new Date() },
+      { where: { thesis_milestone_id: tm.id, upload_category_id: categoryId, is_current: true } }
+    );
+  }
+  return { hasExisting, nextVersion };
+}
+
 const uploadThesisMilestoneDocument = (req, res) => {
   upload.single('document')(req, res, async (err) => {
     if (err) return res.status(400).json({ success: false, message: err.message });
     if (!req.file) return res.status(400).json({ success: false, message: 'Keine Datei hochgeladen' });
 
     const cleanup = () => { try { fs.unlinkSync(req.file.path); } catch (e) {} };
+    const fail = (status, message) => { cleanup(); res.status(status).json({ success: false, message }); };
 
     try {
       const { id } = req.params;
@@ -1588,54 +1604,18 @@ const uploadThesisMilestoneDocument = (req, res) => {
           { model: UploadCategory, as: 'uploadCategories', through: { attributes: [] } },
         ]
       });
-      if (!tm) { cleanup(); return res.status(404).json({ success: false, message: 'Meilenstein nicht gefunden' }); }
-      if (isFpcBlocked(tm, userRole)) { cleanup(); return res.status(403).json({ success: false, message: 'Keine Berechtigung für diesen Meilenstein' }); }
+      if (!tm) return fail(404, 'Meilenstein nicht gefunden');
 
-      const access = await userHasThesisAccess(userId, userRole, tm.thesis_id);
-      if (!access) { cleanup(); return res.status(403).json({ success: false, message: 'Sie haben keine Berechtigung, für diese Diplomarbeit Dokumente hochzuladen' }); }
+      const eligibilityError = await checkMilestoneUploadEligibility(tm, userId, userRole);
+      if (eligibilityError) return fail(eligibilityError.status, eligibilityError.message);
 
-      if (!tm.released && userRole !== 'admin') { cleanup(); return res.status(403).json({ success: false, message: 'Dieser Meilenstein ist noch nicht freigegeben.' }); }
+      const categoryResult = resolveUploadCategoryId(tm, req.body);
+      if (categoryResult.error) return fail(categoryResult.error.status, categoryResult.error.message);
+      const { categoryId } = categoryResult;
 
-      if (!tm.allow_upload) { cleanup(); return res.status(403).json({ success: false, message: 'Für diesen Meilenstein ist kein Dokument-Upload vorgesehen' }); }
-
-      if (!canUploadForMilestone(tm, userRole)) { cleanup(); return res.status(403).json({ success: false, message: 'Ihre Rolle ist nicht berechtigt, dieses Dokument hochzuladen' }); }
-
-      // Kategorie auswählen / validieren. Wenn der Meilenstein Kategorien zugewiesen
-      // hat, muss eine gewählt werden und sie muss zu den zulässigen gehören.
-      // Ohne zugewiesene Kategorien: NULL (Default-Slot, abwärtskompatibel).
-      const categoryIds = (tm.uploadCategories || []).map(c => c.id);
-      let categoryId = null;
-      if (req.body.upload_category_id !== undefined && req.body.upload_category_id !== '' && req.body.upload_category_id !== null) {
-        categoryId = parseInt(req.body.upload_category_id, 10);
-        if (!Number.isInteger(categoryId)) { cleanup(); return res.status(400).json({ success: false, message: 'Ungültige Upload-Kategorie' }); }
-      }
-      if (categoryIds.length > 0) {
-        if (categoryId === null) { cleanup(); return res.status(400).json({ success: false, message: 'Bitte eine Upload-Kategorie wählen' }); }
-        if (!categoryIds.includes(categoryId)) { cleanup(); return res.status(400).json({ success: false, message: 'Diese Kategorie ist für den Meilenstein nicht zugelassen' }); }
-      } else {
-        categoryId = null; // ignoriere fälschlich übergebene IDs
-      }
-
-      // Versionen werden pro (TM, Kategorie) geführt — gleiche Kategorie => neue Version.
-      const existing = (tm.documents || []).filter(d =>
-        (d.upload_category_id || null) === categoryId
-      );
-      const hasExisting = existing.length > 0;
-
-      if (hasExisting && !tm.allow_update) {
-        cleanup();
-        return res.status(403).json({ success: false, message: 'Für diesen Meilenstein ist keine Aktualisierung erlaubt' });
-      }
-
-      const nextVersion = existing.reduce((max, d) => Math.max(max, d.version), 0) + 1;
-
-      // Vorherige aktuelle Version (in derselben Kategorie) als abgelöst markieren.
-      if (hasExisting) {
-        await ThesisMilestoneDocument.update(
-          { is_current: false, superseded_at: new Date() },
-          { where: { thesis_milestone_id: tm.id, upload_category_id: categoryId, is_current: true } }
-        );
-      }
+      const versionResult = await supersedeExistingMilestoneDocument(tm, categoryId);
+      if (versionResult.error) return fail(versionResult.error.status, versionResult.error.message);
+      const { hasExisting, nextVersion } = versionResult;
 
       await ThesisMilestoneDocument.create({
         thesis_milestone_id: tm.id,
@@ -2449,6 +2429,49 @@ function formatYyyymmdd(date) {
 // jeweilige User im Dashboard sieht (admin: alle bzw. dept-Filter; FBL: nur eigene
 // Fachbereiche, ggf. mit Filter). Pro Fachbereich ein Unterordner.
 // Dateinamen-Schema: <Nachnamen>_<Vornamen>_<Kategorie>_<YYYYMMDD heute>.<ext>
+// Ermittelt den Thesis-Filter für den Bulk-ZIP-Download je nach Rolle
+// (analog zum Dashboard-Filter). Liefert { where } oder { error: { status, message } }.
+async function buildBulkZipThesisFilter(userRole, userId, yearId, departmentFilter) {
+  const whereThesis = { year_id: yearId };
+  if (userRole === 'department_lead') {
+    const ledIds = (await Department.findAll({ where: { department_lead_id: userId }, attributes: ['id'] })).map(d => d.id);
+    if (ledIds.length === 0) return { error: { status: 404, message: 'Keine Fachbereiche zugewiesen' } };
+    whereThesis.department_id = (departmentFilter && ledIds.includes(departmentFilter)) ? departmentFilter : ledIds;
+  } else if (departmentFilter) {
+    whereThesis.department_id = departmentFilter;
+  }
+  return { where: whereThesis };
+}
+
+// Baut einen kollisionsfreien ZIP-Eintragspfad für ein Dokument:
+// "<Fachbereichs-Ordner>/<Namen>_<Vornamen>_<Kategorie>_<Datum>[_n].<ext>".
+// seenPerFolder: Map<folder, Set<filename>>, wird mutiert.
+function buildZipEntryPath(tm, doc, { catPart, todayStr, seenPerFolder }) {
+  const dept = tm.thesis.department;
+  const folder = sanitizeFilenamePart(dept ? dept.name : 'unbekannt');
+
+  const students = (tm.thesis.students || []).slice().sort((a, b) =>
+    (a.name || '').localeCompare(b.name || '') || (a.firstname || '').localeCompare(b.firstname || '')
+  );
+  const namesPart = sanitizeFilenamePart(students.map(s => s.name || '').filter(Boolean).join('-') || 'ohne-Namen');
+  const firstnamesPart = sanitizeFilenamePart(students.map(s => s.firstname || '').filter(Boolean).join('-') || 'ohne-Vornamen');
+
+  // Original-Erweiterung wiederverwenden (oder .pdf als Default).
+  const ext = (path.extname(doc.file_name || '') || '.pdf').toLowerCase();
+  const base = `${namesPart}_${firstnamesPart}_${catPart}_${todayStr}`;
+  let candidate = `${base}${ext}`;
+  const folderSeen = seenPerFolder.get(folder) || new Set();
+  let n = 2;
+  while (folderSeen.has(candidate)) {
+    candidate = `${base}_${n}${ext}`;
+    n++;
+  }
+  folderSeen.add(candidate);
+  seenPerFolder.set(folder, folderSeen);
+
+  return `${folder}/${candidate}`;
+}
+
 const bulkDownloadCategoryZip = async (req, res) => {
   try {
     const userId = req.session.userId;
@@ -2465,17 +2488,10 @@ const bulkDownloadCategoryZip = async (req, res) => {
     const category = await UploadCategory.findByPk(categoryId);
     if (!category) return res.status(404).send('Kategorie nicht gefunden');
 
-    // Filter analog Dashboard ermitteln.
-    const whereThesis = { year_id: yearId };
     const departmentFilter = req.query.department ? parseInt(req.query.department, 10) : null;
-    if (userRole === 'department_lead') {
-      const ledIds = (await Department.findAll({ where: { department_lead_id: userId }, attributes: ['id'] })).map(d => d.id);
-      if (ledIds.length === 0) return res.status(404).send('Keine Fachbereiche zugewiesen');
-      if (departmentFilter && ledIds.includes(departmentFilter)) whereThesis.department_id = departmentFilter;
-      else whereThesis.department_id = ledIds;
-    } else if (departmentFilter) {
-      whereThesis.department_id = departmentFilter;
-    }
+    const filterResult = await buildBulkZipThesisFilter(userRole, userId, yearId, departmentFilter);
+    if (filterResult.error) return res.status(filterResult.error.status).send(filterResult.error.message);
+    const whereThesis = filterResult.where;
 
     // Alle Dokumente der gewünschten Kategorie für die berechtigten DAs holen.
     const docs = await ThesisMilestoneDocument.findAll({
@@ -2520,29 +2536,8 @@ const bulkDownloadCategoryZip = async (req, res) => {
         continue;
       }
 
-      const dept = tm.thesis.department;
-      const folder = sanitizeFilenamePart(dept ? dept.name : 'unbekannt');
-
-      const students = (tm.thesis.students || []).slice().sort((a, b) =>
-        (a.name || '').localeCompare(b.name || '') || (a.firstname || '').localeCompare(b.firstname || '')
-      );
-      const namesPart = sanitizeFilenamePart(students.map(s => s.name || '').filter(Boolean).join('-') || 'ohne-Namen');
-      const firstnamesPart = sanitizeFilenamePart(students.map(s => s.firstname || '').filter(Boolean).join('-') || 'ohne-Vornamen');
-
-      // Original-Erweiterung wiederverwenden (oder .pdf als Default).
-      const ext = (path.extname(doc.file_name || '') || '.pdf').toLowerCase();
-      let base = `${namesPart}_${firstnamesPart}_${catPart}_${todayStr}`;
-      let candidate = `${base}${ext}`;
-      const folderSeen = seenPerFolder.get(folder) || new Set();
-      let n = 2;
-      while (folderSeen.has(candidate)) {
-        candidate = `${base}_${n}${ext}`;
-        n++;
-      }
-      folderSeen.add(candidate);
-      seenPerFolder.set(folder, folderSeen);
-
-      archive.file(doc.file_path, { name: `${folder}/${candidate}` });
+      const entryPath = buildZipEntryPath(tm, doc, { catPart, todayStr, seenPerFolder });
+      archive.file(doc.file_path, { name: entryPath });
     }
 
     await archive.finalize();
