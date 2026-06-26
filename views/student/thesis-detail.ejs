@@ -46,7 +46,7 @@ const fmtDateTime = (d) => new Date(d).toLocaleDateString('de-CH') + ' ' + new D
                         const finalExists = !!evalByKind['final'];
                         const isEvaluator1 = (user.role === m.evaluator_role) || isAdmin;
                         const isEvaluator2 = (user.role === m.evaluator_role_2) || isAdmin;
-                        const canFeedback = m.feedback_form_enabled && (isAdmin || user.role === m.evaluator_role || (m.double_evaluation && user.role === m.evaluator_role_2));
+                        const canFeedback = m.feedback_form_enabled && (isAdmin || user.role === 'department_lead' || user.role === m.evaluator_role || (m.double_evaluation && user.role === m.evaluator_role_2));
                         const feedbackFinal = m.double_evaluation ? evalByKind['final'] : evalByKind['single'];
                         const approvalSlots = [];
                         if (m.requires_approval) approvalSlots.push({ n: 1, role: m.approver_role, approvedAt: m.approved_at, approver: m.approver });

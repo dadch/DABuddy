@@ -761,9 +761,12 @@ const printTransferProjectOverview = async (req, res) => {
 
 // ---------- Feedbackformular ----------
 
-// Berechtigung: am Meilenstein definierte Bewerter-Rolle(n) + Admin.
+// Berechtigung: am Meilenstein definierte Bewerter-Rolle(n), FachbereichsleiterIn
+// und Admin. Für FBL wird die Zuständigkeit zusätzlich von userHasThesisAccess
+// auf die geleiteten Fachbereiche eingeschränkt.
 function canManageFeedback(tm, userRole) {
   if (userRole === 'admin') return true;
+  if (userRole === 'department_lead') return true;
   if (userRole === tm.evaluator_role) return true;
   if (tm.double_evaluation && userRole === tm.evaluator_role_2) return true;
   return false;
@@ -942,8 +945,25 @@ const saveFeedback = async (req, res) => {
     const access = await userHasThesisAccess(userId, userRole, tm.thesis_id);
     if (!access) return res.status(403).json({ success: false, message: 'Keine Berechtigung' });
 
-    await tm.update({ feedback_text: text || null });
-    res.json({ success: true, feedback_text: text });
+    const previous = tm.feedback_text == null ? '' : String(tm.feedback_text);
+    const next = text == null ? '' : String(text);
+    await tm.update({ feedback_text: next || null });
+
+    // Protokollierung nur bei tatsächlicher Änderung — verhindert leere
+    // Einträge beim Öffnen+Schliessen ohne Bearbeitung.
+    if (previous !== next) {
+      try {
+        await ThesisLog.create({
+          thesis_id: tm.thesis_id,
+          thesis_milestone_id: tm.id,
+          user_id: userId,
+          action: 'feedback_updated',
+          detail: `${tm.label}: Feedbackformular bearbeitet`,
+        });
+      } catch (e) { console.warn('feedback_updated log failed:', e.message); }
+    }
+
+    res.json({ success: true, feedback_text: next });
   } catch (err) {
     console.error('saveFeedback error:', err);
     res.status(500).json({ success: false, message: 'Interner Serverfehler' });

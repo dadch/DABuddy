@@ -150,8 +150,9 @@ const showDashboard = async (req, res) => {
       dashboardData.milestoneTemplates = await Milestone.findAll({
         where: { year_id: selectedYearId },
         attributes: [
-          'id', 'label', 'due_at', 'allow_upload', 'requires_evaluation',
+          'id', 'label', 'label_fr', 'due_at', 'allow_upload', 'requires_evaluation',
           'double_evaluation', 'evaluator_role', 'evaluator_role_2',
+          'feedback_form_enabled',
         ],
         order: [['due_at', 'ASC'], ['id', 'ASC']],
       });

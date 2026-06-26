@@ -116,9 +116,17 @@
       "col": {
         "documents": "Doc",
         "evaluation": "Éval",
+        "feedback": "Feedback",
         "dueBy": "jusqu'au",
         "evalLegendDouble": "É1 · É2 · F",
         "evalLegendNone": "—"
+      },
+      "feedback": {
+        "openPdf": "Ouvrir le formulaire de feedback en PDF",
+        "notFilled": "Pas encore rempli"
+      },
+      "evalPdf": {
+        "click": "Clic : ouvrir l'évaluation en PDF"
       },
       "tooltip": {
         "deadlineMissed": "Délai du {{date}} manqué",

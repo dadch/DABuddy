@@ -116,9 +116,17 @@
       "col": {
         "documents": "Doc",
         "evaluation": "Bew",
+        "feedback": "Feedback",
         "dueBy": "bis",
         "evalLegendDouble": "B1 · B2 · F",
         "evalLegendNone": "—"
+      },
+      "feedback": {
+        "openPdf": "Feedbackformular als PDF öffnen",
+        "notFilled": "Noch nicht ausgefüllt"
+      },
+      "evalPdf": {
+        "click": "Klick: Bewertung als PDF öffnen"
       },
       "tooltip": {
         "deadlineMissed": "Termin {{date}} verpasst",

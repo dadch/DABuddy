@@ -86,6 +86,10 @@
 }
 .grade-final { background: #0d6efd; color: #fff; border-color: #0d6efd; }
 .grade-placeholder { color: #adb5bd; border-style: dashed; background: transparent; }
+a.grade-badge.grade-link { text-decoration: none; cursor: pointer; }
+a.grade-badge.grade-link:hover { filter: brightness(0.95); box-shadow: 0 0 0 2px rgba(13, 110, 253, 0.25); }
+a.grade-badge.grade-final.grade-link { color: #fff; }
+a.grade-badge.grade-link:not(.grade-final) { color: #212529; }
 
 /* Legende */
 .legend-swatch {
@@ -215,6 +219,13 @@
                                                 <% } else { %><%= t('dashboard.fbl.col.evalLegendNone') %><% } %>
                                             </div>
                                         </th>
+                                        <% if (mt.feedback_form_enabled) { %>
+                                            <th class="ms-col ms-col-feedback">
+                                                <div class="ms-head"><i class="bi bi-chat-square-text"></i> <%= t('dashboard.fbl.col.feedback') %></div>
+                                                <div class="ms-head-label" title="<%= escapeAttr(lbl) %>"><%= lbl %></div>
+                                                <div class="ms-head-due">PDF</div>
+                                            </th>
+                                        <% } %>
                                     <% }); %>
                                 </tr>
                             </thead>
@@ -343,6 +354,24 @@
                                                 return `${kindLabel} (${roleLabel}) — ${t('dashboard.fbl.eval.openResponsible', { names: candidates })}`;
                                             };
                                             %>
+                                            <%
+                                            // PDF-Druck per Klick auf einen Notenbadge. Sichtbarkeitsregel mirror'd
+                                            // canViewKind im Backend: für FBL sind first/second nur sichtbar,
+                                            // wenn die finale Bewertung existiert; final/single jederzeit.
+                                            const finalExists = !!(evalByKind['final'] && evalByKind['final'].overall_grade != null);
+                                            const canPrintKind = (k) => {
+                                                const ev = evalByKind[k];
+                                                if (!ev || ev.overall_grade == null) return false;
+                                                if (!doubleEval) return true;
+                                                if (k === 'final') return true;
+                                                return finalExists;
+                                            };
+                                            const pdfUrl = (k) => `/api/thesis-milestones/${tm ? tm.id : 0}/evaluation.pdf?kind=${k}`;
+                                            const tipWithClick = (k, roleKey) => {
+                                                const base = tipForKind(k, roleKey);
+                                                return canPrintKind(k) ? `${base}\n${t('dashboard.fbl.evalPdf.click')}` : base;
+                                            };
+                                            %>
                                             <td class="ms-cell ms-cell-<%= evalStatus %>">
                                                 <% if (!requiresEval) { %>
                                                     <span class="text-muted">—</span>
@@ -353,10 +382,15 @@
                                                             const grade = (ev && ev.overall_grade != null) ? Number(ev.overall_grade).toFixed(1) : '';
                                                             const klass = grade ? (k === 'final' ? 'grade-badge grade-final' : 'grade-badge') : 'grade-placeholder';
                                                             const roleKey = (k === 'second') ? evalRole2 : evalRole1;
+                                                            const clickable = canPrintKind(k);
                                                         %>
-                                                            <span class="<%= klass %>" title="<%= escapeAttr(tipForKind(k, roleKey)) %>">
-                                                                <%= grade || '·' %>
-                                                            </span>
+                                                            <% if (clickable) { %>
+                                                                <a href="<%= pdfUrl(k) %>" target="_blank" class="<%= klass %> grade-link" title="<%= escapeAttr(tipWithClick(k, roleKey)) %>">
+                                                                    <%= grade %>
+                                                                </a>
+                                                            <% } else { %>
+                                                                <span class="<%= klass %>" title="<%= escapeAttr(tipForKind(k, roleKey)) %>"><%= grade || '·' %></span>
+                                                            <% } %>
                                                         <% }); %>
                                                     </div>
                                                 <% } else { %>
@@ -364,10 +398,34 @@
                                                     const ev = evalByKind['single'];
                                                     const grade = (ev && ev.overall_grade != null) ? Number(ev.overall_grade).toFixed(1) : '';
                                                     const klass = grade ? 'grade-badge grade-final' : 'grade-placeholder';
+                                                    const clickable = canPrintKind('single');
                                                     %>
-                                                    <span class="<%= klass %>" title="<%= escapeAttr(tipForKind('single', evalRole1)) %>"><%= grade || '·' %></span>
+                                                    <% if (clickable) { %>
+                                                        <a href="<%= pdfUrl('single') %>" target="_blank" class="<%= klass %> grade-link" title="<%= escapeAttr(tipWithClick('single', evalRole1)) %>"><%= grade %></a>
+                                                    <% } else { %>
+                                                        <span class="<%= klass %>" title="<%= escapeAttr(tipForKind('single', evalRole1)) %>"><%= grade || '·' %></span>
+                                                    <% } %>
                                                 <% } %>
                                             </td>
+
+                                            <% if (mt.feedback_form_enabled) { %>
+                                                <%
+                                                const fbText = (tm && tm.feedback_text) ? String(tm.feedback_text).trim() : '';
+                                                const fbReady = fbText.length > 0;
+                                                %>
+                                                <td class="ms-cell ms-cell-feedback <%= fbReady ? 'ms-cell-ok' : 'ms-cell-na' %>">
+                                                    <% if (fbReady && tm) { %>
+                                                        <a href="/api/thesis-milestones/<%= tm.id %>/feedback.pdf"
+                                                           target="_blank"
+                                                           class="ms-doc-link"
+                                                           title="<%= escapeAttr(t('dashboard.fbl.feedback.openPdf')) %>">
+                                                            <i class="bi bi-file-earmark-pdf"></i>
+                                                        </a>
+                                                    <% } else { %>
+                                                        <span class="text-muted" title="<%= escapeAttr(t('dashboard.fbl.feedback.notFilled')) %>">—</span>
+                                                    <% } %>
+                                                </td>
+                                            <% } %>
                                         <% }); %>
                                     </tr>
                                 <% }); %>
