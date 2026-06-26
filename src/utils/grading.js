@@ -38,4 +38,4 @@ function computeOverallGrade(groups) {
   return roundToTenth(weightedSum / weightTotal);
 }
 
-module.exports = { roundToTenth, computeGroupGrade, computeOverallGrade };
+module.exports = { computeGroupGrade, computeOverallGrade };

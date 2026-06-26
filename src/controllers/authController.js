@@ -262,7 +262,6 @@ module.exports = {
   showLogin,
   processLogin,
   logout,
-  getUserRoles,
   startMicrosoftLogin,
   microsoftCallback,
 };

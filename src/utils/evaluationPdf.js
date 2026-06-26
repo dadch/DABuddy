@@ -212,6 +212,38 @@ const colX = () => {
   return xs;
 };
 
+// Zeichnet Kopf-/Fusszeile auf jeder gepufferten Seite (Logo oben rechts,
+// Kopftext links, Fusstext links/Mitte, Seitenzahl rechts). Erfordert
+// `bufferPages: true` beim PDFDocument und muss vor doc.end() aufgerufen werden.
+function drawHeaderFooterOnAllPages(doc, { margin = MARGIN, headerLeft, footerLeft, footerCenter, logo = true } = {}) {
+  const range = doc.bufferedPageRange();
+  const total = range.count;
+  for (let i = 0; i < total; i++) {
+    doc.switchToPage(range.start + i);
+    const w = doc.page.width;
+    const h = doc.page.height;
+    const savedBottom = doc.page.margins.bottom;
+    doc.page.margins.bottom = 0;
+
+    if (headerLeft) {
+      doc.font('Helvetica').fontSize(7).fillColor('#555')
+        .text(headerLeft, margin, 18, { lineBreak: false });
+    }
+    if (logo) drawLogo(doc, w - margin, 6);
+
+    doc.font('Helvetica').fontSize(7).fillColor('#555');
+    if (footerLeft) doc.text(footerLeft, margin, h - 22, { lineBreak: false });
+    if (footerCenter) {
+      const midW = 200;
+      doc.text(footerCenter, (w - midW) / 2, h - 22, { width: midW, align: 'center', lineBreak: false });
+    }
+    doc.text(`Seite ${i + 1} von ${total}`, w - margin - 160, h - 22, { width: 160, align: 'right', lineBreak: false });
+    doc.fillColor('black');
+
+    doc.page.margins.bottom = savedBottom;
+  }
+}
+
 // ---------- Public API ----------
 
 // Streams a PDF of an evaluation to `res`. data = { thesis, milestone, title, kind, evaluation, freeText }
@@ -236,29 +268,7 @@ function streamEvaluationPdf(res, data) {
   }
 
   // Kopf- und Fusszeile auf jeder Seite ergänzen.
-  // Wichtig: untere Marge temporär auf 0 setzen, sonst fügt pdfkit beim Schreiben
-  // in den unteren Randbereich automatisch leere Seiten ein.
-  const range = doc.bufferedPageRange();
-  const total = range.count;
-  for (let i = 0; i < total; i++) {
-    doc.switchToPage(range.start + i);
-    const w = doc.page.width;
-    const h = doc.page.height;
-    const savedBottom = doc.page.margins.bottom;
-    doc.page.margins.bottom = 0;
-
-    // Kopf links + Marke rechts
-    doc.font('Helvetica').fontSize(7).fillColor('#555')
-      .text('Diplomarbeitsbeurteilung', MARGIN, 18, { lineBreak: false });
-    drawLogo(doc, w - MARGIN, 6);
-    // Fusszeile
-    doc.font('Helvetica').fontSize(7).fillColor('#555')
-      .text(footerLeft, MARGIN, h - 22, { lineBreak: false });
-    doc.text(`Seite ${i + 1} von ${total}`, w - MARGIN - 160, h - 22, { width: 160, align: 'right', lineBreak: false });
-    doc.fillColor('black');
-
-    doc.page.margins.bottom = savedBottom;
-  }
+  drawHeaderFooterOnAllPages(doc, { headerLeft: 'Diplomarbeitsbeurteilung', footerLeft });
 
   doc.end();
 }
@@ -310,88 +320,8 @@ function renderFreeText(doc, { thesis, title, freeText }) {
 // ---------- Form evaluation (landscape table) ----------
 
 function renderForm(doc, { thesis, title, evaluation }) {
-  let y = drawThesisInfo(doc, thesis, title, CONTENT_TOP, CONTENT_W);
-
-  const xs = colX();
-
-  const drawTableHeader = (yy) => {
-    const h = headerHeight(doc);
-    doc.rect(MARGIN, yy, CONTENT_W, h).fillAndStroke('#f0f0f0', '#888');
-    doc.fillColor('black').font('Helvetica-Bold').fontSize(FS_HEAD);
-    COLS.forEach((c, i) => {
-      doc.text(c.title, xs[i] + PAD, yy + PAD, { width: c.w - 2 * PAD });
-    });
-    return yy + h;
-  };
-
-  const ensureSpace = (needed, yy) => {
-    if (yy + needed > BOTTOM_LIMIT) {
-      doc.addPage();
-      return drawTableHeader(CONTENT_TOP);
-    }
-    return yy;
-  };
-
-  y = drawTableHeader(y);
-
-  const groups = (evaluation.groups || []).slice().sort((a, b) => a.position - b.position);
-  for (const g of groups) {
-    // Gruppen-Header
-    y = ensureSpace(18, y);
-    const gh = 16;
-    doc.rect(MARGIN, y, CONTENT_W, gh).fillAndStroke('#e0e6f0', '#888');
-    doc.fillColor('black').font('Helvetica-Bold').fontSize(FS_GROUP)
-      .text(g.name || '', MARGIN + PAD, y + 4, { width: CONTENT_W - 2 * PAD });
-    y += gh;
-
-    const crits = (g.criteria || []).slice().sort((a, b) => a.position - b.position);
-    let groupMax = 0, groupAchieved = 0;
-    for (const c of crits) {
-      const weight = Number(c.weight) || 0;
-      const max = 5 * weight;
-      const scored = c.score !== null && c.score !== undefined;
-      const achieved = scored ? Number(c.score) * weight : null;
-      groupMax += max;
-      if (scored) groupAchieved += achieved;
-
-      const levels = c.level_descriptions || [];
-      const values = [
-        mdToPlain(c.label),
-        fmtNum(max),
-        fmtNum(weight),
-        scored ? fmtNum(achieved) : '',
-        levels[5] || '', levels[4] || '', levels[3] || '', levels[2] || '', levels[1] || '', levels[0] || '',
-        c.remark || '',
-      ];
-      const h = rowHeight(doc, values);
-      y = ensureSpace(h, y);
-      // Highlight der erreichten Stufe (Spalten l5..l0 = index 4..9, Stufe 5..0)
-      let highlightCol = -1;
-      if (scored) highlightCol = 4 + (5 - Number(c.score)); // score 5 -> col 4, score 0 -> col 9
-      drawGridRow(doc, xs, values, y, h, { fontSize: FS, highlightCol });
-      y += h;
-    }
-
-    // Ergebnis-Zeile der Gruppe
-    const resVals = ['Ergebnis: ' + (g.name || ''), fmtNum(groupMax), '', fmtNum(groupAchieved), '', '', '', '', '', '', ''];
-    const rh = 16;
-    y = ensureSpace(rh, y);
-    doc.rect(MARGIN, y, CONTENT_W, rh).fillAndStroke('#f5f5f5', '#888');
-    doc.fillColor('black').font('Helvetica-Bold').fontSize(FS);
-    doc.text(resVals[0], xs[0] + PAD, y + 4, { width: COLS[0].w - 2 * PAD });
-    doc.text(resVals[1], xs[1] + PAD, y + 4, { width: COLS[1].w - 2 * PAD });
-    doc.text(resVals[3], xs[3] + PAD, y + 4, { width: COLS[3].w - 2 * PAD });
-    // "Note: X.X" über die Stufen-Spalten
-    doc.text('Note: ' + fmtGrade(g.grade), xs[4] + PAD, y + 4, { width: (COLS[4].w + COLS[5].w + COLS[6].w) - 2 * PAD });
-    y += rh;
-    y += 4;
-  }
-
-  // Gesamtnote
-  y = ensureSpace(18, y);
-  doc.rect(MARGIN, y, CONTENT_W, 16).fillAndStroke('#d8e2f3', '#666');
-  doc.fillColor('black').font('Helvetica-Bold').fontSize(9)
-    .text('Gesamtnote (gewichteter Durchschnitt): ' + fmtGrade(evaluation.overall_grade), MARGIN + PAD, y + 3, { width: CONTENT_W - 2 * PAD });
+  const y = drawThesisInfo(doc, thesis, title, CONTENT_TOP, CONTENT_W);
+  renderFormBody(doc, evaluation, y, { totalLabel: 'Gesamtnote (gewichteter Durchschnitt)' });
 }
 
 // ---------- Low-level table drawing ----------
@@ -486,32 +416,15 @@ function streamTransferProjectPdf(res, data) {
      );
 
   // Kopf-/Fusszeilen
-  const range = doc.bufferedPageRange();
-  const total = range.count;
-  for (let i = 0; i < total; i++) {
-    doc.switchToPage(range.start + i);
-    const w = doc.page.width;
-    const h = doc.page.height;
-    const savedBottom = doc.page.margins.bottom;
-    doc.page.margins.bottom = 0;
-
-    doc.font('Helvetica').fontSize(7).fillColor('#555')
-      .text('Diplomarbeitsbeurteilung', MARGIN, 18, { lineBreak: false });
-    drawLogo(doc, w - MARGIN, 6);
-    doc.font('Helvetica').fontSize(7).fillColor('#555')
-      .text(footerLeft, MARGIN, h - 22, { lineBreak: false });
-    doc.text(`Seite ${i + 1} von ${total}`, w - MARGIN - 160, h - 22, { width: 160, align: 'right', lineBreak: false });
-    doc.fillColor('black');
-
-    doc.page.margins.bottom = savedBottom;
-  }
+  drawHeaderFooterOnAllPages(doc, { headerLeft: 'Diplomarbeitsbeurteilung', footerLeft });
 
   doc.end();
 }
 
-// Wie renderForm, aber ohne den Thesis-Info-Block (der wird einmal global gezeichnet)
-// und mit explizitem startY. Liefert das y nach dem letzten Element zurück.
-function renderFormBody(doc, evaluation, startY) {
+// Zeichnet die Kriterien-Tabelle + Gesamtnote-Zeile einer Bewertung, ohne
+// Thesis-Info-Block, ab explizitem startY. Liefert das y nach dem letzten Element
+// zurück (für Mehrfach-Bewertungen auf einer Seite, z.B. Transferprojekt-Zusammenzug).
+function renderFormBody(doc, evaluation, startY, { totalLabel = 'Gesamtnote' } = {}) {
   let y = startY;
   const xs = colX();
 
@@ -579,11 +492,11 @@ function renderFormBody(doc, evaluation, startY) {
     y += rh + 4;
   }
 
-  // Gesamtnote der Einzel-Bewertung
+  // Gesamtnote
   y = ensureSpace(18, y);
   doc.rect(MARGIN, y, CONTENT_W, 16).fillAndStroke('#d8e2f3', '#666');
   doc.fillColor('black').font('Helvetica-Bold').fontSize(9)
-    .text('Gesamtnote: ' + fmtGrade(evaluation.overall_grade), MARGIN + PAD, y + 3, { width: CONTENT_W - 2 * PAD });
+    .text(totalLabel + ': ' + fmtGrade(evaluation.overall_grade), MARGIN + PAD, y + 3, { width: CONTENT_W - 2 * PAD });
   return y + 16;
 }
 
@@ -698,25 +611,7 @@ function streamTransferProjectOverviewPdf(res, data) {
   }
 
   // Kopf-/Fusszeile
-  const range = doc.bufferedPageRange();
-  const total = range.count;
-  for (let i = 0; i < total; i++) {
-    doc.switchToPage(range.start + i);
-    const w = doc.page.width;
-    const h = doc.page.height;
-    const savedBottom = doc.page.margins.bottom;
-    doc.page.margins.bottom = 0;
-
-    doc.font('Helvetica').fontSize(7).fillColor('#555')
-      .text('Gesamtübersicht Transferprojekt', MARGIN, 18, { lineBreak: false });
-    drawLogo(doc, w - MARGIN, 6);
-    doc.font('Helvetica').fontSize(7).fillColor('#555')
-      .text(footerLeft, MARGIN, h - 22, { lineBreak: false });
-    doc.text(`Seite ${i + 1} von ${total}`, w - MARGIN - 160, h - 22, { width: 160, align: 'right', lineBreak: false });
-    doc.fillColor('black');
-
-    doc.page.margins.bottom = savedBottom;
-  }
+  drawHeaderFooterOnAllPages(doc, { headerLeft: 'Gesamtübersicht Transferprojekt', footerLeft });
 
   doc.end();
 }
@@ -847,26 +742,7 @@ function streamThesesListPdf(res, data) {
 
   // Kopf-/Fusszeile auf jeder Seite: links ThesisBuddy, Mitte Druckdatum, rechts Seite x/y.
   // Logo oben rechts.
-  const range = doc.bufferedPageRange();
-  const total = range.count;
-  for (let i = 0; i < total; i++) {
-    doc.switchToPage(range.start + i);
-    const w = doc.page.width;
-    const h = doc.page.height;
-    const savedBottom = doc.page.margins.bottom;
-    doc.page.margins.bottom = 0;
-
-    drawLogo(doc, w - MARGIN, 6);
-
-    doc.font('Helvetica').fontSize(7).fillColor('#555');
-    doc.text('ThesisBuddy', MARGIN, h - 22, { lineBreak: false });
-    const midW = 200;
-    doc.text(printDate || '', (w - midW) / 2, h - 22, { width: midW, align: 'center', lineBreak: false });
-    doc.text(`Seite ${i + 1} von ${total}`, w - MARGIN - 160, h - 22, { width: 160, align: 'right', lineBreak: false });
-    doc.fillColor('black');
-
-    doc.page.margins.bottom = savedBottom;
-  }
+  drawHeaderFooterOnAllPages(doc, { footerLeft: 'ThesisBuddy', footerCenter: printDate || '' });
 
   doc.end();
 }
@@ -997,19 +873,7 @@ function streamFeedbackFormPdf(res, data) {
   doc.moveTo(PG_MARGIN + labelW, yy + 10).lineTo(W - PG_MARGIN, yy + 10).lineWidth(0.7).strokeColor('#222').stroke();
 
   // Fusszeile (vergleichbar mit anderen PDFs)
-  const range = doc.bufferedPageRange();
-  const total = range.count;
-  for (let i = 0; i < total; i++) {
-    doc.switchToPage(range.start + i);
-    const h = doc.page.height;
-    const savedBottom = doc.page.margins.bottom;
-    doc.page.margins.bottom = 0;
-    doc.font('Helvetica').fontSize(7).fillColor('#555')
-      .text(FOOT_TXT, PG_MARGIN, h - 22, { lineBreak: false });
-    doc.text(`Seite ${i + 1} von ${total}`, W - PG_MARGIN - 160, h - 22, { width: 160, align: 'right', lineBreak: false });
-    doc.fillColor('black');
-    doc.page.margins.bottom = savedBottom;
-  }
+  drawHeaderFooterOnAllPages(doc, { margin: PG_MARGIN, footerLeft: FOOT_TXT, logo: false });
   doc.end();
 }
 
@@ -1019,5 +883,4 @@ module.exports = {
   streamTransferProjectOverviewPdf,
   streamThesesListPdf,
   streamFeedbackFormPdf,
-  ROLE_LABELS,
 };
