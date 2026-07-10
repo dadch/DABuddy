@@ -34,6 +34,9 @@
                             <% thesis.students.forEach(function(s) { %>
                                 <div class="mb-2">
                                     <i class="bi bi-person-fill"></i> <%= s.name %>, <%= s.firstname %>
+                                    <% if (thesis.is_repetent) { %>
+                                        <span class="badge bg-warning text-dark ms-1"><i class="bi bi-arrow-repeat"></i> <%= t('dashboard.repetent') %></span>
+                                    <% } %>
                                     <br><small class="text-muted"><%= s.email %></small>
                                 </div>
                             <% }); %>

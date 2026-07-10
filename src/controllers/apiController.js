@@ -186,7 +186,7 @@ const createThesisMilestoneFromTemplate = (thesisId, template, released = false)
 
 const createThesis = async (req, res) => {
   try {
-    const { title, department_id, sponsor, students, coach, expert, field_project_coach, language, is_confidential } = req.body;
+    const { title, department_id, sponsor, students, coach, expert, field_project_coach, language, is_confidential, is_repetent } = req.body;
     const selectedYearId = req.session.selectedYear;
     const userRole = req.session.userRole;
     const userId = req.session.userId;
@@ -210,6 +210,7 @@ const createThesis = async (req, res) => {
       year_id: selectedYearId,
       language: (language === 'fr') ? 'fr' : 'de',
       is_confidential: !!is_confidential,
+      is_repetent: !!is_repetent,
     });
 
     if (students && students.length > 0) {
@@ -268,7 +269,7 @@ const createThesis = async (req, res) => {
 const updateThesis = async (req, res) => {
   try {
     const { id } = req.params;
-    const { title, department_id, sponsor, students, coach, expert, field_project_coach, language, is_confidential } = req.body;
+    const { title, department_id, sponsor, students, coach, expert, field_project_coach, language, is_confidential, is_repetent } = req.body;
     const userRole = req.session.userRole;
     const userId = req.session.userId;
 
@@ -296,6 +297,7 @@ const updateThesis = async (req, res) => {
       sponsor: sponsor || null,
       language: (language === 'fr' || language === 'de') ? language : thesis.language,
       ...(is_confidential !== undefined ? { is_confidential: !!is_confidential } : {}),
+      ...(is_repetent !== undefined ? { is_repetent: !!is_repetent } : {}),
     });
 
     if (departmentChanged) {

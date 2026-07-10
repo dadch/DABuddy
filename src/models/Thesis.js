@@ -51,6 +51,13 @@ const Thesis = sequelize.define('Thesis', {
     allowNull: false,
     defaultValue: false,
   },
+  // Repetenten-Kennzeichnung: markiert eine Diplomarbeit von Studierenden,
+  // die die DA wiederholen. Nur informativ, keine Prozessänderung.
+  is_repetent: {
+    type: DataTypes.BOOLEAN,
+    allowNull: false,
+    defaultValue: false,
+  },
   confidentiality_document_path: {
     type: DataTypes.STRING,
     allowNull: true,

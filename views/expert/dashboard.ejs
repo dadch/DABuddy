@@ -39,6 +39,9 @@
                             <% thesis.students.forEach(function(s, i) { %>
                                 <%= s.name %>, <%= s.firstname %><% if (i < thesis.students.length - 1) { %>, <% } %>
                             <% }); %>
+                            <% if (thesis.is_repetent) { %>
+                                <span class="badge bg-warning text-dark ms-1"><i class="bi bi-arrow-repeat"></i> <%= t('dashboard.repetent') %></span>
+                            <% } %>
                         </td>
                         <td>
                             <% thesis.coaches.forEach(function(c, i) { %>

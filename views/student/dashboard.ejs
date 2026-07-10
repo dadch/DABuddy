@@ -42,7 +42,7 @@
                     <div class="col-md-4">
                         <h6><i class="bi bi-people"></i> Studenten:</h6>
                         <% thesis.students.forEach(function(s) { %>
-                            <div class="mb-2"><i class="bi bi-person-fill"></i> <%= s.name %>, <%= s.firstname %><% if (s.id === user.id) { %> <span class="badge bg-info ms-1">Sie</span><% } %></div>
+                            <div class="mb-2"><i class="bi bi-person-fill"></i> <%= s.name %>, <%= s.firstname %><% if (s.id === user.id) { %> <span class="badge bg-info ms-1">Sie</span><% } %><% if (thesis.is_repetent) { %> <span class="badge bg-warning text-dark ms-1"><i class="bi bi-arrow-repeat"></i> <%= t('dashboard.repetent') %></span><% } %></div>
                         <% }); %>
                     </div>
                     <div class="col-md-4">

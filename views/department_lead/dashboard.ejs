@@ -259,7 +259,12 @@ a.grade-badge.grade-link:not(.grade-final) { color: #212529; }
                                         <td class="stick stick-student small">
                                             <% if (thesis.students.length > 0) { %>
                                                 <% thesis.students.forEach(function(s) { %>
-                                                    <div><%= s.name %>, <%= s.firstname %></div>
+                                                    <div>
+                                                        <%= s.name %>, <%= s.firstname %>
+                                                        <% if (thesis.is_repetent) { %>
+                                                            <span class="badge bg-warning text-dark ms-1"><i class="bi bi-arrow-repeat"></i> <%= t('dashboard.repetent') %></span>
+                                                        <% } %>
+                                                    </div>
                                                 <% }); %>
                                             <% } else { %>
                                                 <span class="text-muted">—</span>
@@ -485,6 +490,12 @@ a.grade-badge.grade-link:not(.grade-final) { color: #212529; }
                             <i class="bi bi-lock"></i> Geheimhaltung (vertrauliche Diplomarbeit)
                         </label>
                     </div>
+                    <div class="mb-3 form-check">
+                        <input type="checkbox" class="form-check-input" id="thesisIsRepetent" name="is_repetent">
+                        <label class="form-check-label" for="thesisIsRepetent">
+                            <i class="bi bi-arrow-repeat"></i> Repetent
+                        </label>
+                    </div>
                     <div class="mb-3">
                         <label for="thesisStudents" class="form-label">Studenten (max. 1-2)</label>
                         <select class="form-select" id="thesisStudents" name="students" multiple size="4">
@@ -559,6 +570,12 @@ a.grade-badge.grade-link:not(.grade-final) { color: #212529; }
                         <input type="checkbox" class="form-check-input" id="editThesisIsConfidential" name="is_confidential">
                         <label class="form-check-label" for="editThesisIsConfidential">
                             <i class="bi bi-lock"></i> Geheimhaltung (vertrauliche Diplomarbeit)
+                        </label>
+                    </div>
+                    <div class="mb-3 form-check">
+                        <input type="checkbox" class="form-check-input" id="editThesisIsRepetent" name="is_repetent">
+                        <label class="form-check-label" for="editThesisIsRepetent">
+                            <i class="bi bi-arrow-repeat"></i> Repetent
                         </label>
                     </div>
                     <div class="mb-3">
@@ -800,6 +817,7 @@ function editThesis(id) {
             document.getElementById('editThesisSponsor').value = thesis.sponsor || '';
             document.getElementById('editThesisLanguage').value = thesis.language || 'de';
             document.getElementById('editThesisIsConfidential').checked = !!thesis.is_confidential;
+            document.getElementById('editThesisIsRepetent').checked = !!thesis.is_repetent;
 
             return loadUserOptions(thesis.department_id).then(() => {
                 const studentsSelect = document.getElementById('editThesisStudents');
@@ -1090,6 +1108,7 @@ document.getElementById('addThesisForm').addEventListener('submit', function(e) 
     data.expert = selectedExpert;
     data.field_project_coach = fpcSelect.value;
     data.is_confidential = document.getElementById('thesisIsConfidential').checked;
+    data.is_repetent = document.getElementById('thesisIsRepetent').checked;
 
     fetch('/api/theses', {
         method: 'POST',
@@ -1134,6 +1153,7 @@ document.getElementById('editThesisForm').addEventListener('submit', function(e)
     data.expert = selectedExpert;
     data.field_project_coach = fpcSelect.value;
     data.is_confidential = document.getElementById('editThesisIsConfidential').checked;
+    data.is_repetent = document.getElementById('editThesisIsRepetent').checked;
 
     const thesisId = data.id;
 

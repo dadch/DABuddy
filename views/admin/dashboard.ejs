@@ -84,7 +84,7 @@
                         <td>
                             <% if (thesis.students.length > 0) { %>
                                 <% thesis.students.forEach(function(student, index) { %>
-                                    <span class="badge bg-primary me-1"><%= student.name %>, <%= student.firstname %></span>
+                                    <span class="badge bg-primary me-1"><%= student.name %>, <%= student.firstname %><% if (thesis.is_repetent) { %> <span class="badge bg-warning text-dark ms-1"><i class="bi bi-arrow-repeat"></i> <%= t('dashboard.repetent') %></span><% } %></span>
                                 <% }); %>
                             <% } else { %>
                                 <span class="text-muted">Keine Studenten zugewiesen</span>
@@ -178,6 +178,12 @@
                             <i class="bi bi-lock"></i> Geheimhaltung (vertrauliche Diplomarbeit)
                         </label>
                     </div>
+                    <div class="mb-3 form-check">
+                        <input type="checkbox" class="form-check-input" id="thesisIsRepetent" name="is_repetent">
+                        <label class="form-check-label" for="thesisIsRepetent">
+                            <i class="bi bi-arrow-repeat"></i> Repetent
+                        </label>
+                    </div>
                     <div class="mb-3">
                         <label for="thesisStudents" class="form-label">Studenten (max. 1-2)</label>
                         <select class="form-select" id="thesisStudents" name="students" multiple size="4">
@@ -253,6 +259,11 @@
                         <label class="form-check-label" for="editThesisIsConfidential">
                             <i class="bi bi-lock"></i> Geheimhaltung (vertrauliche Diplomarbeit)
                         </label>
+                    </div>
+                    <div class="mb-3 form-check">
+                        <input type="checkbox" class="form-check-input" id="editThesisIsRepetent" name="is_repetent">
+                        <label class="form-check-label" for="editThesisIsRepetent">
+                            <i class="bi bi-arrow-repeat"></i> Repetent</label>
                     </div>
                     <div class="mb-3">
                         <label for="editThesisStudents" class="form-label">Studenten (max. 1-2)</label>
@@ -588,6 +599,7 @@ function editThesis(id) {
             document.getElementById('editThesisSponsor').value = thesis.sponsor || '';
             document.getElementById('editThesisLanguage').value = thesis.language || 'de';
             document.getElementById('editThesisIsConfidential').checked = !!thesis.is_confidential;
+            document.getElementById('editThesisIsRepetent').checked = !!thesis.is_repetent;
 
             return loadUserOptions(thesis.department_id).then(() => {
                 const studentsSelect = document.getElementById('editThesisStudents');
@@ -999,6 +1011,7 @@ document.getElementById('addThesisForm').addEventListener('submit', function(e) 
     data.expert = document.getElementById('thesisExpert').value || null;
     data.field_project_coach = document.getElementById('thesisFieldProjectCoach').value || null;
     data.is_confidential = document.getElementById('thesisIsConfidential').checked;
+    data.is_repetent = document.getElementById('thesisIsRepetent').checked;
 
     fetch('/api/theses', {
         method: 'POST',
@@ -1040,6 +1053,7 @@ document.getElementById('editThesisForm').addEventListener('submit', function(e)
     data.expert = document.getElementById('editThesisExpert').value || null;
     data.field_project_coach = document.getElementById('editThesisFieldProjectCoach').value || null;
     data.is_confidential = document.getElementById('editThesisIsConfidential').checked;
+    data.is_repetent = document.getElementById('editThesisIsRepetent').checked;
 
     fetch(`/api/theses/${data.id}`, {
         method: 'PUT',
