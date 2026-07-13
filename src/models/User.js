@@ -85,6 +85,13 @@ const User = sequelize.define('User', {
     allowNull: false,
     defaultValue: 'de',
   },
+  // Diplomjahr — nur für Studierende relevant. Andere Rollen bleiben
+  // jahresübergreifend und haben year_id = NULL.
+  year_id: {
+    type: DataTypes.INTEGER,
+    allowNull: true,
+    references: { model: 'years', key: 'id' },
+  },
 }, {
   tableName: 'users',
   hooks: {

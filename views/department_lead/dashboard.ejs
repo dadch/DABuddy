@@ -42,10 +42,11 @@
     background: #fff;
 }
 .fbl-table thead .stick { z-index: 4; background: #f1f3f5; }
-.fbl-table .stick-actions { left: 0;                 min-width: 110px; }
-.fbl-table .stick-title   { left: 110px;             min-width: 240px; max-width: 280px; white-space: normal; }
-.fbl-table .stick-dept    { left: 350px;             min-width: 120px; }
-.fbl-table .stick-student { left: 470px;             min-width: 160px; border-right: 2px solid #ced4da; white-space: normal; }
+.fbl-table .stick-select  { left: 0;                 min-width: 36px; width: 36px; text-align:center; }
+.fbl-table .stick-actions { left: 36px;              min-width: 110px; }
+.fbl-table .stick-title   { left: 146px;             min-width: 240px; max-width: 280px; white-space: normal; }
+.fbl-table .stick-dept    { left: 386px;             min-width: 120px; }
+.fbl-table .stick-student { left: 506px;             min-width: 160px; border-right: 2px solid #ced4da; white-space: normal; }
 .fbl-table tbody tr:hover .stick { background-color: #f8f9fa; }
 .fbl-table tbody tr.row-locked .stick { background-color: #fff3cd !important; }
 
@@ -118,6 +119,7 @@ a.grade-badge.grade-link:not(.grade-final) { color: #212529; }
                 <li><a class="dropdown-item" href="/api/theses-list.csv<%= selectedDepartment ? '?department=' + encodeURIComponent(selectedDepartment) : '' %>"><i class="bi bi-file-earmark-spreadsheet"></i> Diplomarbeitenliste als CSV</a></li>
                 <li><a class="dropdown-item" href="/api/transfer-project-overview.pdf" target="_blank"><i class="bi bi-arrow-left-right"></i> Gesamtübersicht Transferprojekt</a></li>
                 <li><button class="dropdown-item" type="button" onclick="openBulkDownloadModal()"><i class="bi bi-archive"></i> Dokumente als ZIP herunterladen…</button></li>
+                <li><button class="dropdown-item" type="button" onclick="archiveSelected()"><i class="bi bi-box-seam"></i> Archivierung selektierter DAs</button></li>
                 <li><hr class="dropdown-divider"></li>
                 <li><button class="dropdown-item" type="button" onclick="openUserManagementModal()"><i class="bi bi-person-gear"></i> Benutzer verwalten</button></li>
                 <li><button class="dropdown-item" type="button" onclick="openStudentManagement()"><i class="bi bi-mortarboard"></i> Studierende verwalten</button></li>
@@ -196,6 +198,7 @@ a.grade-badge.grade-link:not(.grade-final) { color: #212529; }
                         <table class="fbl-table">
                             <thead>
                                 <tr>
+                                    <th class="stick stick-select" style="left:0; min-width:36px; width:36px;"><input type="checkbox" class="form-check-input" id="selectAllTheses" onclick="toggleSelectAllTheses(this)"></th>
                                     <th class="stick stick-actions"><%= t('dashboard.headers.actions') %></th>
                                     <th class="stick stick-title"><%= t('dashboard.headers.title') %></th>
                                     <th class="stick stick-dept"><%= t('dashboard.headers.department') %></th>
@@ -238,6 +241,7 @@ a.grade-badge.grade-link:not(.grade-final) { color: #212529; }
                                     });
                                     %>
                                     <tr class="<%= thesis.is_locked ? 'row-locked' : '' %>">
+                                        <td class="stick stick-select"><input type="checkbox" class="form-check-input thesis-select" value="<%= thesis.id %>"></td>
                                         <td class="stick stick-actions">
                                             <div class="btn-group btn-group-sm" role="group">
                                                 <a href="/dashboard/thesis/<%= thesis.id %>" class="btn btn-primary btn-sm" title="Details">
@@ -1302,6 +1306,38 @@ document.getElementById('userUsername').addEventListener('blur', function() {
     }
 });
 
+// ---- Archivierung selektierter DAs ----
+function toggleSelectAllTheses(el) {
+    document.querySelectorAll('.thesis-select').forEach(cb => cb.checked = el.checked);
+}
+
+async function archiveSelected() {
+    const ids = Array.from(document.querySelectorAll('.thesis-select:checked')).map(cb => parseInt(cb.value, 10)).filter(Number.isInteger);
+    if (ids.length === 0) { alert('Bitte mindestens eine Diplomarbeit auswählen.'); return; }
+    if (!confirm(`Archiv für ${ids.length} Diplomarbeit(en) erzeugen? Das kann bei vielen Dokumenten einen Moment dauern.`)) return;
+    try {
+        const res = await fetch('/api/theses/archive', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ thesisIds: ids }),
+        });
+        if (!res.ok) {
+            const text = await res.text();
+            alert('Archivierung fehlgeschlagen: ' + (text || res.status));
+            return;
+        }
+        const cd = res.headers.get('Content-Disposition') || '';
+        const m = cd.match(/filename="?([^"]+)"?/);
+        const filename = m ? m[1] : 'Archiv.zip';
+        const blob = await res.blob();
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url; a.download = filename; document.body.appendChild(a); a.click(); a.remove();
+        URL.revokeObjectURL(url);
+    } catch (e) {
+        alert('Archivierung fehlgeschlagen: ' + e.message);
+    }
+}
 </script>
 
 <%- include('../partials/student-management') %>

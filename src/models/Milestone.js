@@ -111,6 +111,16 @@ const Milestone = sequelize.define('Milestone', {
     allowNull: false,
     defaultValue: false,
   },
+  // Mail-Erinnerungen: ab wann und in welcher Periodizität. Ab 3 Tagen vor
+  // dem jeweiligen Termin wird täglich versendet (Fix-Regel).
+  reminder_start_at:    { type: DataTypes.DATE, allowNull: true },
+  reminder_period_days: { type: DataTypes.INTEGER, allowNull: true, defaultValue: 7 },
+  // Per-Kind Fälligkeitsdaten für Bewertungen und Feedback (alle > due_at).
+  single_due_at:   { type: DataTypes.DATE, allowNull: true },
+  first_due_at:    { type: DataTypes.DATE, allowNull: true },
+  second_due_at:   { type: DataTypes.DATE, allowNull: true },
+  final_due_at:    { type: DataTypes.DATE, allowNull: true },
+  feedback_due_at: { type: DataTypes.DATE, allowNull: true },
 }, {
   tableName: 'milestones',
   indexes: [

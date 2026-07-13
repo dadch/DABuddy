@@ -182,6 +182,13 @@ const createThesisMilestoneFromTemplate = (thesisId, template, released = false)
   approver_role_2: template.approver_role_2,
   is_transfer_project: template.is_transfer_project,
   feedback_form_enabled: template.feedback_form_enabled,
+  reminder_start_at: template.reminder_start_at,
+  reminder_period_days: template.reminder_period_days,
+  single_due_at:   template.single_due_at,
+  first_due_at:    template.first_due_at,
+  second_due_at:   template.second_due_at,
+  final_due_at:    template.final_due_at,
+  feedback_due_at: template.feedback_due_at,
 });
 
 const createThesis = async (req, res) => {
@@ -218,6 +225,13 @@ const createThesis = async (req, res) => {
         where: { id: students, role: 'student' },
         include: [{ model: Department, as: 'departments', where: { id: department_id }, required: true }]
       });
+      // Studierende müssen zum Jahr der DA gehören (year_id-Match).
+      // Ausnahme: NULL wird toleriert (Altdaten), kann jederzeit nachgepflegt werden.
+      const mismatched = studentUsers.filter(s => s.year_id != null && s.year_id !== selectedYearId);
+      if (mismatched.length > 0) {
+        const names = mismatched.map(s => `${s.name}, ${s.firstname}`).join('; ');
+        return res.status(400).json({ success: false, message: `Studierende gehören einem anderen Diplomjahr an: ${names}` });
+      }
       await thesis.setStudents(studentUsers);
     }
     if (coach) {
@@ -336,6 +350,12 @@ const updateThesis = async (req, res) => {
           where: { id: students, role: 'student' },
           include: [{ model: Department, as: 'departments', where: { id: department_id }, required: true }]
         });
+        // Jahres-Konsistenz analog zu createThesis.
+        const mismatched = studentUsers.filter(s => s.year_id != null && s.year_id !== thesis.year_id);
+        if (mismatched.length > 0) {
+          const names = mismatched.map(s => `${s.name}, ${s.firstname}`).join('; ');
+          return res.status(400).json({ success: false, message: `Studierende gehören einem anderen Diplomjahr an: ${names}` });
+        }
         await thesis.setStudents(studentUsers);
       } else {
         await thesis.setStudents([]);
@@ -717,7 +737,7 @@ const generateUsername = async (email) => {
 
 // Validiert + legt einen Studierenden an. allDepartments: vorab geladene Liste.
 // Wirft Error mit verständlicher Meldung bei Problemen.
-const createStudentRecord = async ({ name, firstname, email, gender, department, phone }, { actorRole, ledIds, allDepartments }) => {
+const createStudentRecord = async ({ name, firstname, email, gender, department, phone }, { actorRole, ledIds, allDepartments, yearId }) => {
   name = (name || '').trim();
   firstname = (firstname || '').trim();
   email = (email || '').trim();
@@ -748,6 +768,7 @@ const createStudentRecord = async ({ name, firstname, email, gender, department,
   }
   const user = await User.create({
     username, password: STUDENT_DEFAULT_PASSWORD, name, firstname, email, role: 'student', gender, phone,
+    year_id: yearId || null,
   });
   await user.setDepartments([dep.id]);
   return user;
@@ -757,6 +778,7 @@ const getStudents = async (req, res) => {
   try {
     const userRole = req.session.userRole;
     const userId = req.session.userId;
+    const selectedYearId = req.session.selectedYear;
 
     let includeDept = { model: Department, as: 'departments', attributes: ['id', 'name'], through: { attributes: [] } };
     if (userRole === 'department_lead') {
@@ -765,9 +787,19 @@ const getStudents = async (req, res) => {
       includeDept = { ...includeDept, where: { id: ledIds }, required: true };
     }
 
+    // Studierende sind einem Diplomjahr zugeordnet. Query-Filter: standardmässig
+    // das aktuell in der Session gewählte Jahr; per ?year=all können Admins die
+    // gesamte Historie anzeigen (nur für zukünftige Sonderfälle).
+    const where = { role: 'student' };
+    if (req.query.year === 'all' && userRole === 'admin') {
+      /* keine Filterung */
+    } else if (selectedYearId) {
+      where.year_id = selectedYearId;
+    }
+
     const students = await User.findAll({
-      where: { role: 'student' },
-      attributes: ['id', 'username', 'name', 'firstname', 'email', 'gender', 'phone'],
+      where,
+      attributes: ['id', 'username', 'name', 'firstname', 'email', 'gender', 'phone', 'year_id'],
       include: [includeDept],
       order: [['name', 'ASC'], ['firstname', 'ASC']],
     });
@@ -783,8 +815,10 @@ const createStudent = async (req, res) => {
     const actorRole = req.session.userRole;
     const ledIds = actorRole === 'department_lead' ? await getLedDepartmentIds(req.session.userId) : [];
     const allDepartments = await Department.findAll({ attributes: ['id', 'name'] });
-    const user = await createStudentRecord(req.body, { actorRole, ledIds, allDepartments });
-    res.json({ success: true, user: { id: user.id, username: user.username, name: user.name, firstname: user.firstname, email: user.email, gender: user.gender } });
+    const yearId = req.session.selectedYear;
+    if (!yearId) return res.status(400).json({ success: false, message: 'Kein Diplomjahr ausgewählt' });
+    const user = await createStudentRecord(req.body, { actorRole, ledIds, allDepartments, yearId });
+    res.json({ success: true, user: { id: user.id, username: user.username, name: user.name, firstname: user.firstname, email: user.email, gender: user.gender, year_id: user.year_id } });
   } catch (error) {
     res.status(400).json({ success: false, message: error.message || 'Fehler beim Anlegen' });
   }
@@ -878,6 +912,8 @@ const importStudents = async (req, res) => {
     const actorRole = req.session.userRole;
     const ledIds = actorRole === 'department_lead' ? await getLedDepartmentIds(req.session.userId) : [];
     const allDepartments = await Department.findAll({ attributes: ['id', 'name'] });
+    const yearId = req.session.selectedYear;
+    if (!yearId) return res.status(400).json({ success: false, message: 'Kein Diplomjahr ausgewählt' });
 
     const csv = String(req.body.csv || '');
     const lines = csv.split(/\r?\n/).map(l => l.trim()).filter(l => l.length > 0);
@@ -898,7 +934,7 @@ const importStudents = async (req, res) => {
         continue;
       }
       try {
-        await createStudentRecord({ name, firstname, email, gender, department }, { actorRole, ledIds, allDepartments });
+        await createStudentRecord({ name, firstname, email, gender, department }, { actorRole, ledIds, allDepartments, yearId });
         created++;
       } catch (e) {
         errors.push({ line: lineNo, message: e.message });
@@ -1121,7 +1157,43 @@ const parseMilestoneConfig = (body) => {
   const approver_role_2 = requires_approval_2 ? (body.approver_role_2 || null) : null;
   const is_transfer_project = body.is_transfer_project === undefined ? false : !!body.is_transfer_project;
   const feedback_form_enabled = body.feedback_form_enabled === undefined ? false : !!body.feedback_form_enabled;
-  return { allow_upload, allow_update, requires_evaluation, evaluator_role, double_evaluation, evaluator_role_2, evaluation_form_id, requires_approval, approver_role, requires_approval_2, approver_role_2, is_transfer_project, feedback_form_enabled };
+
+  // Mail-Erinnerungs- und Per-Kind-Fälligkeits-Felder (alle optional).
+  const nullDate = (v) => (typeof v === 'string' && v.trim() ? new Date(v) : null);
+  const reminder_start_at = nullDate(body.reminder_start_at);
+  const reminder_period_days = (body.reminder_period_days !== undefined && body.reminder_period_days !== '' && body.reminder_period_days !== null)
+    ? Math.max(1, parseInt(body.reminder_period_days, 10) || 7) : 7;
+  const single_due_at   = requires_evaluation && !double_evaluation ? nullDate(body.single_due_at) : null;
+  const first_due_at    = requires_evaluation &&  double_evaluation ? nullDate(body.first_due_at)  : null;
+  const second_due_at   = requires_evaluation &&  double_evaluation ? nullDate(body.second_due_at) : null;
+  const final_due_at    = requires_evaluation &&  double_evaluation ? nullDate(body.final_due_at)  : null;
+  const feedback_due_at = feedback_form_enabled                     ? nullDate(body.feedback_due_at) : null;
+
+  return {
+    allow_upload, allow_update, requires_evaluation, evaluator_role, double_evaluation, evaluator_role_2,
+    evaluation_form_id, requires_approval, approver_role, requires_approval_2, approver_role_2,
+    is_transfer_project, feedback_form_enabled,
+    reminder_start_at, reminder_period_days,
+    single_due_at, first_due_at, second_due_at, final_due_at, feedback_due_at,
+  };
+};
+
+// Validiert, dass jedes gesetzte Per-Kind-Datum nach dem eigentlichen
+// Meilenstein-Termin (due_at) liegt. Liefert Fehlertext oder null.
+const validateEvalDueDates = (due_at, cfg) => {
+  const due = due_at ? new Date(due_at) : null;
+  if (!due) return null;
+  const checks = [
+    ['single_due_at',   cfg.single_due_at,   'Bewertungs-Termin'],
+    ['first_due_at',    cfg.first_due_at,    'Termin Bewertung 1'],
+    ['second_due_at',   cfg.second_due_at,   'Termin Bewertung 2'],
+    ['final_due_at',    cfg.final_due_at,    'Termin finale Bewertung'],
+    ['feedback_due_at', cfg.feedback_due_at, 'Termin Feedbackformular'],
+  ];
+  for (const [, val, label] of checks) {
+    if (val && new Date(val) <= due) return `${label} muss nach dem Meilenstein-Termin liegen.`;
+  }
+  return null;
 };
 
 const createMilestone = async (req, res) => {
@@ -1172,6 +1244,9 @@ const createMilestone = async (req, res) => {
         return res.status(400).json({ success: false, message: 'Ungültige freigebende Rolle (Freigabe 2)' });
       }
     }
+
+    const dateErr = validateEvalDueDates(due_at, config);
+    if (dateErr) return res.status(400).json({ success: false, message: dateErr });
 
     const year = await Year.findByPk(yearId);
     if (!year) return res.status(404).json({ success: false, message: 'Diplomjahr nicht gefunden' });
@@ -1255,6 +1330,10 @@ const updateMilestone = async (req, res) => {
       }
     }
 
+    const effectiveDueAt = due_at ?? milestone.due_at;
+    const dateErr = validateEvalDueDates(effectiveDueAt, config);
+    if (dateErr) return res.status(400).json({ success: false, message: dateErr });
+
     // label_fr: leerer String → null, undefined → unverändert
     const labelFrUpdate = (label_fr === undefined)
       ? milestone.label_fr
@@ -1262,7 +1341,7 @@ const updateMilestone = async (req, res) => {
     await milestone.update({
       label: label ?? milestone.label,
       label_fr: labelFrUpdate,
-      due_at: due_at ?? milestone.due_at,
+      due_at: effectiveDueAt,
       responsible_role: responsible_role ?? milestone.responsible_role,
       ...config,
     });
@@ -1278,6 +1357,11 @@ const updateMilestone = async (req, res) => {
       // Alle anderen Felder werden auf allen Snapshots aktualisiert. due_at wird
       // nur dort gesetzt, wo es nicht individuell überschrieben wurde — siehe
       // separates Update unten.
+      // overrideAll: true → auch überschriebene individuelle Termine (due_at
+      // sowie Reminder- und Per-Kind-Fälligkeiten) werden von der Vorlage
+      // überschrieben. Standard false — nur nicht-überschriebene DAs bekommen
+      // die neuen Werte, individuelle Overrides bleiben unangetastet.
+      const overrideAll = !!req.body.overrideAll;
       await ThesisMilestone.update(
         {
           label: milestone.label,
@@ -1299,12 +1383,37 @@ const updateMilestone = async (req, res) => {
         },
         { where: { milestone_id: milestone.id } }
       );
-      // Termin nur dort übernehmen, wo der FBL/Admin ihn nicht individuell
-      // gesetzt hat (Override-Schutz).
-      await ThesisMilestone.update(
-        { due_at: milestone.due_at },
-        { where: { milestone_id: milestone.id, due_at_overridden: false } }
-      );
+      // Termin (due_at) und Reminder/Per-Kind-Fälligkeiten nur dort überschreiben,
+      // wo entweder overrideAll=true ODER das Feld nicht individuell überschrieben
+      // wurde. Jedes Datum wird einzeln geführt — das ist die "Rückfrage"-Logik.
+      const perFieldUpdates = [
+        ['due_at',                { due_at:                milestone.due_at },               'due_at_overridden'],
+        ['reminder_start_at',     { reminder_start_at:     milestone.reminder_start_at },    'reminder_start_at_overridden'],
+        ['reminder_period_days',  { reminder_period_days:  milestone.reminder_period_days }, 'reminder_period_days_overridden'],
+        ['single_due_at',         { single_due_at:         milestone.single_due_at },        'single_due_at_overridden'],
+        ['first_due_at',          { first_due_at:          milestone.first_due_at },         'first_due_at_overridden'],
+        ['second_due_at',         { second_due_at:         milestone.second_due_at },        'second_due_at_overridden'],
+        ['final_due_at',          { final_due_at:          milestone.final_due_at },         'final_due_at_overridden'],
+        ['feedback_due_at',       { feedback_due_at:       milestone.feedback_due_at },      'feedback_due_at_overridden'],
+      ];
+      for (const [, patch, overrideFlag] of perFieldUpdates) {
+        const where = { milestone_id: milestone.id };
+        if (!overrideAll) where[overrideFlag] = false;
+        await ThesisMilestone.update(patch, { where });
+      }
+      // Wenn overrideAll: alle Override-Flags zurücksetzen (Snapshots folgen wieder der Vorlage).
+      if (overrideAll) {
+        await ThesisMilestone.update({
+          due_at_overridden: false,
+          reminder_start_at_overridden: false,
+          reminder_period_days_overridden: false,
+          single_due_at_overridden: false,
+          first_due_at_overridden: false,
+          second_due_at_overridden: false,
+          final_due_at_overridden: false,
+          feedback_due_at_overridden: false,
+        }, { where: { milestone_id: milestone.id } });
+      }
       // Snapshot-Kategorien werden NUR ergänzt, nie entfernt (Datenschutz für
       // bereits hochgeladene Dokumente). Existierende Snapshot-Kategorien bleiben
       // bestehen, neue aus dem Template kommen dazu.
@@ -2029,6 +2138,138 @@ const deleteDocumentTemplate = async (req, res) => {
   }
 };
 
+// ---------- Archivierung selektierter Diplomarbeiten ----------
+
+// Erwartet Body: { thesisIds: number[] }. Berechtigung: Admin und
+// FachbereichsleiterIn (FBL: nur Diplomarbeiten ihrer Fachbereiche).
+// Antwortet mit einem ZIP-Stream, dessen Name aus Diplomjahr und
+// (falls einheitlich) Fachbereich(en) gebildet wird.
+const archiveTheses = async (req, res) => {
+  try {
+    const userRole = req.session.userRole;
+    const userId = req.session.userId;
+    if (!['admin', 'department_lead'].includes(userRole)) {
+      return res.status(403).send('Keine Berechtigung');
+    }
+    const ids = Array.isArray(req.body && req.body.thesisIds)
+      ? req.body.thesisIds.map(n => parseInt(n, 10)).filter(Number.isInteger)
+      : [];
+    if (ids.length === 0) return res.status(400).send('Keine Diplomarbeiten ausgewählt');
+
+    // Zugriffs-Check + gültige Set bilden.
+    const theses = await Thesis.findAll({
+      where: { id: ids },
+      include: [
+        { model: Year, as: 'year', attributes: ['year'] },
+        { model: Department, as: 'department', attributes: ['id', 'name'] },
+      ],
+    });
+    let allowed = theses;
+    if (userRole === 'department_lead') {
+      const ledIds = (await Department.findAll({ where: { department_lead_id: userId }, attributes: ['id'] })).map(d => d.id);
+      allowed = theses.filter(t => t.department && ledIds.includes(t.department.id));
+    }
+    if (allowed.length === 0) return res.status(403).send('Keine der Diplomarbeiten liegt in einem für Sie zugelassenen Fachbereich');
+
+    // Zip-Filename: Diplomjahr + (Fachbereich, falls einheitlich).
+    const years = Array.from(new Set(allowed.map(t => t.year && t.year.year).filter(Boolean)));
+    const depts = Array.from(new Set(allowed.map(t => t.department && t.department.name).filter(Boolean)));
+    const yPart = years.length === 1 ? String(years[0]) : 'Diplomarbeiten';
+    const dPart = depts.length === 1 ? depts[0] : (depts.length > 1 ? 'Fachbereiche' : '');
+    const zipName = sanitizeFilenamePart(yPart + (dPart ? '_' + dPart : '')) + '.zip';
+
+    res.setHeader('Content-Type', 'application/zip');
+    res.setHeader('Content-Disposition', `attachment; filename="${zipName}"`);
+
+    const { streamArchive } = require('../utils/thesisArchive');
+    await streamArchive(res, allowed.map(t => t.id));
+  } catch (e) {
+    console.error('archiveTheses error:', e);
+    if (!res.headersSent) res.status(500).send('Interner Serverfehler');
+  }
+};
+
+// ---------- Mail-Test (Admin) ----------
+
+const testMailConnection = async (req, res) => {
+  if (req.session.userRole !== 'admin') return res.status(403).json({ success: false, message: 'Keine Berechtigung' });
+  const mailer = require('../config/mailer');
+  const cfg = mailer.getConfig();
+  if (!mailer.isConfigured()) {
+    return res.status(400).json({
+      success: false,
+      message: 'SMTP-Konfiguration unvollständig. Bitte MAIL_HOST/PORT/USER/PASS in .env setzen.',
+      config: { host: cfg.host, port: cfg.port, secure: cfg.secure, from: cfg.from, override: cfg.override },
+    });
+  }
+  try {
+    await mailer.verifyConnection();
+    res.json({
+      success: true,
+      message: 'SMTP-Verbindung erfolgreich verifiziert.',
+      config: { host: cfg.host, port: cfg.port, secure: cfg.secure, from: cfg.from, override: cfg.override },
+    });
+  } catch (e) {
+    console.error('testMailConnection error:', e);
+    res.status(500).json({ success: false, message: 'Verbindung fehlgeschlagen: ' + e.message });
+  }
+};
+
+// Test-Override: simuliertes „Heute" für den Reminder-Job. Admin-only.
+const getSimulatedToday = async (req, res) => {
+  if (req.session.userRole !== 'admin') return res.status(403).json({ success: false, message: 'Keine Berechtigung' });
+  const sim = require('../config/simulatedToday');
+  res.json({ success: true, date: sim.getOverride() });
+};
+
+const setSimulatedToday = async (req, res) => {
+  if (req.session.userRole !== 'admin') return res.status(403).json({ success: false, message: 'Keine Berechtigung' });
+  const sim = require('../config/simulatedToday');
+  try {
+    const date = (req.body && typeof req.body.date === 'string') ? req.body.date.trim() : '';
+    const result = sim.setOverride(date || null);
+    res.json({ success: true, date: result });
+  } catch (e) {
+    res.status(400).json({ success: false, message: e.message });
+  }
+};
+
+// Manueller Trigger für den Reminder-Job (Admin). Nützlich zum Testen ohne
+// auf die Cron-Ausführung zu warten.
+const runRemindersNow = async (req, res) => {
+  if (req.session.userRole !== 'admin') return res.status(403).json({ success: false, message: 'Keine Berechtigung' });
+  try {
+    const job = require('../jobs/reminderJob');
+    const result = await job.processReminders();
+    res.json({ success: true, ...result });
+  } catch (e) {
+    console.error('runRemindersNow error:', e);
+    res.status(500).json({ success: false, message: e.message });
+  }
+};
+
+const sendTestMail = async (req, res) => {
+  if (req.session.userRole !== 'admin') return res.status(403).json({ success: false, message: 'Keine Berechtigung' });
+  const mailer = require('../config/mailer');
+  if (!mailer.isConfigured()) return res.status(400).json({ success: false, message: 'SMTP-Konfiguration unvollständig.' });
+  const to = (req.body && typeof req.body.to === 'string') ? req.body.to.trim() : '';
+  if (!to || !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(to)) {
+    return res.status(400).json({ success: false, message: 'Bitte eine gültige E-Mail-Adresse angeben.' });
+  }
+  try {
+    const info = await mailer.sendMail({
+      to,
+      subject: 'ThesisBuddy — Testmail',
+      text: 'Dies ist eine Testmail von ThesisBuddy.\nWenn du diese Nachricht liest, funktioniert der SMTP-Versand.',
+      html: '<p>Dies ist eine <strong>Testmail von ThesisBuddy</strong>.</p><p>Wenn du diese Nachricht liest, funktioniert der SMTP-Versand.</p>',
+    });
+    res.json({ success: true, message: 'Testmail versendet.', messageId: info.messageId, effectiveTo: mailer.getConfig().override || to });
+  } catch (e) {
+    console.error('sendTestMail error:', e);
+    res.status(500).json({ success: false, message: 'Versand fehlgeschlagen: ' + e.message });
+  }
+};
+
 // ---------- Sperrung einer Diplomarbeit ----------
 
 // Sperrt eine Diplomarbeit (z.B. wegen Abbruch). Studierende dieser Arbeit
@@ -2554,6 +2795,96 @@ const bulkDownloadCategoryZip = async (req, res) => {
   }
 };
 
+// Bulk-Download aller Feedbackformulare (PDF) für die DAs des aktuellen
+// Diplomjahrs + optionalen Fachbereichsfilters. Struktur analog zu
+// bulkDownloadCategoryZip: `<Fachbereich>/<Nachname>_<Vorname>_Feedback_<Meilenstein>_<YYYYMMDD>.pdf`.
+// Ein Feedbackformular wird nur ausgegeben, wenn feedback_form_enabled=true,
+// feedback_text vorhanden ist UND eine finale Bewertung existiert.
+const bulkDownloadFeedbackZip = async (req, res) => {
+  try {
+    const userId = req.session.userId;
+    const userRole = req.session.userRole;
+    const yearId = req.session.selectedYear;
+
+    if (!['admin', 'department_lead'].includes(userRole)) return res.status(403).send('Keine Berechtigung');
+    if (!yearId) return res.status(400).send('Kein Diplomjahr ausgewählt');
+
+    const whereThesis = { year_id: yearId };
+    const departmentFilter = req.query.department ? parseInt(req.query.department, 10) : null;
+    if (userRole === 'department_lead') {
+      const ledIds = (await Department.findAll({ where: { department_lead_id: userId }, attributes: ['id'] })).map(d => d.id);
+      if (ledIds.length === 0) return res.status(404).send('Keine Fachbereiche zugewiesen');
+      if (departmentFilter && ledIds.includes(departmentFilter)) whereThesis.department_id = departmentFilter;
+      else whereThesis.department_id = ledIds;
+    } else if (departmentFilter) {
+      whereThesis.department_id = departmentFilter;
+    }
+
+    const tms = await ThesisMilestone.findAll({
+      where: { feedback_form_enabled: true, feedback_text: { [Op.ne]: null } },
+      include: [{
+        model: Thesis, as: 'thesis', where: whereThesis, required: true,
+        attributes: ['id', 'department_id'],
+        include: [
+          { model: Department, as: 'department', attributes: ['id', 'name'] },
+          { model: User, as: 'students', attributes: ['firstname', 'name'] },
+        ],
+      }],
+    });
+
+    if (tms.length === 0) return res.status(404).send('Keine ausgefüllten Feedbackformulare im aktuellen Auswahlbereich gefunden.');
+
+    const todayStr = formatYyyymmdd(new Date());
+    const safeZipName = 'Feedbackformulare_' + todayStr + '.zip';
+
+    res.setHeader('Content-Type', 'application/zip');
+    res.setHeader('Content-Disposition', `attachment; filename="${safeZipName}"`);
+
+    const archive = archiver('zip', { zlib: { level: 6 } });
+    archive.on('warning', (err) => { if (err.code !== 'ENOENT') console.error('archive warning:', err); });
+    archive.on('error', (err) => { console.error('archive error:', err); try { res.status(500).end(); } catch (e) {} });
+    archive.pipe(res);
+
+    const { feedbackPdfBuffer } = require('../utils/thesisArchive');
+    const seenPerFolder = new Map();
+    let added = 0;
+    for (const tm of tms) {
+      try {
+        const buf = await feedbackPdfBuffer(tm);
+        if (!buf) continue; // z.B. keine finale Bewertung
+        const dept = tm.thesis.department;
+        const folder = sanitizeFilenamePart(dept ? dept.name : 'unbekannt');
+        const students = (tm.thesis.students || []).slice().sort((a, b) =>
+          (a.name || '').localeCompare(b.name || '') || (a.firstname || '').localeCompare(b.firstname || '')
+        );
+        const namesPart = sanitizeFilenamePart(students.map(s => s.name || '').filter(Boolean).join('-') || 'ohne-Namen');
+        const firstnamesPart = sanitizeFilenamePart(students.map(s => s.firstname || '').filter(Boolean).join('-') || 'ohne-Vornamen');
+        const msPart = sanitizeFilenamePart(tm.label || 'Meilenstein');
+        const base = `${namesPart}_${firstnamesPart}_Feedback_${msPart}_${todayStr}`;
+        let candidate = `${base}.pdf`;
+        const folderSeen = seenPerFolder.get(folder) || new Set();
+        let n = 2;
+        while (folderSeen.has(candidate)) { candidate = `${base}_${n}.pdf`; n++; }
+        folderSeen.add(candidate);
+        seenPerFolder.set(folder, folderSeen);
+        archive.append(buf, { name: `${folder}/${candidate}` });
+        added++;
+      } catch (e) {
+        console.error('bulkDownloadFeedbackZip PDF-Fehler:', tm.id, e.message);
+      }
+    }
+
+    if (added === 0) {
+      // Nichts konnte erzeugt werden — Archiv trotzdem sauber schliessen, aber Fehlerhinweis anhängen.
+      archive.append('Keine Feedbackformulare konnten erzeugt werden. Voraussetzung: eine finale Bewertung.\n', { name: 'HINWEIS.txt' });
+    }
+    await archive.finalize();
+  } catch (e) {
+    console.error('bulkDownloadFeedbackZip error:', e);
+    if (!res.headersSent) res.status(500).send('Interner Serverfehler');
+  }
+};
+
 // ---------- Upload-Kategorien (Stammdaten, Admin) ----------
 
 const getUploadCategories = async (req, res) => {
@@ -2635,6 +2966,7 @@ const deleteUploadCategory = async (req, res) => {
 
 module.exports = {
   bulkDownloadCategoryZip,
+  bulkDownloadFeedbackZip,
   getUploadCategories,
   createUploadCategory,
   updateUploadCategory,
@@ -2694,6 +3026,12 @@ module.exports = {
   deleteDocumentTemplate,
   lockThesis,
   unlockThesis,
+  archiveTheses,
+  testMailConnection,
+  sendTestMail,
+  runRemindersNow,
+  getSimulatedToday,
+  setSimulatedToday,
   getChatMessages,
   postChatMessage,
   downloadChatAttachment,

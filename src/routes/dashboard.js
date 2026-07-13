@@ -9,6 +9,7 @@ router.get('/dashboard/thesis/:id/chat', requireAuth, dashboardController.showTh
 router.get('/dashboard/document-templates', requireAuth, dashboardController.showDocumentTemplates);
 router.get('/dashboard/profile', requireAuth, dashboardController.showProfile);
 router.post('/dashboard/profile', requireAuth, dashboardController.updateProfile);
+router.get('/dashboard/admin/mail', requireAuth, requireRole(['admin']), dashboardController.showMailSettings);
 router.get('/dashboard/admin/years', requireAuth, requireRole(['admin']), dashboardController.showYearsManagement);
 router.get('/dashboard/admin/upload-categories', requireAuth, requireRole(['admin']), dashboardController.showUploadCategoriesManagement);
 router.get('/dashboard/admin/milestones', requireAuth, requireRole(['admin']), dashboardController.showMilestonesManagement);

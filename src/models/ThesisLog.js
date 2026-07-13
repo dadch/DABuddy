@@ -52,7 +52,8 @@ const ThesisLog = sequelize.define('ThesisLog', {
       'confidentiality_deleted',
       'thesis_locked',
       'thesis_unlocked',
-      'feedback_updated'
+      'feedback_updated',
+      'reminder_sent'
     ),
     allowNull: false,
   },

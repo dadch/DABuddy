@@ -18,6 +18,7 @@ const ChatMessage = require('./ChatMessage');
 const ChatReadReceipt = require('./ChatReadReceipt');
 const UploadCategory = require('./UploadCategory');
 const DocumentTemplate = require('./DocumentTemplate');
+const MailReminder = require('./MailReminder');
 
 // Mehrfachrollen: 1:n von User zu UserRole
 User.hasMany(UserRole, { foreignKey: 'user_id', as: 'extraRoles', onDelete: 'CASCADE' });
@@ -81,6 +82,10 @@ Thesis.belongsToMany(User, {
 
 Year.hasMany(Thesis, { foreignKey: 'year_id', as: 'theses' });
 Thesis.belongsTo(Year, { foreignKey: 'year_id', as: 'year' });
+
+// Studierende gehören zu einem Diplomjahr (nullable — nur für role='student' relevant).
+Year.hasMany(User, { foreignKey: 'year_id', as: 'yearStudents' });
+User.belongsTo(Year, { foreignKey: 'year_id', as: 'year' });
 
 Department.hasMany(Thesis, { foreignKey: 'department_id', as: 'theses' });
 Thesis.belongsTo(Department, { foreignKey: 'department_id', as: 'department' });
@@ -218,4 +223,5 @@ module.exports = {
   ChatReadReceipt,
   UploadCategory,
   DocumentTemplate,
+  MailReminder,
 };

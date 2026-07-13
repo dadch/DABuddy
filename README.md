@@ -98,32 +98,33 @@ After running the seed script, you can login with these accounts:
 - `npm run dev`: Start development server with nodemon
 - `npm run seed`: Reset database and populate with sample data
 
-## Geplante Features
+## Mail-Konfiguration (.env)
 
-### Mail-Erinnerungen für Meilenstein-Termine (geplant)
+Die Applikation versendet Mail-Erinnerungen an Bewerter und Approver. SMTP wird
+ausschliesslich über `.env` konfiguriert:
 
-Automatischer Versand von Erinnerungsmails an die für einen Meilenstein
-verantwortliche Rolle (und ggf. Bewerter/Approver), wenn ein Termin näher
-rückt oder verstrichen ist. Geplante Eckpunkte:
+```env
+MAIL_HOST=smtp.office365.com
+MAIL_PORT=587
+MAIL_SECURE=false               # true nur bei SSL/465
+MAIL_USER=noreply@…
+MAIL_PASS=…
+MAIL_FROM=ThesisBuddy <noreply@…>
 
-- **Zeitplan-Eskalation**: zu Beginn grosszügige Abstände (z. B. 30 / 14 Tage
-  vor Termin), näher am Termin häufiger (7 / 3 / 1 Tag); nach Verstreichen
-  des Termins täglich bis zur Erledigung.
-- **Zielgruppen pro Meilenstein**: verantwortliche Rolle (Upload), Bewerter
-  (falls `requires_evaluation`), Approver (falls `requires_approval`).
-- **Pausenkriterium**: keine Mail, wenn die jeweilige Aktion bereits
-  erfolgt ist (Dokument hochgeladen / Bewertung erfasst / Freigabe erteilt).
-- **Sprache**: Mails werden in der Profil-Sprache der Empfangenden gesendet
-  (Mehrsprachigkeit ist bereits eingerichtet, siehe `locales/`).
-- **Infrastruktur**: Cron-/Job-basierter Versand (Node-Scheduler oder
-  systemd-Timer im Betrieb). Auditierung über `thesis_logs`.
-- **Konfiguration**: SMTP-Endpoint und Absender via `.env`. Pro Benutzer
-  optional Opt-out (User-Profil) — erweitert das Profil-Modell sobald
-  implementiert.
+# Optional: alle Mails auf eine Adresse umleiten (Produktions-Testing).
+# Der eigentliche Empfänger erscheint im Betreff als "[→ user@…]".
+MAIL_OVERRIDE_TO=
 
-Status: **noch nicht implementiert** — diese Notiz dient als Anker für
-die spätere Umsetzung. Die i18n-Strings und das User-Sprachfeld sind
-bereits da; nur Mail-Versand-Layer + Scheduler fehlen.
+# Optional: Cron-Ausdruck für den Reminder-Job (Default: täglich 07:00).
+MAIL_CRON=0 7 * * *
+
+# Optional: Basis-URL für Login-Links in den Mails (Default: http://localhost:3000).
+APP_URL=https://thesisbuddy.hftm.ch
+```
+
+Test-UI: Admin-Dashboard → Kebab-Menü → „Mail-Einstellungen". Dort können die
+SMTP-Verbindung geprüft, eine Testmail an eine beliebige Adresse gesendet und
+der Reminder-Job manuell angestossen werden.
 
 ## Done since initial README
 
@@ -131,6 +132,8 @@ bereits da; nur Mail-Versand-Layer + Scheduler fehlen.
 - Document upload and management (Meilensteine + Vorlagen)
 - Progress tracking with milestones (incl. FBL-Übersichtstabelle)
 - Bilingual GUI (DE/FR), erweiterbar über `locales/<lang>/translation.json`
+- Mail-Erinnerungen für Bewerter/Approver mit Cron-Scheduler, Per-Kind-Fälligkeiten,
+  Prod-Override und Admin-Test-UI.
 
 ## Contributing
 

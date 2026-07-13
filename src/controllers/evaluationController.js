@@ -1171,6 +1171,8 @@ const exportThesesListCsv = async (req, res) => {
 };
 
 module.exports = {
+  loadFullEvaluation,   // exponiert für den Archivierungs-Job
+  loadFeedbackContext,  // exponiert für den Archivierungs-Job
   listForms, getForm, createForm, updateForm, deleteForm,
   createGroup, updateGroup, deleteGroup,
   createCriterion, updateCriterion, deleteCriterion, reorderCriteria,

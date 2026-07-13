@@ -121,6 +121,13 @@ async function startServer() {
     app.listen(PORT, () => {
       console.log(`ThesisBuddy server running on http://localhost:${PORT}`);
     });
+
+    // Reminder-Scheduler starten (Cron, standardmässig täglich 07:00).
+    try {
+      require('./src/jobs/reminderJob').start();
+    } catch (e) {
+      console.warn('[reminderJob] konnte nicht gestartet werden:', e.message);
+    }
   } catch (error) {
     console.error('Unable to start server:', error);
     process.exit(1);
