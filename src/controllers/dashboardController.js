@@ -460,6 +460,23 @@ const showDocumentTemplates = async (req, res) => {
   }
 };
 
+const showMailSettings = async (req, res) => {
+  try {
+    if (req.session.userRole !== 'admin') {
+      req.flash('error', 'Zugriff verweigert. Nur Administratoren.');
+      return res.redirect('/dashboard');
+    }
+    res.render('admin/mail-settings', {
+      user: { fullName: req.session.fullName, role: req.session.userRole },
+      messages: req.flash(),
+    });
+  } catch (e) {
+    console.error('showMailSettings error:', e);
+    req.flash('error', 'Seite konnte nicht geladen werden.');
+    res.redirect('/dashboard');
+  }
+};
+
 const showUploadCategoriesManagement = async (req, res) => {
   try {
     if (req.session.userRole !== 'admin') {
@@ -536,6 +553,7 @@ module.exports = {
   showDocumentTemplates,
   showProfile,
   updateProfile,
+  showMailSettings,
   showYearsManagement,
   showUploadCategoriesManagement,
   showMilestonesManagement,

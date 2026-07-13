@@ -11,16 +11,20 @@
             <form id="bulkDownloadForm">
                 <div class="modal-body">
                     <p class="text-muted small mb-3">
-                        Lädt alle aktuellen Dokumente der gewählten Upload-Kategorie aus den
-                        Diplomarbeiten, die unten in der Liste angezeigt werden, als ZIP herunter.
-                        Pro Fachbereich entsteht ein Unterordner. Dateinamen-Schema:
-                        <code>Nachname_Vorname_Kategorie_<%= new Date().toLocaleDateString('de-CH').replace(/\./g,'').padStart(8,'0').slice(-8) %>.pdf</code>.
+                        Lädt alle aktuellen Dokumente der gewählten Upload-Kategorie
+                        (oder alle Feedbackformulare) aus den Diplomarbeiten, die unten
+                        in der Liste angezeigt werden, als ZIP herunter. Pro Fachbereich
+                        entsteht ein Unterordner.
                     </p>
                     <div class="mb-3">
-                        <label class="form-label">Upload-Kategorie</label>
+                        <label class="form-label">Dokumentart</label>
                         <select class="form-select" id="bulkDownloadCategory" required>
                             <option value="">Wird geladen…</option>
                         </select>
+                        <div class="form-text">
+                            „Feedbackformular" ist kein Upload, sondern das aus der finalen
+                            Bewertung erzeugte PDF.
+                        </div>
                     </div>
                     <div id="bulkDownloadError" class="alert alert-danger mb-0 d-none"></div>
                 </div>
@@ -36,18 +40,27 @@
 (function() {
     const SELECTED_DEPARTMENT = <%- JSON.stringify(typeof selectedDepartment !== 'undefined' && selectedDepartment ? String(selectedDepartment) : '') %>;
     let categoriesLoaded = false;
+    // Feedbackformular ist keine echte Upload-Kategorie, wird aber im gleichen
+    // Auswahl-Dropdown angeboten — mit reserviertem Wert 'feedback'.
+    const FEEDBACK_VALUE = 'feedback';
     function loadCategoriesOnce() {
         if (categoriesLoaded) return Promise.resolve();
         return fetch('/api/upload-categories?onlyActive=1')
             .then(r => r.json())
             .then(cats => {
                 const sel = document.getElementById('bulkDownloadCategory');
-                if (!Array.isArray(cats) || cats.length === 0) {
-                    sel.innerHTML = '<option value="">Keine aktiven Kategorien vorhanden</option>';
-                } else {
-                    sel.innerHTML = '<option value="">Bitte auswählen…</option>' +
-                        cats.map(c => `<option value="${c.id}">${c.label.replace(/[<>&"']/g, '')}</option>`).join('');
+                const options = ['<option value="">Bitte auswählen…</option>'];
+                if (Array.isArray(cats) && cats.length > 0) {
+                    options.push('<optgroup label="Upload-Kategorien">');
+                    for (const c of cats) {
+                        options.push(`<option value="${c.id}">${c.label.replace(/[<>&"']/g, '')}</option>`);
+                    }
+                    options.push('</optgroup>');
                 }
+                options.push('<optgroup label="Sonstige">');
+                options.push(`<option value="${FEEDBACK_VALUE}">Feedbackformular (PDF)</option>`);
+                options.push('</optgroup>');
+                sel.innerHTML = options.join('');
                 categoriesLoaded = true;
             });
     }
@@ -66,7 +79,10 @@
         if (!cid) return;
         const params = new URLSearchParams();
         if (SELECTED_DEPARTMENT) params.set('department', SELECTED_DEPARTMENT);
-        const url = `/api/upload-categories/${cid}/bulk-download.zip` + (params.toString() ? '?' + params.toString() : '');
+        const qs = params.toString() ? '?' + params.toString() : '';
+        const url = cid === FEEDBACK_VALUE
+            ? `/api/feedback-forms/bulk-download.zip${qs}`
+            : `/api/upload-categories/${cid}/bulk-download.zip${qs}`;
         // Über verstecktes iframe streamen, damit die aktuelle Seite stehen bleibt.
         let frame = document.getElementById('bulkDownloadFrame');
         if (!frame) {

@@ -1,0 +1,204 @@
+<%- include('../partials/header', { title: 'Mail-Einstellungen - ThesisBuddy', user: user }) %>
+
+<div class="page-breadcrumb mb-2">
+    <a href="/dashboard">Dashboard</a>
+    <span class="sep"></span>
+    <span>Mail-Einstellungen</span>
+</div>
+<div class="page-header">
+    <div>
+        <h1 class="page-title">Mail-Einstellungen</h1>
+        <div class="page-subtitle">SMTP-Verbindung prüfen und Testmail senden</div>
+    </div>
+</div>
+
+<div class="card mb-4">
+    <div class="card-header">
+        <strong><i class="bi bi-server"></i> SMTP-Konfiguration (.env)</strong>
+    </div>
+    <div class="card-body">
+        <p class="text-muted small mb-3">
+            Die SMTP-Server-Daten werden ausschliesslich über <code>.env</code> konfiguriert (siehe README).
+            Änderungen erfordern einen Server-Neustart.
+        </p>
+        <div id="mailConfig" class="mb-3">
+            <div class="text-muted"><i class="bi bi-hourglass-split"></i> Lade Konfiguration…</div>
+        </div>
+        <button class="btn btn-outline-primary" onclick="testConnection()">
+            <i class="bi bi-plug"></i> Verbindung testen
+        </button>
+        <div id="connectionResult" class="mt-3"></div>
+    </div>
+</div>
+
+<div class="card mb-4">
+    <div class="card-header">
+        <strong><i class="bi bi-clock-history"></i> Reminder-Job manuell ausführen</strong>
+    </div>
+    <div class="card-body">
+        <p class="text-muted small mb-2">
+            Der Job läuft automatisch täglich um 07:00 (konfigurierbar via <code>MAIL_CRON</code> in <code>.env</code>).
+            Zum Testen kannst du ihn hier sofort auslösen.
+        </p>
+        <button class="btn btn-outline-primary" onclick="runReminders()">
+            <i class="bi bi-play-circle"></i> Jetzt ausführen
+        </button>
+        <div id="reminderResult" class="mt-3"></div>
+
+        <hr class="my-4">
+
+        <h6 class="mb-2"><i class="bi bi-calendar-event"></i> Tagesdatum überschreiben (Test)</h6>
+        <p class="text-muted small mb-2">
+            Übersteuert das Systemdatum ausschliesslich für den Reminder-Job.
+            Leer lassen → Systemdatum wird verwendet.
+        </p>
+        <div class="d-flex gap-2 align-items-end flex-wrap" style="max-width: 640px;">
+            <div>
+                <label class="form-label small">Simuliertes Datum</label>
+                <input type="date" class="form-control" id="simulatedToday">
+            </div>
+            <button type="button" class="btn btn-outline-primary" onclick="saveSimulatedToday()">
+                <i class="bi bi-check-lg"></i> Speichern
+            </button>
+            <button type="button" class="btn btn-outline-secondary" onclick="clearSimulatedToday()">
+                <i class="bi bi-x-lg"></i> Zurücksetzen
+            </button>
+        </div>
+        <div id="simulatedTodayStatus" class="mt-2 small"></div>
+    </div>
+</div>
+
+<div class="card">
+    <div class="card-header">
+        <strong><i class="bi bi-envelope"></i> Testmail senden</strong>
+    </div>
+    <div class="card-body">
+        <form id="testMailForm">
+            <div class="mb-3" style="max-width: 420px;">
+                <label class="form-label">Empfänger-E-Mail</label>
+                <input type="email" class="form-control" id="testTo" placeholder="empfaenger@example.com" required>
+                <div class="form-text">
+                    Falls in <code>.env</code> <code>MAIL_OVERRIDE_TO</code> gesetzt ist, geht die Mail dorthin — die eingegebene Adresse erscheint im Betreff.
+                </div>
+            </div>
+            <button type="submit" class="btn btn-primary">
+                <i class="bi bi-send"></i> Testmail senden
+            </button>
+        </form>
+        <div id="sendResult" class="mt-3"></div>
+    </div>
+</div>
+
+<script>
+function renderConfig(cfg) {
+    const rows = [
+        ['Host', cfg.host || '<span class="text-danger">nicht gesetzt</span>'],
+        ['Port', cfg.port || '<span class="text-danger">nicht gesetzt</span>'],
+        ['Secure (SSL)', cfg.secure ? 'ja' : 'nein'],
+        ['Absender (from)', cfg.from || '<span class="text-danger">nicht gesetzt</span>'],
+        ['Prod-Override', cfg.override ? `<span class="badge bg-warning text-dark">${cfg.override}</span> — alle Mails werden umgeleitet` : '<span class="text-muted">nicht aktiv</span>'],
+    ];
+    return `<dl class="row mb-0">${rows.map(([k, v]) => `
+        <dt class="col-sm-3 small text-muted">${k}</dt>
+        <dd class="col-sm-9 small">${v}</dd>
+    `).join('')}</dl>`;
+}
+
+async function testConnection() {
+    const target = document.getElementById('connectionResult');
+    const cfgTarget = document.getElementById('mailConfig');
+    target.innerHTML = '<div class="text-muted"><i class="bi bi-hourglass-split"></i> Prüfe Verbindung…</div>';
+    try {
+        const r = await fetch('/api/admin/mail/test-connection');
+        const d = await r.json();
+        if (d.config) cfgTarget.innerHTML = renderConfig(d.config);
+        if (d.success) {
+            target.innerHTML = `<div class="alert alert-success"><i class="bi bi-check-circle"></i> ${d.message}</div>`;
+        } else {
+            target.innerHTML = `<div class="alert alert-danger"><i class="bi bi-x-circle"></i> ${d.message}</div>`;
+        }
+    } catch (e) {
+        target.innerHTML = `<div class="alert alert-danger">${e.message}</div>`;
+    }
+}
+
+document.getElementById('testMailForm').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const target = document.getElementById('sendResult');
+    target.innerHTML = '<div class="text-muted"><i class="bi bi-hourglass-split"></i> Sende…</div>';
+    const to = document.getElementById('testTo').value.trim();
+    try {
+        const r = await fetch('/api/admin/mail/send-test', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ to }),
+        });
+        const d = await r.json();
+        if (d.success) {
+            target.innerHTML = `<div class="alert alert-success"><i class="bi bi-check-circle"></i> ${d.message} — tatsächlich zugestellt an <code>${d.effectiveTo}</code></div>`;
+        } else {
+            target.innerHTML = `<div class="alert alert-danger"><i class="bi bi-x-circle"></i> ${d.message}</div>`;
+        }
+    } catch (e) {
+        target.innerHTML = `<div class="alert alert-danger">${e.message}</div>`;
+    }
+});
+
+async function loadSimulatedToday() {
+    const target = document.getElementById('simulatedTodayStatus');
+    try {
+        const r = await fetch('/api/admin/mail/simulated-today');
+        const d = await r.json();
+        document.getElementById('simulatedToday').value = d.date || '';
+        target.innerHTML = d.date
+            ? `<span class="badge bg-warning text-dark"><i class="bi bi-calendar-check"></i> Override aktiv: ${d.date}</span>`
+            : '<span class="text-muted">Kein Override — Systemdatum wird verwendet.</span>';
+    } catch (e) {
+        target.innerHTML = `<span class="text-danger">${e.message}</span>`;
+    }
+}
+
+async function saveSimulatedToday() {
+    const target = document.getElementById('simulatedTodayStatus');
+    const date = document.getElementById('simulatedToday').value.trim();
+    try {
+        const r = await fetch('/api/admin/mail/simulated-today', {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ date }),
+        });
+        const d = await r.json();
+        if (d.success) loadSimulatedToday();
+        else target.innerHTML = `<span class="text-danger">${d.message}</span>`;
+    } catch (e) {
+        target.innerHTML = `<span class="text-danger">${e.message}</span>`;
+    }
+}
+
+async function clearSimulatedToday() {
+    document.getElementById('simulatedToday').value = '';
+    await saveSimulatedToday();
+}
+
+async function runReminders() {
+    const target = document.getElementById('reminderResult');
+    target.innerHTML = '<div class="text-muted"><i class="bi bi-hourglass-split"></i> Läuft…</div>';
+    try {
+        const r = await fetch('/api/admin/mail/run-reminders', { method: 'POST' });
+        const d = await r.json();
+        if (d.success) {
+            target.innerHTML = `<div class="alert alert-success"><i class="bi bi-check-circle"></i> Fertig: ${d.sent} Mail(s) versendet, ${d.skipped} übersprungen.</div>`;
+        } else {
+            target.innerHTML = `<div class="alert alert-danger">${d.message || 'Fehler'}</div>`;
+        }
+    } catch (e) {
+        target.innerHTML = `<div class="alert alert-danger">${e.message}</div>`;
+    }
+}
+
+// Initial Konfig laden (auch bei Fehler zeigt die Antwort das Config-Objekt)
+testConnection();
+loadSimulatedToday();
+</script>
+
+<%- include('../partials/footer') %>

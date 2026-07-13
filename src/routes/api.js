@@ -3,6 +3,7 @@ const { requireAuth, requireRole } = require('../middleware/auth');
 const evalCtrl = require('../controllers/evaluationController');
 const {
   bulkDownloadCategoryZip,
+  bulkDownloadFeedbackZip,
   getUploadCategories,
   createUploadCategory,
   updateUploadCategory,
@@ -63,6 +64,12 @@ const {
   deleteDocumentTemplate,
   lockThesis,
   unlockThesis,
+  archiveTheses,
+  testMailConnection,
+  sendTestMail,
+  runRemindersNow,
+  getSimulatedToday,
+  setSimulatedToday,
   getChatMessages,
   postChatMessage,
   downloadChatAttachment,
@@ -85,6 +92,13 @@ router.delete('/upload-categories/:id', requireRole(['admin']), deleteUploadCate
 router.get('/upload-categories/:id/bulk-download.zip',
   requireRole(['admin', 'department_lead']),
   bulkDownloadCategoryZip);
+
+// Bulk-Download aller Feedbackformulare (PDF) — analog zur Kategorien-Route,
+// aber ohne Kategorie-ID, weil das Feedbackformular kein hochgeladenes
+// Dokument ist.
+router.get('/feedback-forms/bulk-download.zip',
+  requireRole(['admin', 'department_lead']),
+  bulkDownloadFeedbackZip);
 
 // Year management (Diplomjahre, admin only) + Switcher (admin/department_lead)
 router.get('/years', requireRole(['admin']), getYears);
@@ -164,6 +178,16 @@ router.delete('/theses/:id/confidentiality-document', requireRole(['admin', 'dep
 // Sperrung einer Diplomarbeit (Admin + FachbereichsleiterIn).
 router.post('/theses/:id/lock', requireRole(['admin', 'department_lead']), lockThesis);
 router.post('/theses/:id/unlock', requireRole(['admin', 'department_lead']), unlockThesis);
+
+// Archivierung selektierter Diplomarbeiten (POST-Body: { thesisIds }).
+router.post('/theses/archive', requireRole(['admin', 'department_lead']), archiveTheses);
+
+// Mail-Test (Admin only)
+router.get('/admin/mail/test-connection', requireRole(['admin']), testMailConnection);
+router.post('/admin/mail/send-test', requireRole(['admin']), sendTestMail);
+router.post('/admin/mail/run-reminders', requireRole(['admin']), runRemindersNow);
+router.get('/admin/mail/simulated-today', requireRole(['admin']), getSimulatedToday);
+router.put('/admin/mail/simulated-today', requireRole(['admin']), setSimulatedToday);
 
 // Dokumentvorlagen (global). Liste/Download: alle angemeldeten Benutzer.
 // Upload/Delete: Admin + FachbereichsleiterIn.

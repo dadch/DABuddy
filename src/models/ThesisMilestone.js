@@ -177,6 +177,23 @@ const ThesisMilestone = sequelize.define('ThesisMilestone', {
     type: DataTypes.TEXT,
     allowNull: true,
   },
+  // Mail-Erinnerungen (Snapshot aus der Vorlage). Individuelle Overrides
+  // werden über die -_overridden-Flags geschützt.
+  reminder_start_at:                 { type: DataTypes.DATE,    allowNull: true },
+  reminder_period_days:              { type: DataTypes.INTEGER, allowNull: true, defaultValue: 7 },
+  reminder_start_at_overridden:      { type: DataTypes.BOOLEAN, allowNull: false, defaultValue: false },
+  reminder_period_days_overridden:   { type: DataTypes.BOOLEAN, allowNull: false, defaultValue: false },
+  // Per-Kind Fälligkeitsdaten (Snapshot; alle > due_at).
+  single_due_at:   { type: DataTypes.DATE, allowNull: true },
+  first_due_at:    { type: DataTypes.DATE, allowNull: true },
+  second_due_at:   { type: DataTypes.DATE, allowNull: true },
+  final_due_at:    { type: DataTypes.DATE, allowNull: true },
+  feedback_due_at: { type: DataTypes.DATE, allowNull: true },
+  single_due_at_overridden:   { type: DataTypes.BOOLEAN, allowNull: false, defaultValue: false },
+  first_due_at_overridden:    { type: DataTypes.BOOLEAN, allowNull: false, defaultValue: false },
+  second_due_at_overridden:   { type: DataTypes.BOOLEAN, allowNull: false, defaultValue: false },
+  final_due_at_overridden:    { type: DataTypes.BOOLEAN, allowNull: false, defaultValue: false },
+  feedback_due_at_overridden: { type: DataTypes.BOOLEAN, allowNull: false, defaultValue: false },
 }, {
   tableName: 'thesis_milestones',
   indexes: [

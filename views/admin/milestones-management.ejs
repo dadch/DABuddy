@@ -273,6 +273,45 @@ const ROLE_LABELS = { student: 'Student', coach: 'Dozent/in', expert: 'ExpertIn'
                         <div class="form-text">Mehrere wählbar (Strg/Cmd). Leer lassen = ein einzelner Upload-Slot ohne Kategorie (wie bisher).</div>
                     </div>
                     <hr>
+                    <h6 class="mb-2"><i class="bi bi-envelope-paper"></i> Mail-Erinnerungen</h6>
+                    <div class="row g-2 mb-2">
+                        <div class="col-md-6">
+                            <label class="form-label small">Beginn Erinnerungen ab</label>
+                            <input type="datetime-local" class="form-control" name="reminder_start_at" id="addReminderStartAt">
+                            <div class="form-text">Leer = keine Erinnerungen</div>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label small">Periodizität (Tage)</label>
+                            <input type="number" class="form-control" name="reminder_period_days" id="addReminderPeriodDays" min="1" step="1" value="7">
+                            <div class="form-text">Ab 3 Tagen vor Termin täglich (fix).</div>
+                        </div>
+                    </div>
+                    <div class="row g-2 mb-2">
+                        <div class="col-md-6">
+                            <label class="form-label small">Termin Bewertung (Einzel)</label>
+                            <input type="datetime-local" class="form-control" name="single_due_at" id="addSingleDueAt">
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label small">Termin Bewertung 1</label>
+                            <input type="datetime-local" class="form-control" name="first_due_at" id="addFirstDueAt">
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label small">Termin Bewertung 2</label>
+                            <input type="datetime-local" class="form-control" name="second_due_at" id="addSecondDueAt">
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label small">Termin finale Bewertung</label>
+                            <input type="datetime-local" class="form-control" name="final_due_at" id="addFinalDueAt">
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label small">Termin Feedbackformular</label>
+                            <input type="datetime-local" class="form-control" name="feedback_due_at" id="addFeedbackDueAt">
+                        </div>
+                    </div>
+                    <div class="form-text mb-3">
+                        Alle Bewertungs- und Feedbacktermine müssen nach dem Meilenstein-Termin liegen. Nicht relevante Felder können leer bleiben.
+                    </div>
+                    <hr>
                     <% if (thesesCount > 0) { %>
                     <div class="form-check">
                         <input type="checkbox" class="form-check-input" name="applyToExisting" id="addApplyToExisting" checked>
@@ -422,11 +461,56 @@ const ROLE_LABELS = { student: 'Student', coach: 'Dozent/in', expert: 'ExpertIn'
                         <div class="form-text">Snapshots existierender DAs werden beim „Anwenden auf existierende" nur ergänzt, nie reduziert.</div>
                     </div>
                     <hr>
+                    <h6 class="mb-2"><i class="bi bi-envelope-paper"></i> Mail-Erinnerungen</h6>
+                    <div class="row g-2 mb-2">
+                        <div class="col-md-6">
+                            <label class="form-label small">Beginn Erinnerungen ab</label>
+                            <input type="datetime-local" class="form-control" name="reminder_start_at" id="editReminderStartAt">
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label small">Periodizität (Tage)</label>
+                            <input type="number" class="form-control" name="reminder_period_days" id="editReminderPeriodDays" min="1" step="1">
+                            <div class="form-text">Ab 3 Tagen vor Termin täglich (fix).</div>
+                        </div>
+                    </div>
+                    <div class="row g-2 mb-2">
+                        <div class="col-md-6">
+                            <label class="form-label small">Termin Bewertung (Einzel)</label>
+                            <input type="datetime-local" class="form-control" name="single_due_at" id="editSingleDueAt">
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label small">Termin Bewertung 1</label>
+                            <input type="datetime-local" class="form-control" name="first_due_at" id="editFirstDueAt">
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label small">Termin Bewertung 2</label>
+                            <input type="datetime-local" class="form-control" name="second_due_at" id="editSecondDueAt">
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label small">Termin finale Bewertung</label>
+                            <input type="datetime-local" class="form-control" name="final_due_at" id="editFinalDueAt">
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label small">Termin Feedbackformular</label>
+                            <input type="datetime-local" class="form-control" name="feedback_due_at" id="editFeedbackDueAt">
+                        </div>
+                    </div>
+                    <div class="form-text mb-3">
+                        Alle Bewertungs- und Feedbacktermine müssen nach dem Meilenstein-Termin liegen.
+                    </div>
+                    <hr>
                     <% if (thesesCount > 0) { %>
                     <div class="form-check">
                         <input type="checkbox" class="form-check-input" name="applyToExisting" id="editApplyToExisting">
                         <label class="form-check-label" for="editApplyToExisting">
                             Änderung auf bereits existierende Diplomarbeiten anwenden (<%= thesesCount %>)
+                        </label>
+                    </div>
+                    <div class="form-check ms-4">
+                        <input type="checkbox" class="form-check-input" name="overrideAll" id="editOverrideAll">
+                        <label class="form-check-label" for="editOverrideAll">
+                            Auch individuell überschriebene Termine ersetzen
+                            <span class="text-muted small">(sonst bleiben Overrides erhalten)</span>
                         </label>
                     </div>
                     <% } %>
@@ -561,6 +645,25 @@ function editMilestone(m) {
     document.getElementById('editApproverRole2').value = m.approver_role_2 || '';
     document.getElementById('editIsTransferProject').checked = !!m.is_transfer_project;
     document.getElementById('editFeedbackFormEnabled').checked = !!m.feedback_form_enabled;
+    // Snapshot der Originalwerte für die Rückfrage-Logik beim Speichern.
+    window.__editOriginal = {
+        due_at:            toLocalInput(m.due_at),
+        reminder_start_at: toLocalInput(m.reminder_start_at),
+        single_due_at:     toLocalInput(m.single_due_at),
+        first_due_at:      toLocalInput(m.first_due_at),
+        second_due_at:     toLocalInput(m.second_due_at),
+        final_due_at:      toLocalInput(m.final_due_at),
+        feedback_due_at:   toLocalInput(m.feedback_due_at),
+    };
+    document.getElementById('editReminderStartAt').value    = toLocalInput(m.reminder_start_at);
+    document.getElementById('editReminderPeriodDays').value = m.reminder_period_days || '';
+    document.getElementById('editSingleDueAt').value        = toLocalInput(m.single_due_at);
+    document.getElementById('editFirstDueAt').value         = toLocalInput(m.first_due_at);
+    document.getElementById('editSecondDueAt').value        = toLocalInput(m.second_due_at);
+    document.getElementById('editFinalDueAt').value         = toLocalInput(m.final_due_at);
+    document.getElementById('editFeedbackDueAt').value      = toLocalInput(m.feedback_due_at);
+    const overrideAllEl = document.getElementById('editOverrideAll');
+    if (overrideAllEl) overrideAllEl.checked = false;
     const editCatSelect = document.getElementById('editUploadCategories');
     if (editCatSelect) {
         const assigned = new Set((m.uploadCategories || []).map(c => c.id));
@@ -622,8 +725,30 @@ document.getElementById('editMilestoneForm').addEventListener('submit', function
     e.preventDefault();
     const data = normalizeConfig(Object.fromEntries(new FormData(this)));
     data.applyToExisting = !!data.applyToExisting;
+    data.overrideAll = !!data.overrideAll;
     data.upload_categories = Array.from(document.getElementById('editUploadCategories').selectedOptions).map(o => o.value);
     const id = data.id; delete data.id;
+
+    // Rückfrage bei applyToExisting + Datum-Änderung: soll auch Overrides überschrieben werden?
+    // Nur einblenden, wenn overrideAll nicht bereits vom Nutzer angeklickt wurde.
+    const dateChanged = (
+        (data.due_at || '') !== (window.__editOriginal?.due_at || '') ||
+        (data.reminder_start_at || '') !== (window.__editOriginal?.reminder_start_at || '') ||
+        (data.single_due_at || '') !== (window.__editOriginal?.single_due_at || '') ||
+        (data.first_due_at || '') !== (window.__editOriginal?.first_due_at || '') ||
+        (data.second_due_at || '') !== (window.__editOriginal?.second_due_at || '') ||
+        (data.final_due_at || '') !== (window.__editOriginal?.final_due_at || '') ||
+        (data.feedback_due_at || '') !== (window.__editOriginal?.feedback_due_at || '')
+    );
+    if (data.applyToExisting && dateChanged && !data.overrideAll) {
+        const proceed = confirm(
+            'Es gibt möglicherweise Diplomarbeiten mit individuell überschriebenen Terminen.\n\n' +
+            '- „OK" behält die individuellen Überschreibungen bei (nur nicht-überschriebene Termine werden aktualisiert).\n' +
+            '- „Abbrechen" bricht das Speichern ab.\n\n' +
+            'Wenn du ALLE Overrides ersetzen möchtest, aktiviere „Auch individuell überschriebene Termine ersetzen".'
+        );
+        if (!proceed) return;
+    }
 
     fetch(`/api/milestones/${id}`, {
         method: 'PUT',
