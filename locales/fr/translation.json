@@ -181,5 +181,12 @@
     "admin": "Administrateur",
     "department_lead": "Direction de filière",
     "field_project_coach": "Enseignant·e projet de transfert"
+  },
+  "department": {
+    "studyMode": "Forme d'études",
+    "studyModeSelect": "Sélectionner la forme d'études…",
+    "fulltime": "À plein temps",
+    "parttime": "En cours d'emploi",
+    "studyModeHint": "Détermine quels jalons (selon «valable pour» des modèles de jalons) sont repris pour les travaux de diplôme de cette filière."
   }
 }

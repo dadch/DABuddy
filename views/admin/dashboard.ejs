@@ -524,6 +524,15 @@
                             <option value="">FachbereichsleiterIn auswählen</option>
                         </select>
                     </div>
+                    <div class="mb-3">
+                        <label for="departmentStudyMode" class="form-label"><%= t('department.studyMode') %></label>
+                        <select class="form-select" id="departmentStudyMode" name="study_mode" required>
+                            <option value="" disabled selected><%= t('department.studyModeSelect') %></option>
+                            <option value="fulltime"><%= t('department.fulltime') %></option>
+                            <option value="parttime"><%= t('department.parttime') %></option>
+                        </select>
+                        <div class="form-text"><%= t('department.studyModeHint') %></div>
+                    </div>
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Abbrechen</button>
@@ -555,6 +564,14 @@
                             <option value="">FachbereichsleiterIn auswählen</option>
                         </select>
                     </div>
+                    <div class="mb-3">
+                        <label for="editDepartmentStudyMode" class="form-label"><%= t('department.studyMode') %></label>
+                        <select class="form-select" id="editDepartmentStudyMode" name="study_mode" required>
+                            <option value="fulltime"><%= t('department.fulltime') %></option>
+                            <option value="parttime"><%= t('department.parttime') %></option>
+                        </select>
+                        <div class="form-text"><%= t('department.studyModeHint') %></div>
+                    </div>
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Abbrechen</button>
@@ -566,6 +583,11 @@
 </div>
 
 <script>
+const STUDY_MODE_LABELS = {
+    fulltime: '<%= t("department.fulltime") %>',
+    parttime: '<%= t("department.parttime") %>',
+};
+
 function openAddThesisModal() {
     document.getElementById('thesisDepartment').value = '';
     loadUserOptions();
@@ -875,6 +897,7 @@ function loadDepartments() {
                             <tr>
                                 <th>Name des Fachbereichs</th>
                                 <th>FachbereichsleiterIn</th>
+                                <th><%= t('department.studyMode') %></th>
                                 <th>Aktionen</th>
                             </tr>
                         </thead>
@@ -885,6 +908,7 @@ function loadDepartments() {
                                     <td>${dept.departmentLead ?
                                         `<span class="badge bg-info">${dept.departmentLead.name}, ${dept.departmentLead.firstname}</span>` :
                                         '<span class="text-muted">Keine LeiterIn zugewiesen</span>'}</td>
+                                    <td><span class="badge ${dept.study_mode === 'fulltime' ? 'bg-primary' : 'bg-secondary'}">${STUDY_MODE_LABELS[dept.study_mode] || dept.study_mode}</span></td>
                                     <td>
                                         <button class="btn btn-outline-primary btn-sm" onclick="editDepartment(${dept.id})">
                                             <i class="bi bi-pencil"></i>
@@ -967,6 +991,7 @@ function editDepartment(id) {
         document.getElementById('editDepartmentId').value = department.id;
         document.getElementById('editDepartmentName').value = department.name;
         document.getElementById('editDepartmentLead').value = department.department_lead_id || '';
+        document.getElementById('editDepartmentStudyMode').value = department.study_mode || 'parttime';
 
         new bootstrap.Modal(document.getElementById('editDepartmentModal')).show();
     })

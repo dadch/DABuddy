@@ -26,6 +26,15 @@ const Department = sequelize.define('Department', {
     onUpdate: 'CASCADE',
     onDelete: 'SET NULL',
   },
+  // Studienform des Fachbereichs: Vollzeit oder Berufsbegleitend.
+  // Steuert, welche Meilenstein-Vorlagen (applies_to) beim Anlegen einer
+  // Diplomarbeit dieses Fachbereichs übernommen werden.
+  study_mode: {
+    type: DataTypes.STRING(16),
+    allowNull: false,
+    defaultValue: 'parttime',
+    validate: { isIn: [['fulltime', 'parttime']] },
+  },
 }, {
   tableName: 'departments',
 });

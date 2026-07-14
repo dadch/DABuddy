@@ -181,5 +181,12 @@
     "admin": "Administrator",
     "department_lead": "FachbereichsleiterIn",
     "field_project_coach": "Dozent Transferprojekt"
+  },
+  "department": {
+    "studyMode": "Studienform",
+    "studyModeSelect": "Studienform auswählen…",
+    "fulltime": "Vollzeit",
+    "parttime": "Berufsbegleitend",
+    "studyModeHint": "Bestimmt, welche Meilensteine (gemäss «Gilt für» der Meilenstein-Vorlagen) für Diplomarbeiten dieses Fachbereichs übernommen werden."
   }
 }

@@ -98,6 +98,15 @@ const Milestone = sequelize.define('Milestone', {
     type: DataTypes.ENUM('student', 'coach', 'expert', 'admin', 'department_lead', 'field_project_coach'),
     allowNull: true,
   },
+  // Für welche Studienform der Meilenstein gilt. Beim Anlegen einer DA werden
+  // nur Vorlagen übernommen, deren applies_to zum study_mode des Fachbereichs
+  // passt ('all' passt immer).
+  applies_to: {
+    type: DataTypes.STRING(16),
+    allowNull: false,
+    defaultValue: 'all',
+    validate: { isIn: [['all', 'fulltime', 'parttime']] },
+  },
   // Transferprojekt-Kennzeichnung (rein deklarativ, ohne weiteres Verhalten).
   is_transfer_project: {
     type: DataTypes.BOOLEAN,

@@ -256,9 +256,14 @@ const createThesis = async (req, res) => {
       if (fpcUser) await thesis.setFieldProjectCoaches([fpcUser]);
     }
 
-    // Snapshot milestones for the thesis (earliest milestone is released by default)
+    // Snapshot milestones for the thesis (earliest milestone is released by default).
+    // Nur Vorlagen, die zur Studienform des Fachbereichs passen ('all' passt immer).
+    const thesisDept = await Department.findByPk(department_id, { attributes: ['id', 'study_mode'] });
     const templates = await Milestone.findAll({
-      where: { year_id: selectedYearId },
+      where: {
+        year_id: selectedYearId,
+        applies_to: { [Op.in]: ['all', thesisDept ? thesisDept.study_mode : 'parttime'] },
+      },
       include: [{ model: UploadCategory, as: 'uploadCategories', through: { attributes: [] } }],
       order: [['due_at', 'ASC'], ['id', 'ASC']],
     });
@@ -628,18 +633,24 @@ const getDepartments = async (req, res) => {
   }
 };
 
+const STUDY_MODES = ['fulltime', 'parttime'];
+
 const createDepartment = async (req, res) => {
   try {
-    const { name, department_lead_id } = req.body;
+    const { name, department_lead_id, study_mode } = req.body;
     const existing = await Department.findOne({ where: { name } });
     if (existing) return res.status(400).json({ success: false, message: 'Name des Fachbereichs existiert bereits' });
+
+    if (!STUDY_MODES.includes(study_mode)) {
+      return res.status(400).json({ success: false, message: 'Ungültige Studienform' });
+    }
 
     if (department_lead_id) {
       const lead = await User.findOne({ where: { id: department_lead_id, role: 'department_lead' } });
       if (!lead) return res.status(400).json({ success: false, message: 'Der ausgewählte Benutzer ist keine FachbereichsleiterIn' });
     }
 
-    const department = await Department.create({ name, department_lead_id: department_lead_id || null });
+    const department = await Department.create({ name, department_lead_id: department_lead_id || null, study_mode });
     const result = await Department.findByPk(department.id, {
       include: [{ model: User, as: 'departmentLead', attributes: ['id', 'username', 'name', 'firstname', 'email'] }]
     });
@@ -653,7 +664,7 @@ const createDepartment = async (req, res) => {
 const updateDepartment = async (req, res) => {
   try {
     const { id } = req.params;
-    const { name, department_lead_id } = req.body;
+    const { name, department_lead_id, study_mode } = req.body;
     const department = await Department.findByPk(id);
     if (!department) return res.status(404).json({ success: false, message: 'Fachbereich nicht gefunden' });
 
@@ -662,12 +673,20 @@ const updateDepartment = async (req, res) => {
       if (existing) return res.status(400).json({ success: false, message: 'Name des Fachbereichs existiert bereits' });
     }
 
+    if (study_mode !== undefined && !STUDY_MODES.includes(study_mode)) {
+      return res.status(400).json({ success: false, message: 'Ungültige Studienform' });
+    }
+
     if (department_lead_id) {
       const lead = await User.findOne({ where: { id: department_lead_id, role: 'department_lead' } });
       if (!lead) return res.status(400).json({ success: false, message: 'Der ausgewählte Benutzer ist keine FachbereichsleiterIn' });
     }
 
-    await department.update({ name, department_lead_id: department_lead_id || null });
+    await department.update({
+      name,
+      department_lead_id: department_lead_id || null,
+      ...(study_mode !== undefined ? { study_mode } : {}),
+    });
     const updated = await Department.findByPk(id, {
       include: [{ model: User, as: 'departmentLead', attributes: ['id', 'username', 'name', 'firstname', 'email'] }]
     });
@@ -1191,6 +1210,7 @@ const parseMilestoneConfig = (body) => {
   const approver_role_2 = requires_approval_2 ? (body.approver_role_2 || null) : null;
   const is_transfer_project = body.is_transfer_project === undefined ? false : !!body.is_transfer_project;
   const feedback_form_enabled = body.feedback_form_enabled === undefined ? false : !!body.feedback_form_enabled;
+  const applies_to = ['all', 'fulltime', 'parttime'].includes(body.applies_to) ? body.applies_to : 'all';
 
   // Mail-Erinnerungs- und Per-Kind-Fälligkeits-Felder (alle optional).
   const nullDate = (v) => (typeof v === 'string' && v.trim() ? new Date(v) : null);
@@ -1206,7 +1226,7 @@ const parseMilestoneConfig = (body) => {
   return {
     allow_upload, allow_update, requires_evaluation, evaluator_role, double_evaluation, evaluator_role_2,
     evaluation_form_id, requires_approval, approver_role, requires_approval_2, approver_role_2,
-    is_transfer_project, feedback_form_enabled,
+    is_transfer_project, feedback_form_enabled, applies_to,
     reminder_start_at, reminder_period_days,
     single_due_at, first_due_at, second_due_at, final_due_at, feedback_due_at,
   };
@@ -1295,7 +1315,12 @@ const createMilestone = async (req, res) => {
     if (catIds.length > 0) await milestone.setUploadCategories(catIds);
 
     if (applyToExisting) {
-      const theses = await Thesis.findAll({ where: { year_id: yearId }, attributes: ['id'] });
+      // Nur DAs in Fachbereichen, deren Studienform zum Meilenstein passt.
+      const thesisWhere = { year_id: yearId };
+      const deptInclude = milestone.applies_to === 'all'
+        ? []
+        : [{ model: Department, as: 'department', attributes: [], where: { study_mode: milestone.applies_to }, required: true }];
+      const theses = await Thesis.findAll({ where: thesisWhere, include: deptInclude, attributes: ['id'] });
       if (theses.length > 0) {
         const tms = await ThesisMilestone.bulkCreate(
           theses.map(t => createThesisMilestoneFromTemplate(t.id, milestone)),

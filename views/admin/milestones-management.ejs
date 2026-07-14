@@ -107,6 +107,11 @@ const ROLE_LABELS = { student: 'Student', coach: 'Dozent/in', expert: 'ExpertIn'
                                             <i class="bi bi-unlock"></i> Freigabe 2: <%= ROLE_LABELS[m.approver_role_2] || m.approver_role_2 %>
                                         </span>
                                     <% } %>
+                                    <% if (m.applies_to && m.applies_to !== 'all') { %>
+                                        <span class="badge bg-primary" title="Gilt nur für <%= m.applies_to === 'fulltime' ? 'Vollzeitstudien' : 'Berufsbegleitende Studien' %>">
+                                            <i class="bi <%= m.applies_to === 'fulltime' ? 'bi-book' : 'bi-briefcase' %>"></i> <%= m.applies_to === 'fulltime' ? 'Vollzeit' : 'Berufsbegleitend' %>
+                                        </span>
+                                    <% } %>
                                     <% if (m.is_transfer_project) { %>
                                         <span class="badge bg-info" title="Transferprojekt">
                                             <i class="bi bi-arrow-left-right"></i> Transferprojekt
@@ -127,6 +132,9 @@ const ROLE_LABELS = { student: 'Student', coach: 'Dozent/in', expert: 'ExpertIn'
                                     <div class="btn-group">
                                         <button class="btn btn-outline-primary btn-sm" onclick='editMilestone(<%- JSON.stringify(m) %>)'>
                                             <i class="bi bi-pencil"></i>
+                                        </button>
+                                        <button class="btn btn-outline-secondary btn-sm" onclick='copyMilestone(<%- JSON.stringify(m) %>)' title="Meilenstein kopieren">
+                                            <i class="bi bi-files"></i>
                                         </button>
                                         <button class="btn btn-outline-danger btn-sm" onclick="deleteMilestone(<%= m.id %>, '<%= m.label.replace(/'/g, "\\'") %>')">
                                             <i class="bi bi-trash"></i>
@@ -175,6 +183,15 @@ const ROLE_LABELS = { student: 'Student', coach: 'Dozent/in', expert: 'ExpertIn'
                             <option value="field_project_coach">Dozent Transferprojekt</option>
                             <option value="admin">Administrator</option>
                         </select>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Gilt für (Studienform)</label>
+                        <select class="form-select" name="applies_to" id="addAppliesTo">
+                            <option value="all" selected>Vollzeit &amp; Berufsbegleitend</option>
+                            <option value="fulltime">Nur Vollzeit</option>
+                            <option value="parttime">Nur Berufsbegleitend</option>
+                        </select>
+                        <div class="form-text">Beim Anlegen einer Diplomarbeit werden nur Meilensteine übernommen, die zur Studienform ihres Fachbereichs passen.</div>
                     </div>
                     <hr>
                     <div class="form-check mb-2">
@@ -363,6 +380,15 @@ const ROLE_LABELS = { student: 'Student', coach: 'Dozent/in', expert: 'ExpertIn'
                             <option value="field_project_coach">Dozent Transferprojekt</option>
                             <option value="admin">Administrator</option>
                         </select>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Gilt für (Studienform)</label>
+                        <select class="form-select" name="applies_to" id="editAppliesTo">
+                            <option value="all">Vollzeit &amp; Berufsbegleitend</option>
+                            <option value="fulltime">Nur Vollzeit</option>
+                            <option value="parttime">Nur Berufsbegleitend</option>
+                        </select>
+                        <div class="form-text">Eine Änderung wirkt nur auf künftig angelegte Diplomarbeiten — bestehende Meilenstein-Snapshots bleiben unverändert.</div>
                     </div>
                     <hr>
                     <div class="form-check mb-2">
@@ -572,6 +598,7 @@ function roleLabel(role) {
 }
 
 function toLocalInput(iso) {
+    if (!iso) return '';
     const d = new Date(iso);
     const pad = n => String(n).padStart(2, '0');
     return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
@@ -620,6 +647,49 @@ function toggleApprover2(prefix) {
 function openAddMilestoneModal() {
     document.getElementById('addMilestoneForm').reset();
     document.getElementById('addAllowUpload').checked = true;
+    document.querySelector('#addMilestoneModal .modal-title').textContent = 'Meilenstein hinzufügen';
+    toggleEvalRole('add');
+    toggleApprover('add');
+    toggleApprover2('add');
+    new bootstrap.Modal(document.getElementById('addMilestoneModal')).show();
+}
+
+// Öffnet das Hinzufügen-Modal, vorbefüllt mit allen Werten der Vorlage —
+// die Kopie durchläuft die normale Anlage-Validierung.
+function copyMilestone(m) {
+    const form = document.getElementById('addMilestoneForm');
+    form.reset();
+    document.querySelector('#addMilestoneModal .modal-title').textContent = 'Meilenstein kopieren';
+    form.querySelector('[name="label"]').value = m.label + ' (Kopie)';
+    form.querySelector('[name="label_fr"]').value = m.label_fr ? m.label_fr + ' (copie)' : '';
+    form.querySelector('[name="due_at"]').value = toLocalInput(m.due_at);
+    form.querySelector('[name="responsible_role"]').value = m.responsible_role;
+    document.getElementById('addAppliesTo').value = m.applies_to || 'all';
+    document.getElementById('addAllowUpload').checked = !!m.allow_upload;
+    document.getElementById('addAllowUpdate').checked = !!m.allow_update;
+    document.getElementById('addRequiresEval').checked = !!m.requires_evaluation;
+    document.getElementById('addEvalRole').value = m.evaluator_role || '';
+    document.getElementById('addEvalForm').value = m.evaluation_form_id || '';
+    document.getElementById('addDoubleEval').checked = !!m.double_evaluation;
+    document.getElementById('addEvalRole2').value = m.evaluator_role_2 || '';
+    document.getElementById('addRequiresApproval').checked = !!m.requires_approval;
+    document.getElementById('addApproverRole').value = m.approver_role || '';
+    document.getElementById('addRequiresApproval2').checked = !!m.requires_approval_2;
+    document.getElementById('addApproverRole2').value = m.approver_role_2 || '';
+    document.getElementById('addIsTransferProject').checked = !!m.is_transfer_project;
+    document.getElementById('addFeedbackFormEnabled').checked = !!m.feedback_form_enabled;
+    document.getElementById('addReminderStartAt').value    = toLocalInput(m.reminder_start_at);
+    document.getElementById('addReminderPeriodDays').value = m.reminder_period_days || 7;
+    document.getElementById('addSingleDueAt').value        = toLocalInput(m.single_due_at);
+    document.getElementById('addFirstDueAt').value         = toLocalInput(m.first_due_at);
+    document.getElementById('addSecondDueAt').value        = toLocalInput(m.second_due_at);
+    document.getElementById('addFinalDueAt').value         = toLocalInput(m.final_due_at);
+    document.getElementById('addFeedbackDueAt').value      = toLocalInput(m.feedback_due_at);
+    const addCatSelect = document.getElementById('addUploadCategories');
+    if (addCatSelect) {
+        const assigned = new Set((m.uploadCategories || []).map(c => c.id));
+        Array.from(addCatSelect.options).forEach(opt => { opt.selected = assigned.has(parseInt(opt.value, 10)); });
+    }
     toggleEvalRole('add');
     toggleApprover('add');
     toggleApprover2('add');
@@ -632,6 +702,7 @@ function editMilestone(m) {
     document.getElementById('editMilestoneLabelFr').value = m.label_fr || '';
     document.getElementById('editMilestoneDueAt').value = toLocalInput(m.due_at);
     document.getElementById('editMilestoneRole').value = m.responsible_role;
+    document.getElementById('editAppliesTo').value = m.applies_to || 'all';
     document.getElementById('editAllowUpload').checked = !!m.allow_upload;
     document.getElementById('editAllowUpdate').checked = !!m.allow_update;
     document.getElementById('editRequiresEval').checked = !!m.requires_evaluation;
