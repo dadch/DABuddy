@@ -98,6 +98,29 @@ After running the seed script, you can login with these accounts:
 - `npm run dev`: Start development server with nodemon
 - `npm run seed`: Reset database and populate with sample data
 
+## Lebenszyklus einer Diplomarbeit
+
+Die Applikation begleitet eine Diplomarbeit vom ersten Eintrag (ein Studierender
+meldet an, dass er eine DA schreiben will) bis zur Schlussbewertung. Zu Beginn
+ist noch nicht einmal das Thema klar, geschweige denn das Bewerter-Team.
+
+Prozess-Ablauf:
+
+1. **Erst-Erfassung**: Beim Anlegen der DA wird ein Platzhalter als Titel erfasst.
+2. **Projektskizze (Abschluss erster Meilenstein)**: Aus der Skizze entsteht der
+   eigentliche Titel; dieser wird über „Titel bearbeiten" (Dashboard Dozent
+   Transferprojekt) oder das Admin-/FBL-Edit-Modal aktualisiert.
+3. **Nach dem ersten Meilenstein** wird das Bewerter-Team festgelegt (Dozent/in,
+   Expert/in, ggf. Dozent Transferprojekt).
+4. **Nach dem dritten Meilenstein (Pflichtenheft, Ende Transferprojekt)** ist
+   das Transferprojekt fertig bewertet. Der Dozent erstellt anschliessend eine
+   „Aufgabenstellung" mit den administrativ-formalen Vorgaben und startet die
+   eigentliche Diplomarbeit.
+5. **Sobald alle Transferprojekt-Meilensteine vollständig bewertet** sind,
+   informiert der Reminder-Job das Sekretariat pro Fachbereich mit einer
+   Mail + CSV-Anhang (siehe `secretariat_email` in den Mail-Einstellungen).
+   Gesperrte DAs werden dabei nicht berücksichtigt.
+
 ## Mail-Konfiguration (.env)
 
 Die Applikation versendet Mail-Erinnerungen an Bewerter und Approver. SMTP wird

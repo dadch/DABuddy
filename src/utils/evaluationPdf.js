@@ -746,15 +746,19 @@ function streamThesesListPdf(res, data) {
   }
   doc.fillColor('black');
 
-  // Spaltendefinition (Querformat A4: CONTENT_W = 786)
+  // Spaltendefinition (Querformat A4: CONTENT_W = 786).
+  // „Sprache" wurde als eigene Spalte ergänzt; „Repetent" wandert als
+  // Klammerbemerkung an den Vornamen. Damit müssen die anderen Spalten
+  // etwas schmaler werden — Summe muss weiterhin CONTENT_W ergeben.
   const cols = [
-    { title: 'Nachname',                key: 'lastName',   w: 90 },
-    { title: 'Vorname',                 key: 'firstName',  w: 80 },
-    { title: 'Titel der Diplomarbeit',  key: 'title',      w: 220 },
-    { title: 'Fachbereich',             key: 'department', w: 90 },
-    { title: 'Dozent/in',               key: 'coach',      w: 100 },
-    { title: 'Expert/in',               key: 'expert',     w: 100 },
-    { title: 'Auftraggeber',            key: 'sponsor',    w: 106 },
+    { title: 'Nachname',                key: 'lastName',   w: 80 },
+    { title: 'Vorname',                 key: 'firstName',  w: 105 },
+    { title: 'Titel der Diplomarbeit',  key: 'title',      w: 195 },
+    { title: 'Sprache',                 key: 'language',   w: 55 },
+    { title: 'Fachbereich',             key: 'department', w: 85 },
+    { title: 'Dozent/in',               key: 'coach',      w: 90 },
+    { title: 'Expert/in',               key: 'expert',     w: 90 },
+    { title: 'Auftraggeber',            key: 'sponsor',    w: 86 },
   ];
   const totalW = cols.reduce((s, c) => s + c.w, 0);
   if (totalW > CONTENT_W) cols[2].w -= (totalW - CONTENT_W);
@@ -806,15 +810,18 @@ function streamThesesListPdf(res, data) {
     const expertNames = (t.experts || []).map(e => `${e.name || ''}, ${e.firstname || ''}`.replace(/^, |, $/g, '')).join('; ');
     const sponsor = t.sponsor || '';
     const deptName = (t.department && t.department.name) || '';
+    const language = t.language === 'fr' ? 'Französisch' : 'Deutsch';
     const students = (t.students || []);
+    const repetSuffix = t.is_repetent ? ' (Repetent)' : '';
     if (students.length === 0) {
-      rows.push({ lastName: '', firstName: '', title: t.title || '', department: deptName, coach: coachNames, expert: expertNames, sponsor });
+      rows.push({ lastName: '', firstName: '' + repetSuffix, title: t.title || '', language, department: deptName, coach: coachNames, expert: expertNames, sponsor });
     } else {
       for (const s of students) {
         rows.push({
           lastName: s.name || '',
-          firstName: s.firstname || '',
+          firstName: (s.firstname || '') + repetSuffix,
           title: t.title || '',
+          language,
           department: deptName,
           coach: coachNames,
           expert: expertNames,
@@ -824,9 +831,11 @@ function streamThesesListPdf(res, data) {
     }
   }
 
-  // Stabile Sortierung nach Nachname, Vorname (Schweiz-Locale).
+  // Stabile Sortierung nach Nachname, Vorname (Schweiz-Locale) — ohne den
+  // „(Repetent)"-Suffix, damit Repetenten nicht ans Ende gruppiert werden.
+  const stripRep = (s) => (s || '').replace(/\s*\(Repetent\)\s*$/, '');
   rows.sort((a, b) => (a.lastName || '').localeCompare(b.lastName || '', 'de-CH')
-    || (a.firstName || '').localeCompare(b.firstName || '', 'de-CH'));
+    || stripRep(a.firstName).localeCompare(stripRep(b.firstName), 'de-CH'));
 
   for (const r of rows) {
     const values = cols.map(c => r[c.key] || '');

@@ -33,6 +33,30 @@
 
 <div class="card mb-4">
     <div class="card-header">
+        <strong><i class="bi bi-person-vcard"></i> Sekretariat</strong>
+    </div>
+    <div class="card-body">
+        <p class="text-muted small mb-2">
+            E-Mail-Adresse des Sekretariats. Wird später für spezielle Benachrichtigungen und Aufgaben verwendet.
+        </p>
+        <div class="d-flex gap-2 align-items-end flex-wrap" style="max-width: 640px;">
+            <div class="flex-grow-1">
+                <label class="form-label small">E-Mail-Adresse</label>
+                <input type="email" class="form-control" id="secretariatEmail" placeholder="sekretariat@…">
+            </div>
+            <button type="button" class="btn btn-outline-primary" onclick="saveSecretariatEmail()">
+                <i class="bi bi-check-lg"></i> Speichern
+            </button>
+            <button type="button" class="btn btn-outline-secondary" onclick="clearSecretariatEmail()">
+                <i class="bi bi-x-lg"></i> Zurücksetzen
+            </button>
+        </div>
+        <div id="secretariatEmailStatus" class="mt-2 small"></div>
+    </div>
+</div>
+
+<div class="card mb-4">
+    <div class="card-header">
         <strong><i class="bi bi-clock-history"></i> Reminder-Job manuell ausführen</strong>
     </div>
     <div class="card-body">
@@ -144,6 +168,42 @@ document.getElementById('testMailForm').addEventListener('submit', async (e) => 
     }
 });
 
+async function loadSecretariatEmail() {
+    const target = document.getElementById('secretariatEmailStatus');
+    try {
+        const r = await fetch('/api/admin/mail/secretariat-email');
+        const d = await r.json();
+        document.getElementById('secretariatEmail').value = d.email || '';
+        target.innerHTML = d.email
+            ? `<span class="badge bg-success"><i class="bi bi-check-circle"></i> Aktiv: ${d.email}</span>`
+            : '<span class="text-muted">Noch nicht hinterlegt.</span>';
+    } catch (e) {
+        target.innerHTML = `<span class="text-danger">${e.message}</span>`;
+    }
+}
+
+async function saveSecretariatEmail() {
+    const target = document.getElementById('secretariatEmailStatus');
+    const email = document.getElementById('secretariatEmail').value.trim();
+    try {
+        const r = await fetch('/api/admin/mail/secretariat-email', {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ email }),
+        });
+        const d = await r.json();
+        if (d.success) loadSecretariatEmail();
+        else target.innerHTML = `<span class="text-danger">${d.message}</span>`;
+    } catch (e) {
+        target.innerHTML = `<span class="text-danger">${e.message}</span>`;
+    }
+}
+
+async function clearSecretariatEmail() {
+    document.getElementById('secretariatEmail').value = '';
+    await saveSecretariatEmail();
+}
+
 async function loadSimulatedToday() {
     const target = document.getElementById('simulatedTodayStatus');
     try {
@@ -187,7 +247,9 @@ async function runReminders() {
         const r = await fetch('/api/admin/mail/run-reminders', { method: 'POST' });
         const d = await r.json();
         if (d.success) {
-            target.innerHTML = `<div class="alert alert-success"><i class="bi bi-check-circle"></i> Fertig: ${d.sent} Mail(s) versendet, ${d.skipped} übersprungen.</div>`;
+            const rem = d.reminders || { sent: 0, skipped: 0 };
+            const sec = d.secretariat || { checked: 0, sent: 0 };
+            target.innerHTML = `<div class="alert alert-success"><i class="bi bi-check-circle"></i> Fertig: Erinnerungen ${rem.sent} versendet / ${rem.skipped} übersprungen. Sekretariat: ${sec.sent} Mail(s) für ${sec.checked} Fachbereich(e).</div>`;
         } else {
             target.innerHTML = `<div class="alert alert-danger">${d.message || 'Fehler'}</div>`;
         }
@@ -199,6 +261,7 @@ async function runReminders() {
 // Initial Konfig laden (auch bei Fehler zeigt die Antwort das Config-Objekt)
 testConnection();
 loadSimulatedToday();
+loadSecretariatEmail();
 </script>
 
 <%- include('../partials/footer') %>

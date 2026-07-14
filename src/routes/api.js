@@ -70,6 +70,8 @@ const {
   runRemindersNow,
   getSimulatedToday,
   setSimulatedToday,
+  getSecretariatEmail,
+  setSecretariatEmail,
   getChatMessages,
   postChatMessage,
   downloadChatAttachment,
@@ -188,6 +190,8 @@ router.post('/admin/mail/send-test', requireRole(['admin']), sendTestMail);
 router.post('/admin/mail/run-reminders', requireRole(['admin']), runRemindersNow);
 router.get('/admin/mail/simulated-today', requireRole(['admin']), getSimulatedToday);
 router.put('/admin/mail/simulated-today', requireRole(['admin']), setSimulatedToday);
+router.get('/admin/mail/secretariat-email', requireRole(['admin']), getSecretariatEmail);
+router.put('/admin/mail/secretariat-email', requireRole(['admin']), setSecretariatEmail);
 
 // Dokumentvorlagen (global). Liste/Download: alle angemeldeten Benutzer.
 // Upload/Delete: Admin + FachbereichsleiterIn.

@@ -291,7 +291,12 @@ const updateThesis = async (req, res) => {
       return res.status(400).json({ success: false, message: 'Maximal 2 Studenten können einer Diplomarbeit zugewiesen werden' });
     }
 
-    const thesis = await Thesis.findByPk(id);
+    const thesis = await Thesis.findByPk(id, {
+      include: [
+        { model: User, as: 'coaches', attributes: ['id'] },
+        { model: User, as: 'experts', attributes: ['id'] },
+      ],
+    });
     if (!thesis) return res.status(404).json({ success: false, message: 'Diplomarbeit nicht gefunden' });
 
     if (userRole === 'department_lead') {
@@ -301,6 +306,14 @@ const updateThesis = async (req, res) => {
         return res.status(403).json({ success: false, message: 'Sie können nur Diplomarbeiten aus Fachbereichen bearbeiten, die Sie leiten.' });
       }
     }
+
+    // Vor der Änderung Snapshot für die Sekretariats-Änderungsmeldung.
+    const beforeSnap = {
+      title: thesis.title,
+      sponsor: thesis.sponsor,
+      coachIds: (thesis.coaches || []).map(c => c.id).sort().join(','),
+      expertIds: (thesis.experts || []).map(e => e.id).sort().join(','),
+    };
 
     const oldDepartmentId = thesis.department_id;
     const departmentChanged = oldDepartmentId !== department_id;
@@ -396,6 +409,27 @@ const updateThesis = async (req, res) => {
       } else {
         await thesis.setFieldProjectCoaches([]);
       }
+    }
+
+    // Nach-Snapshot ermitteln und mit dem Vorher-Zustand vergleichen; nur bei
+    // relevanter Änderung (Titel / Auftraggeber / Bewerterteam) wird das
+    // Sekretariat informiert (nur wenn initiale Mail bereits gesendet wurde).
+    const afterThesis = await Thesis.findByPk(id, {
+      include: [
+        { model: User, as: 'coaches', attributes: ['id'] },
+        { model: User, as: 'experts', attributes: ['id'] },
+      ],
+    });
+    const afterSnap = {
+      title: afterThesis.title,
+      sponsor: afterThesis.sponsor,
+      coachIds: (afterThesis.coaches || []).map(c => c.id).sort().join(','),
+      expertIds: (afterThesis.experts || []).map(e => e.id).sort().join(','),
+    };
+    const relevantChanged = Object.keys(beforeSnap).some(k => beforeSnap[k] !== afterSnap[k]);
+    if (relevantChanged) {
+      const { notifyChangeAsync } = require('../utils/secretariatChangeNotifier');
+      notifyChangeAsync(id, { reason: 'updateThesis' });
     }
 
     res.json({ success: true, thesis });
@@ -1941,6 +1975,11 @@ const uploadConfidentialityDocument = (req, res) => {
       });
 
       await writeThesisLog(thesis.id, null, userId, 'confidentiality_uploaded', req.file.originalname);
+
+      // Sekretariat informieren, falls initiale Mail bereits gegangen ist.
+      const { notifyChangeAsync } = require('../utils/secretariatChangeNotifier');
+      notifyChangeAsync(thesis.id, { reason: 'confidentiality_uploaded' });
+
       res.json({ success: true });
     } catch (e) {
       cleanup();
@@ -2031,7 +2070,12 @@ const updateThesisTitle = async (req, res) => {
       if (!isAssigned) return res.status(403).json({ success: false, message: 'Sie sind dieser Diplomarbeit nicht zugewiesen' });
     }
 
+    const titleChanged = thesis.title !== newTitle;
     await thesis.update({ title: newTitle });
+    if (titleChanged) {
+      const { notifyChangeAsync } = require('../utils/secretariatChangeNotifier');
+      notifyChangeAsync(thesis.id, { reason: 'updateThesisTitle' });
+    }
     res.json({ success: true, title: thesis.title });
   } catch (e) {
     console.error('updateThesisTitle error:', e);
@@ -2215,6 +2259,25 @@ const testMailConnection = async (req, res) => {
   }
 };
 
+// Sekretariats-E-Mail-Adresse (im UI konfigurierbar, im appSettings-Store
+// persistiert). Wird später für spezielle Aufgaben verwendet.
+const getSecretariatEmail = async (req, res) => {
+  if (req.session.userRole !== 'admin') return res.status(403).json({ success: false, message: 'Keine Berechtigung' });
+  const appSettings = require('../config/appSettings');
+  res.json({ success: true, email: appSettings.get('secretariat_email') || null });
+};
+
+const setSecretariatEmail = async (req, res) => {
+  if (req.session.userRole !== 'admin') return res.status(403).json({ success: false, message: 'Keine Berechtigung' });
+  const appSettings = require('../config/appSettings');
+  const raw = (req.body && typeof req.body.email === 'string') ? req.body.email.trim() : '';
+  if (raw && !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(raw)) {
+    return res.status(400).json({ success: false, message: 'Bitte eine gültige E-Mail-Adresse angeben (oder leer zum Entfernen).' });
+  }
+  const stored = appSettings.set('secretariat_email', raw || null);
+  res.json({ success: true, email: stored || null });
+};
+
 // Test-Override: simuliertes „Heute" für den Reminder-Job. Admin-only.
 const getSimulatedToday = async (req, res) => {
   if (req.session.userRole !== 'admin') return res.status(403).json({ success: false, message: 'Keine Berechtigung' });
@@ -2240,8 +2303,9 @@ const runRemindersNow = async (req, res) => {
   if (req.session.userRole !== 'admin') return res.status(403).json({ success: false, message: 'Keine Berechtigung' });
   try {
     const job = require('../jobs/reminderJob');
-    const result = await job.processReminders();
-    res.json({ success: true, ...result });
+    const rem = await job.processReminders();
+    const sec = await job.processSecretariatNotifications();
+    res.json({ success: true, reminders: rem, secretariat: sec });
   } catch (e) {
     console.error('runRemindersNow error:', e);
     res.status(500).json({ success: false, message: e.message });
@@ -2301,6 +2365,12 @@ const lockThesis = async (req, res) => {
       locked_reason: reason || null,
     });
     await writeThesisLog(thesis.id, null, userId, 'thesis_locked', reason || '');
+
+    // Sekretariat informieren (unabhängig davon, ob die initiale
+    // Vollständigkeits-Mail bereits gegangen ist).
+    const { notifyLockedAsync } = require('../utils/secretariatChangeNotifier');
+    notifyLockedAsync(thesis.id);
+
     res.json({ success: true });
   } catch (e) {
     console.error('lockThesis error:', e);
@@ -3032,6 +3102,8 @@ module.exports = {
   runRemindersNow,
   getSimulatedToday,
   setSimulatedToday,
+  getSecretariatEmail,
+  setSecretariatEmail,
   getChatMessages,
   postChatMessage,
   downloadChatAttachment,

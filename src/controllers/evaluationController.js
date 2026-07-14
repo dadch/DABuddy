@@ -1125,41 +1125,8 @@ const exportThesesListCsv = async (req, res) => {
   try {
     const r = await loadDashboardThesesForExport(req);
     if (r.error) return res.status(r.error.status).send(r.error.message);
-
-    const sanitize = (v) => String(v == null ? '' : v).replace(/[;\r\n]+/g, ' ').trim();
-
-    const rows = [];
-    for (const t of r.theses) {
-      const coachNames = (t.coaches || []).map(c => `${c.name || ''}, ${c.firstname || ''}`.replace(/^, |, $/g, '')).join(' / ');
-      const expertNames = (t.experts || []).map(e => `${e.name || ''}, ${e.firstname || ''}`.replace(/^, |, $/g, '')).join(' / ');
-      const deptName = (t.department && t.department.name) || '';
-      const students = t.students || [];
-      const baseRow = {
-        title: t.title || '',
-        department: deptName,
-        coach: coachNames,
-        expert: expertNames,
-        sponsor: t.sponsor || '',
-      };
-      if (students.length === 0) {
-        rows.push({ lastName: '', firstName: '', ...baseRow });
-      } else {
-        for (const s of students) {
-          rows.push({ lastName: s.name || '', firstName: s.firstname || '', ...baseRow });
-        }
-      }
-    }
-    rows.sort((a, b) => (a.lastName || '').localeCompare(b.lastName || '', 'de-CH')
-      || (a.firstName || '').localeCompare(b.firstName || '', 'de-CH'));
-
-    const header = ['Nachname', 'Vorname', 'Titel der Diplomarbeit', 'Fachbereich', 'Dozent/in', 'Expert/in', 'Auftraggeber'];
-    const lines = [header.join(';')];
-    for (const row of rows) {
-      lines.push([row.lastName, row.firstName, row.title, row.department, row.coach, row.expert, row.sponsor].map(sanitize).join(';'));
-    }
-    // UTF-8 BOM, damit Excel die Datei korrekt mit Umlauten öffnet.
-    const csv = '﻿' + lines.join('\r\n') + '\r\n';
-
+    const { buildThesesCsv } = require('../utils/thesesCsv');
+    const csv = buildThesesCsv(r.theses);
     const filename = `Diplomarbeiten_${r.year.year}${r.departmentLabel ? '_' + r.departmentLabel.replace(/\s+/g, '_') : ''}.csv`;
     res.setHeader('Content-Type', 'text/csv; charset=utf-8');
     res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);

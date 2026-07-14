@@ -62,7 +62,7 @@ async function verifyConnection() {
 // Sendet eine Mail. `to` ist der EIGENTLICHE Empfänger. Wenn MAIL_OVERRIDE_TO
 // gesetzt ist, wird die Mail dorthin umgeleitet und der Original-Empfänger
 // erscheint als "→ <email>" im Betreff.
-async function sendMail({ to, subject, text, html }) {
+async function sendMail({ to, subject, text, html, attachments }) {
   const t = getTransporter();
   if (!t) throw new Error('SMTP-Konfiguration unvollständig (.env prüfen).');
   const c = getConfig();
@@ -74,6 +74,7 @@ async function sendMail({ to, subject, text, html }) {
     subject: finalSubject,
     text,
     html,
+    attachments,   // optional: [{ filename, content, contentType }]
   });
 }
 
