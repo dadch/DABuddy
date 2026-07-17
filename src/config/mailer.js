@@ -4,9 +4,12 @@
 //   MAIL_HOST         SMTP-Server-Hostname (z. B. smtp.office365.com)
 //   MAIL_PORT         Port (587 = STARTTLS, 465 = SSL, 25 = plain)
 //   MAIL_SECURE       'true' bei SSL/465, sonst 'false'
-//   MAIL_USER         SMTP-Benutzer
-//   MAIL_PASS         SMTP-Passwort / App-Passwort
+//   MAIL_USER         SMTP-Benutzer   (leer = Versand ohne Authentifizierung,
+//   MAIL_PASS         SMTP-Passwort    z. B. internes Relay auf Port 25)
 //   MAIL_FROM         Absender im Format 'ThesisBuddy <no-reply@…>'
+//
+// Optional für interne Relays mit Self-Signed-Zertifikat:
+//   MAIL_TLS_REJECT_UNAUTHORIZED  'false' = Zertifikat nicht prüfen (Default: true)
 //
 // Prod-Override (optional): wenn gesetzt, gehen ALLE Mails an diese Adresse
 // und der eigentliche Empfänger steht im Betreff ("→ user@…").
@@ -27,12 +30,14 @@ function getConfig() {
     pass: process.env.MAIL_PASS || '',
     from: process.env.MAIL_FROM || 'ThesisBuddy <no-reply@example.local>',
     override: (process.env.MAIL_OVERRIDE_TO || '').trim() || null,
+    rejectUnauthorized: String(process.env.MAIL_TLS_REJECT_UNAUTHORIZED || 'true').toLowerCase() !== 'false',
   };
 }
 
+// Host + Port genügen — Benutzer/Passwort sind optional (internes Relay ohne Auth).
 function isConfigured() {
   const c = getConfig();
-  return !!(c.host && c.port && c.user && c.pass);
+  return !!(c.host && c.port);
 }
 
 function getTransporter() {
@@ -43,7 +48,10 @@ function getTransporter() {
     host: c.host,
     port: c.port,
     secure: c.secure,
-    auth: { user: c.user, pass: c.pass },
+    // auth nur mitgeben, wenn Credentials gesetzt sind — sonst versucht
+    // nodemailer keine SMTP-Authentifizierung (anonymes Relay).
+    ...(c.user || c.pass ? { auth: { user: c.user, pass: c.pass } } : {}),
+    tls: { rejectUnauthorized: c.rejectUnauthorized },
   });
   return _transporter;
 }

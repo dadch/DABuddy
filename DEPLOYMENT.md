@@ -115,6 +115,70 @@ Als Admin einloggen und einrichten:
 
 ---
 
+## Azure-App-Registrierung für das M365-Login
+
+ThesisBuddy verwendet den OAuth-Authorization-Code-Flow mit Client-Secret
+(Confidential Client) und den delegierten Berechtigungen `openid`, `profile`,
+`email`, `User.Read`. Registrierung im Microsoft Entra Admin Center:
+
+1. **Anmelden**: <https://entra.microsoft.com> mit einem Konto, das Apps
+   registrieren darf (z.B. Rolle «Anwendungsadministrator»).
+2. **App registrieren**: *Identität → Anwendungen → App-Registrierungen →
+   Neue Registrierung*.
+   - Name: `ThesisBuddy`
+   - Unterstützte Kontotypen: **Nur Konten in diesem Organisationsverzeichnis**
+     (Single Tenant — die App verwendet die Tenant-Authority)
+   - Umleitungs-URI: Plattform **Web**, URI
+     `https://thesisbuddy.hftm.ch/auth/microsoft/callback`
+   - *Registrieren* klicken.
+3. **IDs notieren** (Seite *Übersicht*):
+   - «Anwendungs-ID (Client)» → `MS_CLIENT_ID`
+   - «Verzeichnis-ID (Mandant)» → `MS_TENANT_ID`
+4. **Client-Secret erstellen**: *Zertifikate & Geheimnisse → Neuer geheimer
+   Clientschlüssel* — Beschreibung `ThesisBuddy Prod`, Gültigkeit z.B.
+   24 Monate. Den **Wert** (Spalte «Wert», nicht die «Geheimnis-ID»!) sofort
+   kopieren → `MS_CLIENT_SECRET`. Der Wert ist später nicht mehr einsehbar.
+   Ablaufdatum im Kalender vormerken — danach muss ein neues Secret erstellt
+   und in der `.env` ersetzt werden.
+5. **API-Berechtigungen prüfen**: *API-Berechtigungen* — `User.Read`
+   (Microsoft Graph, delegiert) ist standardmässig vorhanden; `openid`,
+   `profile`, `email` werden beim Login automatisch angefordert. Es sind
+   **keine Anwendungsberechtigungen** und normalerweise keine
+   Administrator-Einwilligung nötig (`User.Read` dürfen Benutzer selbst
+   einwilligen). Optional: *Administratoreinwilligung erteilen*, damit
+   Benutzer keinen Consent-Dialog sehen.
+6. **Authentifizierung prüfen**: *Authentifizierung* — unter «Web» darf nur die
+   Callback-URI stehen. «Implizite Genehmigung» (Zugriffs-/ID-Token-Häkchen)
+   bleibt **deaktiviert**.
+7. **Optional einschränken**: Sollen sich nur berechtigte Personen anmelden
+   können, unter *Identität → Anwendungen → Unternehmensanwendungen →
+   ThesisBuddy → Eigenschaften* die Option «Zuweisung erforderlich» aktivieren
+   und Benutzer/Gruppen zuweisen. (ThesisBuddy lässt ohnehin nur E-Mail-Adressen
+   zu, die im System als Benutzer erfasst sind.)
+8. **Werte in `.env` eintragen** und App neu starten:
+
+   ```ini
+   MS_TENANT_ID=<Verzeichnis-ID>
+   MS_CLIENT_ID=<Anwendungs-ID>
+   MS_CLIENT_SECRET=<Secret-Wert>
+   MS_REDIRECT_URI=https://thesisbuddy.hftm.ch/auth/microsoft/callback
+   ```
+
+   ```bash
+   docker compose up -d --force-recreate app
+   ```
+
+9. **Testen**: Auf `https://thesisbuddy.hftm.ch` → «Mit M365-Login anmelden»
+   mit einem M365-Konto, dessen E-Mail-Adresse in ThesisBuddy als Benutzer
+   existiert.
+
+Häufige Fehlerbilder: `AADSTS50011` = Redirect-URI stimmt nicht exakt überein
+(https, Host, Pfad); `AADSTS7000215` = falsches/abgelaufenes Client-Secret
+(Wert statt Geheimnis-ID kopiert?); «E-Mail-Adresse nicht registriert» =
+Benutzer existiert in ThesisBuddy nicht — zuerst als Benutzer anlegen.
+
+---
+
 ## Betrieb
 
 ### Logs und Status
