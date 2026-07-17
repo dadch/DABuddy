@@ -2289,7 +2289,7 @@ const testMailConnection = async (req, res) => {
   if (!mailer.isConfigured()) {
     return res.status(400).json({
       success: false,
-      message: 'SMTP-Konfiguration unvollständig. Bitte MAIL_HOST/PORT/USER/PASS in .env setzen.',
+      message: 'SMTP-Konfiguration unvollständig. Bitte MAIL_HOST und MAIL_PORT in .env setzen (MAIL_USER/MAIL_PASS nur bei authentifiziertem Relay).',
       config: { host: cfg.host, port: cfg.port, secure: cfg.secure, from: cfg.from, override: cfg.override },
     });
   }
