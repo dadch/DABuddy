@@ -117,6 +117,11 @@ const ROLE_LABELS = { student: 'Student', coach: 'Dozent/in', expert: 'ExpertIn'
                                             <i class="bi bi-arrow-left-right"></i> Transferprojekt
                                         </span>
                                     <% } %>
+                                    <% if (m.is_assignment) { %>
+                                        <span class="badge bg-dark" title="Aufgabenstellungs-Meilenstein">
+                                            <i class="bi bi-file-earmark-text"></i> Aufgabenstellung
+                                        </span>
+                                    <% } %>
                                     <% if (m.feedback_form_enabled) { %>
                                         <span class="badge bg-success" title="Feedbackformular aktiviert">
                                             <i class="bi bi-chat-square-text"></i> Feedbackformular
@@ -275,6 +280,11 @@ const ROLE_LABELS = { student: 'Student', coach: 'Dozent/in', expert: 'ExpertIn'
                     <div class="form-check mb-2">
                         <input type="checkbox" class="form-check-input" name="is_transfer_project" id="addIsTransferProject">
                         <label class="form-check-label" for="addIsTransferProject">Transferprojekt</label>
+                    </div>
+                    <div class="form-check mb-2">
+                        <input type="checkbox" class="form-check-input" name="is_assignment" id="addIsAssignment" onchange="toggleAssignmentUpload('add')">
+                        <label class="form-check-label" for="addIsAssignment">Aufgabenstellung (Verantwortlicher füllt Ergänzungsfeld aus und generiert das Aufgabenstellungs-PDF)</label>
+                        <div class="form-text">Bei Aufgabenstellungs-Meilensteinen ist kein Dokument-Upload möglich.</div>
                     </div>
                     <div class="form-check mb-2">
                         <input type="checkbox" class="form-check-input" name="feedback_form_enabled" id="addFeedbackFormEnabled">
@@ -474,6 +484,11 @@ const ROLE_LABELS = { student: 'Student', coach: 'Dozent/in', expert: 'ExpertIn'
                         <label class="form-check-label" for="editIsTransferProject">Transferprojekt</label>
                     </div>
                     <div class="form-check mb-2">
+                        <input type="checkbox" class="form-check-input" name="is_assignment" id="editIsAssignment" onchange="toggleAssignmentUpload('edit')">
+                        <label class="form-check-label" for="editIsAssignment">Aufgabenstellung (Verantwortlicher füllt Ergänzungsfeld aus und generiert das Aufgabenstellungs-PDF)</label>
+                        <div class="form-text">Bei Aufgabenstellungs-Meilensteinen ist kein Dokument-Upload möglich.</div>
+                    </div>
+                    <div class="form-check mb-2">
                         <input type="checkbox" class="form-check-input" name="feedback_form_enabled" id="editFeedbackFormEnabled">
                         <label class="form-check-label" for="editFeedbackFormEnabled">Feedbackformular aktivieren (Voraussetzung: finale Bewertung)</label>
                     </div>
@@ -644,6 +659,17 @@ function toggleApprover2(prefix) {
     document.getElementById(prefix + 'Approver2Wrap').classList.toggle('d-none', !checked);
 }
 
+// Aufgabenstellungs-Meilenstein: kein Dokument-Upload möglich — Upload-Optionen
+// werden deaktiviert (serverseitig wird dies ebenfalls erzwungen).
+function toggleAssignmentUpload(prefix) {
+    const isAssignment = document.getElementById(prefix + 'IsAssignment').checked;
+    const up = document.getElementById(prefix + 'AllowUpload');
+    const upd = document.getElementById(prefix + 'AllowUpdate');
+    if (isAssignment) { up.checked = false; upd.checked = false; }
+    up.disabled = isAssignment;
+    upd.disabled = isAssignment;
+}
+
 function openAddMilestoneModal() {
     document.getElementById('addMilestoneForm').reset();
     document.getElementById('addAllowUpload').checked = true;
@@ -651,6 +677,7 @@ function openAddMilestoneModal() {
     toggleEvalRole('add');
     toggleApprover('add');
     toggleApprover2('add');
+    toggleAssignmentUpload('add');
     new bootstrap.Modal(document.getElementById('addMilestoneModal')).show();
 }
 
@@ -677,6 +704,7 @@ function copyMilestone(m) {
     document.getElementById('addRequiresApproval2').checked = !!m.requires_approval_2;
     document.getElementById('addApproverRole2').value = m.approver_role_2 || '';
     document.getElementById('addIsTransferProject').checked = !!m.is_transfer_project;
+    document.getElementById('addIsAssignment').checked = !!m.is_assignment;
     document.getElementById('addFeedbackFormEnabled').checked = !!m.feedback_form_enabled;
     document.getElementById('addReminderStartAt').value    = toLocalInput(m.reminder_start_at);
     document.getElementById('addReminderPeriodDays').value = m.reminder_period_days || 7;
@@ -693,6 +721,7 @@ function copyMilestone(m) {
     toggleEvalRole('add');
     toggleApprover('add');
     toggleApprover2('add');
+    toggleAssignmentUpload('add');
     new bootstrap.Modal(document.getElementById('addMilestoneModal')).show();
 }
 
@@ -715,6 +744,7 @@ function editMilestone(m) {
     document.getElementById('editRequiresApproval2').checked = !!m.requires_approval_2;
     document.getElementById('editApproverRole2').value = m.approver_role_2 || '';
     document.getElementById('editIsTransferProject').checked = !!m.is_transfer_project;
+    document.getElementById('editIsAssignment').checked = !!m.is_assignment;
     document.getElementById('editFeedbackFormEnabled').checked = !!m.feedback_form_enabled;
     // Snapshot der Originalwerte für die Rückfrage-Logik beim Speichern.
     window.__editOriginal = {
@@ -743,6 +773,7 @@ function editMilestone(m) {
     toggleEvalRole('edit');
     toggleApprover('edit');
     toggleApprover2('edit');
+    toggleAssignmentUpload('edit');
     const apply = document.getElementById('editApplyToExisting');
     if (apply) apply.checked = false;
     new bootstrap.Modal(document.getElementById('editMilestoneModal')).show();
@@ -762,6 +793,7 @@ function normalizeConfig(data) {
     data.requires_approval_2 = !!data.requires_approval_2;
     if (!data.requires_approval_2) data.approver_role_2 = null;
     data.is_transfer_project = !!data.is_transfer_project;
+    data.is_assignment = !!data.is_assignment;
     data.feedback_form_enabled = !!data.feedback_form_enabled;
     return data;
 }

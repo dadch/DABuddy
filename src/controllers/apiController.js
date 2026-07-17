@@ -181,6 +181,7 @@ const createThesisMilestoneFromTemplate = (thesisId, template, released = false)
   requires_approval_2: template.requires_approval_2,
   approver_role_2: template.approver_role_2,
   is_transfer_project: template.is_transfer_project,
+  is_assignment: template.is_assignment,
   feedback_form_enabled: template.feedback_form_enabled,
   reminder_start_at: template.reminder_start_at,
   reminder_period_days: template.reminder_period_days,
@@ -1209,6 +1210,7 @@ const parseMilestoneConfig = (body) => {
   const requires_approval_2 = body.requires_approval_2 === undefined ? false : !!body.requires_approval_2;
   const approver_role_2 = requires_approval_2 ? (body.approver_role_2 || null) : null;
   const is_transfer_project = body.is_transfer_project === undefined ? false : !!body.is_transfer_project;
+  const is_assignment = body.is_assignment === undefined ? false : !!body.is_assignment;
   const feedback_form_enabled = body.feedback_form_enabled === undefined ? false : !!body.feedback_form_enabled;
   const applies_to = ['all', 'fulltime', 'parttime'].includes(body.applies_to) ? body.applies_to : 'all';
 
@@ -1224,9 +1226,13 @@ const parseMilestoneConfig = (body) => {
   const feedback_due_at = feedback_form_enabled                     ? nullDate(body.feedback_due_at) : null;
 
   return {
-    allow_upload, allow_update, requires_evaluation, evaluator_role, double_evaluation, evaluator_role_2,
+    // Aufgabenstellungs-Meilensteine haben keinen Dokument-Upload — das PDF
+    // wird generiert, nicht hochgeladen.
+    allow_upload: is_assignment ? false : allow_upload,
+    allow_update: is_assignment ? false : allow_update,
+    requires_evaluation, evaluator_role, double_evaluation, evaluator_role_2,
     evaluation_form_id, requires_approval, approver_role, requires_approval_2, approver_role_2,
-    is_transfer_project, feedback_form_enabled, applies_to,
+    is_transfer_project, is_assignment, feedback_form_enabled, applies_to,
     reminder_start_at, reminder_period_days,
     single_due_at, first_due_at, second_due_at, final_due_at, feedback_due_at,
   };
@@ -1438,6 +1444,7 @@ const updateMilestone = async (req, res) => {
           requires_approval_2: milestone.requires_approval_2,
           approver_role_2: milestone.approver_role_2,
           is_transfer_project: milestone.is_transfer_project,
+          is_assignment: milestone.is_assignment,
           feedback_form_enabled: milestone.feedback_form_enabled,
         },
         { where: { milestone_id: milestone.id } }
@@ -1676,6 +1683,11 @@ const setThesisMilestoneApproval = async (req, res) => {
       return res.status(403).json({ success: false, message: `Ihre Rolle ist nicht berechtigt, Freigabe ${slot} zu erteilen` });
     }
 
+    // Studierende: Nach Ablauf des Meilenstein-Termins sind keine Änderungen mehr möglich.
+    if (userRole === 'student' && new Date(tm.due_at) < require('../config/simulatedToday').getNow()) {
+      return res.status(403).json({ success: false, message: 'Der Termin dieses Meilensteins ist abgelaufen — es sind keine Änderungen mehr möglich.' });
+    }
+
     // Vor dem Erteilen einer Freigabe sicherstellen, dass alle erforderlichen
     // Bewertungen vorhanden sind und (falls aktiv) das Feedbackformular
     // ausgefüllt ist. Beim Zurückziehen entfällt diese Prüfung.
@@ -1765,6 +1777,16 @@ const uploadThesisMilestoneDocument = (req, res) => {
       if (!access) { cleanup(); return res.status(403).json({ success: false, message: 'Sie haben keine Berechtigung, für diese Diplomarbeit Dokumente hochzuladen' }); }
 
       if (!tm.released && userRole !== 'admin') { cleanup(); return res.status(403).json({ success: false, message: 'Dieser Meilenstein ist noch nicht freigegeben.' }); }
+
+      // Studierende: Nach Ablauf des Meilenstein-Termins sind keine Änderungen
+      // mehr möglich (respektiert das simulierte Tagesdatum).
+      if (userRole === 'student' && new Date(tm.due_at) < require('../config/simulatedToday').getNow()) {
+        cleanup();
+        return res.status(403).json({ success: false, message: 'Der Termin dieses Meilensteins ist abgelaufen — es sind keine Änderungen mehr möglich.' });
+      }
+
+      // Aufgabenstellungs-Meilenstein: Das Dokument wird generiert, nicht hochgeladen.
+      if (tm.is_assignment) { cleanup(); return res.status(403).json({ success: false, message: 'Bei einem Aufgabenstellungs-Meilenstein ist kein Dokument-Upload möglich' }); }
 
       if (!tm.allow_upload) { cleanup(); return res.status(403).json({ success: false, message: 'Für diesen Meilenstein ist kein Dokument-Upload vorgesehen' }); }
 
@@ -2562,6 +2584,125 @@ const downloadChatAttachment = async (req, res) => {
   }
 };
 
+// ---------- Aufgabenstellung ----------
+
+// Bearbeiten darf der Verantwortliche des Meilensteins (i.d.R. Dozent) oder Admin.
+const canEditAssignment = (tm, userRole) =>
+  userRole === 'admin' || userRole === tm.responsible_role;
+
+// Liefert die Aufgabenstellungs-Termine (M1/M2) für die DA gemäss der
+// Studienform ihres Fachbereichs. { m1, m2 } (Date|null).
+const assignmentDatesForThesis = async (thesisId) => {
+  const thesis = await Thesis.findByPk(thesisId, {
+    include: [
+      { model: Department, as: 'department', attributes: ['id', 'study_mode'] },
+      { model: Year, as: 'year' },
+    ],
+  });
+  if (!thesis || !thesis.year) return { m1: null, m2: null };
+  const mode = thesis.department && thesis.department.study_mode === 'fulltime' ? 'fulltime' : 'parttime';
+  return {
+    m1: thesis.year[`assignment_m1_${mode}`] || null,
+    m2: thesis.year[`assignment_m2_${mode}`] || null,
+  };
+};
+
+// GET /api/thesis-milestones/:id/assignment — Ergänzungsfeld lesen (für das Modal).
+const getAssignment = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const userId = req.session.userId;
+    const userRole = req.session.userRole;
+
+    const tm = await ThesisMilestone.findByPk(id);
+    if (!tm) return res.status(404).json({ success: false, message: 'Meilenstein nicht gefunden' });
+    if (!tm.is_assignment) return res.status(400).json({ success: false, message: 'Kein Aufgabenstellungs-Meilenstein' });
+
+    const access = await userHasThesisAccess(userId, userRole, tm.thesis_id);
+    if (!access) return res.status(403).json({ success: false, message: 'Keine Berechtigung' });
+    if (!canEditAssignment(tm, userRole)) {
+      return res.status(403).json({ success: false, message: 'Nur der/die Verantwortliche des Meilensteins kann die Aufgabenstellung bearbeiten' });
+    }
+
+    res.json({ success: true, assignment_text: tm.assignment_text || '' });
+  } catch (error) {
+    console.error('Error fetching assignment:', error);
+    res.status(500).json({ success: false, message: 'Interner Serverfehler' });
+  }
+};
+
+// PUT /api/thesis-milestones/:id/assignment — Ergänzungsfeld speichern (Markdown).
+const saveAssignment = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const userId = req.session.userId;
+    const userRole = req.session.userRole;
+
+    const tm = await ThesisMilestone.findByPk(id);
+    if (!tm) return res.status(404).json({ success: false, message: 'Meilenstein nicht gefunden' });
+    if (!tm.is_assignment) return res.status(400).json({ success: false, message: 'Kein Aufgabenstellungs-Meilenstein' });
+
+    const access = await userHasThesisAccess(userId, userRole, tm.thesis_id);
+    if (!access) return res.status(403).json({ success: false, message: 'Keine Berechtigung' });
+    if (!canEditAssignment(tm, userRole)) {
+      return res.status(403).json({ success: false, message: 'Nur der/die Verantwortliche des Meilensteins kann die Aufgabenstellung bearbeiten' });
+    }
+
+    const text = (typeof req.body.assignment_text === 'string') ? req.body.assignment_text : '';
+    await tm.update({ assignment_text: text });
+    await writeThesisLog(tm.thesis_id, tm.id, userId, 'assignment_updated', `${tm.label}: Ergänzungsfeld der Aufgabenstellung aktualisiert`);
+    res.json({ success: true });
+  } catch (error) {
+    console.error('Error saving assignment:', error);
+    res.status(500).json({ success: false, message: 'Interner Serverfehler' });
+  }
+};
+
+// GET /api/thesis-milestones/:id/assignment.pdf — Aufgabenstellung generieren.
+// Studierende: erst ab dem Termin "Meilenstein 1" des Diplomjahres verfügbar,
+// unabhängig vom Zustand des Meilensteins. Andere Rollen: gemäss DA-Zugriff.
+const printAssignment = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const userId = req.session.userId;
+    const userRole = req.session.userRole;
+
+    const tm = await ThesisMilestone.findByPk(id);
+    if (!tm) return res.status(404).send('Meilenstein nicht gefunden');
+    if (!tm.is_assignment) return res.status(400).send('Kein Aufgabenstellungs-Meilenstein');
+
+    const access = await userHasThesisAccess(userId, userRole, tm.thesis_id);
+    if (!access) return res.status(403).send('Keine Berechtigung');
+
+    const { m1, m2 } = await assignmentDatesForThesis(tm.thesis_id);
+
+    if (userRole === 'student') {
+      const now = require('../config/simulatedToday').getNow();
+      if (!m1 || new Date(m1) > now) {
+        return res.status(403).send('Die Aufgabenstellung ist noch nicht verfügbar.');
+      }
+    }
+
+    const thesis = await Thesis.findByPk(tm.thesis_id, {
+      include: [
+        { model: Department, as: 'department', attributes: ['id', 'name', 'study_mode'] },
+        { model: Year, as: 'year' },
+        { model: User, as: 'students', attributes: ['firstname', 'name'] },
+        { model: User, as: 'coaches', attributes: ['firstname', 'name'] },
+        { model: User, as: 'experts', attributes: ['firstname', 'name'] },
+      ],
+    });
+
+    const { streamAssignmentPdf } = require('../utils/assignmentPdf');
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', 'inline; filename="Aufgabenstellung_Diplomarbeit.pdf"');
+    streamAssignmentPdf(res, { thesis, tm, m1, m2 });
+  } catch (error) {
+    console.error('Error printing assignment:', error);
+    if (!res.headersSent) res.status(500).send('Interner Serverfehler');
+  }
+};
+
 // Create/update the evaluation (currently free text) for a thesis milestone.
 const evaluateThesisMilestone = async (req, res) => {
   try {
@@ -2583,6 +2724,11 @@ const evaluateThesisMilestone = async (req, res) => {
 
     if (userRole !== 'admin' && userRole !== tm.evaluator_role) {
       return res.status(403).json({ success: false, message: 'Ihre Rolle ist nicht berechtigt, diese Bewertung vorzunehmen' });
+    }
+
+    // Studierende: Nach Ablauf des Meilenstein-Termins sind keine Änderungen mehr möglich.
+    if (userRole === 'student' && new Date(tm.due_at) < require('../config/simulatedToday').getNow()) {
+      return res.status(403).json({ success: false, message: 'Der Termin dieses Meilensteins ist abgelaufen — es sind keine Änderungen mehr möglich.' });
     }
 
     const isUpdate = tm.evaluation !== null && tm.evaluation !== undefined && tm.evaluation !== '';
@@ -2636,6 +2782,10 @@ const getYears = async (req, res) => {
       label_de: y.label_de,
       label_fr: y.label_fr,
       is_current: y.is_current,
+      assignment_m1_fulltime: y.assignment_m1_fulltime,
+      assignment_m1_parttime: y.assignment_m1_parttime,
+      assignment_m2_fulltime: y.assignment_m2_fulltime,
+      assignment_m2_parttime: y.assignment_m2_parttime,
       thesesCount: tMap[y.id] || 0,
       milestonesCount: mMap[y.id] || 0,
     })));
@@ -2671,9 +2821,15 @@ const updateYear = async (req, res) => {
     const year = await Year.findByPk(yearId);
     if (!year) return res.status(404).json({ success: false, message: 'Diplomjahr nicht gefunden' });
     const norm = (v) => (typeof v === 'string' && v.trim()) ? v.trim() : null;
+    const normDate = (v) => (typeof v === 'string' && v.trim()) ? new Date(v) : null;
+    const datePatch = {};
+    for (const f of ['assignment_m1_fulltime', 'assignment_m1_parttime', 'assignment_m2_fulltime', 'assignment_m2_parttime']) {
+      if (req.body[f] !== undefined) datePatch[f] = normDate(req.body[f]);
+    }
     await year.update({
       label_de: (req.body.label_de === undefined) ? year.label_de : norm(req.body.label_de),
       label_fr: (req.body.label_fr === undefined) ? year.label_fr : norm(req.body.label_fr),
+      ...datePatch,
     });
     res.json({ success: true, year: { id: year.id, year: year.year, label_de: year.label_de, label_fr: year.label_fr, is_current: year.is_current } });
   } catch (err) {
@@ -3133,4 +3289,7 @@ module.exports = {
   postChatMessage,
   downloadChatAttachment,
   evaluateThesisMilestone,
+  getAssignment,
+  saveAssignment,
+  printAssignment,
 };

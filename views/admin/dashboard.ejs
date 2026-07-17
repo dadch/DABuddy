@@ -66,20 +66,33 @@
             <thead>
                 <tr>
                     <th style="width: 32px;"><input type="checkbox" class="form-check-input" id="selectAllTheses" onclick="toggleSelectAllTheses(this)"></th>
+                    <th><%= t('dashboard.headers.actions') %></th>
                     <th><%= t('dashboard.headers.title') %></th>
                     <th><%= t('dashboard.headers.department') %></th>
                     <th><%= t('dashboard.headers.students') %></th>
                     <th><%= t('dashboard.headers.coaches') %></th>
-                    <th><%= t('dashboard.headers.fieldProjectCoaches') %></th>
                     <th><%= t('dashboard.headers.experts') %></th>
+                    <th><%= t('dashboard.headers.fieldProjectCoaches') %></th>
                     <th><%= t('dashboard.headers.sponsor') %></th>
-                    <th><%= t('dashboard.headers.actions') %></th>
                 </tr>
             </thead>
             <tbody>
                 <% theses.forEach(function(thesis) { %>
                     <tr<% if (thesis.is_locked) { %> class="table-warning"<% } %>>
                         <td><input type="checkbox" class="form-check-input thesis-select" value="<%= thesis.id %>"></td>
+                        <td>
+                            <div class="btn-group" role="group">
+                                <a href="/dashboard/thesis/<%= thesis.id %>" class="btn btn-primary btn-sm">
+                                    <i class="bi bi-eye"></i>
+                                </a>
+                                <button class="btn btn-outline-primary btn-sm" onclick="editThesis(<%= thesis.id %>)">
+                                    <i class="bi bi-pencil"></i>
+                                </button>
+                                <button class="btn btn-outline-danger btn-sm" onclick="deleteThesis(<%= thesis.id %>)">
+                                    <i class="bi bi-trash"></i>
+                                </button>
+                            </div>
+                        </td>
                         <td>
                             <% if (thesis.is_locked) { %><i class="bi bi-slash-circle-fill text-danger me-2" title="Diplomarbeit gesperrt"></i><% } %>
                             <strong><%= thesis.title %></strong>
@@ -88,8 +101,11 @@
                         <td>
                             <% if (thesis.students.length > 0) { %>
                                 <% thesis.students.forEach(function(student, index) { %>
-                                    <span class="badge bg-primary me-1"><%= student.name %>, <%= student.firstname %><% if (thesis.is_repetent) { %> <span class="badge bg-warning text-dark ms-1"><i class="bi bi-arrow-repeat"></i> <%= t('dashboard.repetent') %></span><% } %></span>
+                                    <span class="badge bg-primary me-1"><%= student.name %>, <%= student.firstname %></span>
                                 <% }); %>
+                                <% if (thesis.is_repetent) { %>
+                                    <span class="badge bg-warning text-dark me-1"><i class="bi bi-arrow-repeat"></i> <%= t('dashboard.repetent') %></span>
+                                <% } %>
                             <% } else { %>
                                 <span class="text-muted">Keine Studenten zugewiesen</span>
                             <% } %>
@@ -104,15 +120,6 @@
                             <% } %>
                         </td>
                         <td>
-                            <% if (thesis.fieldProjectCoaches && thesis.fieldProjectCoaches.length > 0) { %>
-                                <% thesis.fieldProjectCoaches.forEach(function(fpc, index) { %>
-                                    <span class="badge bg-warning text-dark me-1"><%= fpc.name %>, <%= fpc.firstname %></span>
-                                <% }); %>
-                            <% } else { %>
-                                <span class="text-muted">Keine zugewiesen</span>
-                            <% } %>
-                        </td>
-                        <td>
                             <% if (thesis.experts.length > 0) { %>
                                 <% thesis.experts.forEach(function(expert, index) { %>
                                     <span class="badge bg-info me-1"><%= expert.name %>, <%= expert.firstname %></span>
@@ -121,20 +128,16 @@
                                 <span class="text-muted">Keine Experten zugewiesen</span>
                             <% } %>
                         </td>
-                        <td><%= thesis.sponsor || '-' %></td>
                         <td>
-                            <div class="btn-group" role="group">
-                                <a href="/dashboard/thesis/<%= thesis.id %>" class="btn btn-primary btn-sm">
-                                    <i class="bi bi-eye"></i>
-                                </a>
-                                <button class="btn btn-outline-primary btn-sm" onclick="editThesis(<%= thesis.id %>)">
-                                    <i class="bi bi-pencil"></i>
-                                </button>
-                                <button class="btn btn-outline-danger btn-sm" onclick="deleteThesis(<%= thesis.id %>)">
-                                    <i class="bi bi-trash"></i>
-                                </button>
-                            </div>
+                            <% if (thesis.fieldProjectCoaches && thesis.fieldProjectCoaches.length > 0) { %>
+                                <% thesis.fieldProjectCoaches.forEach(function(fpc, index) { %>
+                                    <span class="badge bg-warning text-dark me-1"><%= fpc.name %>, <%= fpc.firstname %></span>
+                                <% }); %>
+                            <% } else { %>
+                                <span class="text-muted">Keine zugewiesen</span>
+                            <% } %>
                         </td>
+                        <td><%= thesis.sponsor || '-' %></td>
                     </tr>
                 <% }); %>
             </tbody>

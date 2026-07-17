@@ -10,6 +10,18 @@ const { streamEvaluationPdf, streamTransferProjectPdf, streamTransferProjectOver
 let Anthropic = null;
 try { Anthropic = require('@anthropic-ai/sdk'); } catch (e) { /* SDK optional */ }
 
+// Studierenden-Regel: Ist der letzte Meilenstein (spätester Termin, inkl.
+// individueller Übersteuerung) einer DA abgelaufen, können Studierende keine
+// Bewertungen mehr einsehen — auf keinem Meilenstein. Respektiert das
+// simulierte Tagesdatum.
+const studentEvalAccessExpired = async (userRole, thesisId) => {
+  if (userRole !== 'student') return false;
+  const lastDue = await ThesisMilestone.max('due_at', { where: { thesis_id: thesisId } });
+  if (!lastDue) return false;
+  return new Date(lastDue) < require('../config/simulatedToday').getNow();
+};
+const STUDENT_EVAL_EXPIRED_MSG = 'Die Einsicht in Bewertungen ist nach Ablauf des letzten Meilensteins nicht mehr möglich.';
+
 const emptyLevels = () => ['', '', '', '', '', ''];
 
 // Normalise a 6-element level description array.
@@ -55,6 +67,53 @@ const getForm = async (req, res) => {
   } catch (e) {
     console.error('Error fetching evaluation form:', e);
     res.status(500).json({ success: false, message: 'Interner Serverfehler' });
+  }
+};
+
+// GET /api/evaluation-forms/:id/blank.pdf?lang=de|fr
+// Unausgefülltes Bewertungsformular als PDF: gleiche Tabelle wie die echte
+// Bewertung, aber ohne Punkte/Noten und mit leeren Stammdaten-Zeilen.
+const printBlankEvaluationForm = async (req, res) => {
+  try {
+    const lang = req.query.lang === 'fr' ? 'fr' : 'de';
+    const form = await EvaluationForm.findByPk(req.params.id, {
+      include: [{
+        model: EvaluationGroup, as: 'groups',
+        include: [{ model: EvaluationCriterion, as: 'criteria' }]
+      }],
+      order: [
+        [{ model: EvaluationGroup, as: 'groups' }, 'position', 'ASC'],
+        [{ model: EvaluationGroup, as: 'groups' }, { model: EvaluationCriterion, as: 'criteria' }, 'position', 'ASC'],
+      ]
+    });
+    if (!form) return res.status(404).send('Formular nicht gefunden');
+
+    const title = (lang === 'fr' && form.title_fr) ? form.title_fr : form.title_de;
+    // Vorlage in die Snapshot-Struktur mappen, die streamEvaluationPdf erwartet.
+    const evaluation = {
+      groups: (form.groups || []).map(g => ({
+        name: (lang === 'fr' && g.name_fr) ? g.name_fr : g.name_de,
+        position: g.position,
+        grade: null,
+        criteria: (g.criteria || []).map(c => ({
+          label: (lang === 'fr' && c.label_fr) ? c.label_fr : c.label_de,
+          weight: c.weight,
+          position: c.position,
+          level_descriptions: (lang === 'fr' ? c.level_descriptions_fr : c.level_descriptions_de) || [],
+          score: null,
+          remark: '',
+        })),
+      })),
+      overall_grade: null,
+    };
+
+    const safeName = ('Bewertungsformular_' + (title || 'Formular')).replace(/[^a-zA-Z0-9_-]+/g, '_');
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', `inline; filename="${safeName}.pdf"`);
+    streamEvaluationPdf(res, { thesis: {}, milestone: { label: title }, title, evaluation, blank: true });
+  } catch (e) {
+    console.error('Error printing blank evaluation form:', e);
+    if (!res.headersSent) res.status(500).send('Interner Serverfehler');
   }
 };
 
@@ -359,6 +418,9 @@ const getThesisEvaluation = async (req, res) => {
 
     const access = await userHasThesisAccess(userId, userRole, tm.thesis_id);
     if (!access) return res.status(403).json({ success: false, message: 'Keine Berechtigung' });
+    if (await studentEvalAccessExpired(userRole, tm.thesis_id)) {
+      return res.status(403).json({ success: false, message: STUDENT_EVAL_EXPIRED_MSG });
+    }
 
     if (!tm.evaluation_form_id) {
       return res.json({ success: true, hasForm: false });
@@ -520,6 +582,9 @@ const printThesisEvaluation = async (req, res) => {
 
     const access = await userHasThesisAccess(userId, userRole, tm.thesis_id);
     if (!access) return res.status(403).send('Keine Berechtigung');
+    if (await studentEvalAccessExpired(userRole, tm.thesis_id)) {
+      return res.status(403).send(STUDENT_EVAL_EXPIRED_MSG);
+    }
 
     const thesis = await Thesis.findByPk(tm.thesis_id, {
       include: [
@@ -585,6 +650,9 @@ const printTransferProjectSummary = async (req, res) => {
 
     const access = await userHasThesisAccess(userId, userRole, thesisId);
     if (!access) return res.status(403).send('Keine Berechtigung');
+    if (await studentEvalAccessExpired(userRole, thesisId)) {
+      return res.status(403).send(STUDENT_EVAL_EXPIRED_MSG);
+    }
 
     const thesis = await Thesis.findByPk(thesisId, {
       include: [
@@ -1140,7 +1208,7 @@ const exportThesesListCsv = async (req, res) => {
 module.exports = {
   loadFullEvaluation,   // exponiert für den Archivierungs-Job
   loadFeedbackContext,  // exponiert für den Archivierungs-Job
-  listForms, getForm, createForm, updateForm, deleteForm,
+  listForms, getForm, createForm, updateForm, deleteForm, printBlankEvaluationForm,
   createGroup, updateGroup, deleteGroup,
   createCriterion, updateCriterion, deleteCriterion, reorderCriteria,
   getThesisEvaluation, saveThesisEvaluation, printThesisEvaluation,

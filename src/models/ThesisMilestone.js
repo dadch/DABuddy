@@ -158,6 +158,18 @@ const ThesisMilestone = sequelize.define('ThesisMilestone', {
     allowNull: false,
     defaultValue: false,
   },
+  // Aufgabenstellungs-Meilenstein (aus der Vorlage übernommen).
+  is_assignment: {
+    type: DataTypes.BOOLEAN,
+    allowNull: false,
+    defaultValue: false,
+  },
+  // Ergänzungsfeld der Aufgabenstellung (Markdown, vom Verantwortlichen des
+  // Meilensteins gepflegt). Wird auf Seite "Aufgabenstellung" des PDFs gesetzt.
+  assignment_text: {
+    type: DataTypes.TEXT,
+    allowNull: true,
+  },
   // Markiert individuell gesetzten Termin pro DA (vom FBL oder Admin überschrieben).
   // Schützt due_at vor Überschreiben bei Vorlagen-Update mit applyToExisting.
   due_at_overridden: {

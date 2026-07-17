@@ -72,6 +72,12 @@ function loadForms() {
                                     <a href="/dashboard/admin/evaluation-forms/${f.id}" class="btn btn-outline-primary btn-sm">
                                         <i class="bi bi-pencil"></i> Bearbeiten
                                     </a>
+                                    <a href="/api/evaluation-forms/${f.id}/blank.pdf" target="_blank" class="btn btn-outline-danger btn-sm" title="Unausgefülltes Formular als PDF (Deutsch)">
+                                        <i class="bi bi-file-earmark-pdf"></i> Leerformular DE
+                                    </a>
+                                    <a href="/api/evaluation-forms/${f.id}/blank.pdf?lang=fr" target="_blank" class="btn btn-outline-danger btn-sm" title="Unausgefülltes Formular als PDF (Französisch)">
+                                        <i class="bi bi-file-earmark-pdf"></i> FR
+                                    </a>
                                     <button class="btn btn-outline-danger btn-sm" onclick="deleteForm(${f.id}, '${escapeHtml(f.title_de).replace(/'/g, "\\'")}')">
                                         <i class="bi bi-trash"></i>
                                     </button>

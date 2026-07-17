@@ -209,10 +209,10 @@ const showThesisDetail = async (req, res) => {
       return res.redirect('/dashboard');
     }
 
-    // Studierende sehen nur freigegebene Meilensteine.
+    // Studierende sehen alle Meilensteine; gesperrte (nicht freigegebene und
+    // noch nicht abgelaufene) werden in der View nur minimal dargestellt.
     // Dozent Transferprojekt sieht nur Meilensteine mit Transferprojekt-Kennzeichnung.
     const milestoneWhere = { thesis_id: thesisId };
-    if (userRole === 'student') milestoneWhere.released = true;
     if (userRole === 'field_project_coach') milestoneWhere.is_transfer_project = true;
 
     const milestones = await ThesisMilestone.findAll({
@@ -258,6 +258,8 @@ const showThesisDetail = async (req, res) => {
       thesis,
       milestones,
       logs,
+      // Referenzzeitpunkt für Ablauf-Logik (respektiert das simulierte Tagesdatum).
+      nowTs: require('../config/simulatedToday').getNow().getTime(),
       messages: req.flash(),
       formatFileSize: (bytes) => {
         if (!bytes && bytes !== 0) return '';

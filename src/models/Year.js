@@ -28,6 +28,14 @@ const Year = sequelize.define('Year', {
   // Fallback: String(year).
   label_de: { type: DataTypes.TEXT, allowNull: true },
   label_fr: { type: DataTypes.TEXT, allowNull: true },
+  // Aufgabenstellungs-Termine je Studienform.
+  // M1 = Ausgabe der Aufgabenstellung (auf Titelseite und S. "Administratives"),
+  // ab diesem Zeitpunkt können Studierende das PDF herunterladen.
+  // M2 = Abgabe der Diplomarbeit.
+  assignment_m1_fulltime: { type: DataTypes.DATE, allowNull: true },
+  assignment_m1_parttime: { type: DataTypes.DATE, allowNull: true },
+  assignment_m2_fulltime: { type: DataTypes.DATE, allowNull: true },
+  assignment_m2_parttime: { type: DataTypes.DATE, allowNull: true },
 }, {
   tableName: 'years',
 });

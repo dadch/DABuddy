@@ -10,6 +10,21 @@ const fmtDateTime = (d) => new Date(d).toLocaleDateString('de-CH') + ' ' + new D
 <% const hasTransferProject = (milestones || []).some(m => m.is_transfer_project); %>
 <% const isThesisDeptLead = user.role === 'department_lead' && thesis.department && thesis.department.department_lead_id === user.id; %>
 <% const canEditDueAt = isAdmin || isThesisDeptLead; %>
+<%
+// Studierenden-Sicht: Ist der letzte Meilenstein (spätester Termin, inkl.
+// individueller Übersteuerung) abgelaufen, sind Bewertungen und Feedback für
+// Studierende auf keinem Meilenstein mehr einsehbar.
+const isStudentView = user.role === 'student';
+const _nowTs = (typeof nowTs === 'number') ? nowTs : Date.now();
+const lastDueTs = (milestones || []).reduce((mx, mm) => Math.max(mx, new Date(mm.due_at).getTime()), 0);
+const studentEvalsHidden = isStudentView && lastDueTs > 0 && lastDueTs < _nowTs;
+// Aufgabenstellung: Termin "Meilenstein 1" gemäss Diplomjahr und Studienform des
+// Fachbereichs. Ab diesem Zeitpunkt steht das PDF Studierenden zum Download
+// bereit — unabhängig vom Zustand des Aufgabenstellungs-Meilensteins.
+const _studyMode = (thesis.department && thesis.department.study_mode === 'fulltime') ? 'fulltime' : 'parttime';
+const assignmentM1 = thesis.year ? thesis.year['assignment_m1_' + _studyMode] : null;
+const assignmentAvailableForStudent = !!assignmentM1 && new Date(assignmentM1).getTime() <= _nowTs;
+%>
 <%- include('../partials/thesis-page-header', { thesis: thesis, user: user, hasTransferProject: hasTransferProject }) %>
 
 <div class="row">
@@ -39,13 +54,18 @@ const fmtDateTime = (d) => new Date(d).toLocaleDateString('de-CH') + ' ' + new D
                         const canRelease = isAdmin || (user.role === 'coach' && isCoachOfThesis);
                         const cats = (m.uploadCategories || []).slice().sort((a, b) => (a.label||'').localeCompare(b.label||''));
                         const hasCats = cats.length > 0;
-                        const showUpload = !hasCats && m.allow_upload && isResponsible && (!hasDocs || m.allow_update) && (m.released || isAdmin);
-                        const canEvaluate = m.requires_evaluation && (user.role === m.evaluator_role || isAdmin);
+                        // Studierenden-Sicht: gesperrt + nicht abgelaufen → Minimalkarte (nur
+                        // Name + Termin); abgelaufen → vollständig, aber schreibgeschützt.
+                        const msExpired = new Date(m.due_at).getTime() < _nowTs;
+                        const minimalCard = isStudentView && !m.released && !msExpired;
+                        const studentReadOnly = isStudentView && msExpired;
+                        const showUpload = !hasCats && m.allow_upload && isResponsible && (!hasDocs || m.allow_update) && (m.released || isAdmin) && !studentReadOnly;
+                        const canEvaluate = m.requires_evaluation && (user.role === m.evaluator_role || isAdmin) && !studentReadOnly;
                         const evalByKind = {};
                         (m.thesisEvaluations || []).forEach(e => { evalByKind[e.kind] = e; });
                         const finalExists = !!evalByKind['final'];
-                        const isEvaluator1 = (user.role === m.evaluator_role) || isAdmin;
-                        const isEvaluator2 = (user.role === m.evaluator_role_2) || isAdmin;
+                        const isEvaluator1 = ((user.role === m.evaluator_role) && !studentReadOnly) || isAdmin;
+                        const isEvaluator2 = ((user.role === m.evaluator_role_2) && !studentReadOnly) || isAdmin;
                         const canFeedback = m.feedback_form_enabled && (isAdmin || user.role === 'department_lead' || user.role === m.evaluator_role || (m.double_evaluation && user.role === m.evaluator_role_2));
                         const feedbackFinal = m.double_evaluation ? evalByKind['final'] : evalByKind['single'];
                         const approvalSlots = [];
@@ -73,6 +93,23 @@ const fmtDateTime = (d) => new Date(d).toLocaleDateString('de-CH') + ' ' + new D
                         const overdue = !hasDocs && new Date(m.due_at) < new Date();
                         %>
                         <div class="milestone-card mb-3">
+                            <% if (minimalCard) { %>
+                                <%# Gesperrt + nicht abgelaufen: nur Name und Fälligkeitsdatum. %>
+                                <div class="d-flex justify-content-between align-items-start">
+                                    <div>
+                                        <h6 class="mb-1"><%= milestoneLabel(m) %></h6>
+                                        <div class="small text-muted">
+                                            <i class="bi bi-calendar-event"></i> <%= fmtDateTime(m.due_at) %>
+                                        </div>
+                                    </div>
+                                    <% if (m.is_assignment && assignmentAvailableForStudent) { %>
+                                        <%# Aufgabenstellung ist ab M1-Termin verfügbar — unabhängig vom Meilenstein-Zustand. %>
+                                        <a class="btn btn-outline-danger btn-sm" href="/api/thesis-milestones/<%= m.id %>/assignment.pdf" target="_blank">
+                                            <i class="bi bi-file-earmark-pdf"></i> Aufgabenstellung
+                                        </a>
+                                    <% } %>
+                                </div>
+                            <% } else { %>
                             <div class="d-flex justify-content-between align-items-start flex-wrap">
                                 <div>
                                     <h6 class="mb-1"><%= milestoneLabel(m) %></h6>
@@ -108,9 +145,26 @@ const fmtDateTime = (d) => new Date(d).toLocaleDateString('de-CH') + ' ' + new D
                                         <% if (m.is_transfer_project) { %>
                                             <span class="badge bg-info"><i class="bi bi-arrow-left-right"></i> Transferprojekt</span>
                                         <% } %>
+                                        <% if (m.is_assignment) { %>
+                                            <span class="badge bg-dark"><i class="bi bi-file-earmark-text"></i> Aufgabenstellung</span>
+                                        <% } %>
                                     </div>
                                 </div>
                                 <div class="text-end">
+                                    <% if (m.is_assignment) { %>
+                                        <% if (user.role === m.responsible_role || isAdmin) { %>
+                                            <button class="btn btn-outline-dark btn-sm" onclick='openAssignmentModal(<%- JSON.stringify({ id: m.id, label: m.label }) %>)'>
+                                                <i class="bi bi-file-earmark-text"></i> Aufgabenstellung bearbeiten
+                                            </button>
+                                            <a class="btn btn-outline-danger btn-sm" href="/api/thesis-milestones/<%= m.id %>/assignment.pdf" target="_blank" title="Aufgabenstellung als PDF generieren">
+                                                <i class="bi bi-file-earmark-pdf"></i> Aufgabenstellung
+                                            </a>
+                                        <% } else if (!isStudentView || assignmentAvailableForStudent) { %>
+                                            <a class="btn btn-outline-danger btn-sm" href="/api/thesis-milestones/<%= m.id %>/assignment.pdf" target="_blank" title="Aufgabenstellung als PDF">
+                                                <i class="bi bi-file-earmark-pdf"></i> Aufgabenstellung
+                                            </a>
+                                        <% } %>
+                                    <% } %>
                                     <% if (canRelease) { %>
                                         <% if (!m.released) { %>
                                             <button class="btn btn-success btn-sm" onclick="setMilestoneReleased(<%= m.id %>, true)"><i class="bi bi-unlock"></i> Freigeben</button>
@@ -177,7 +231,7 @@ const fmtDateTime = (d) => new Date(d).toLocaleDateString('de-CH') + ' ' + new D
                                     <% cats.forEach(function(cat) {
                                         const catDocs = docs.filter(d => d.upload_category_id === cat.id);
                                         const catHasDocs = catDocs.length > 0;
-                                        const catShowUpload = m.allow_upload && isResponsible && (!catHasDocs || m.allow_update) && (m.released || isAdmin);
+                                        const catShowUpload = m.allow_upload && isResponsible && (!catHasDocs || m.allow_update) && (m.released || isAdmin) && !studentReadOnly;
                                     %>
                                         <div class="rounded border mb-2 p-2">
                                             <div class="d-flex justify-content-between align-items-center">
@@ -216,7 +270,7 @@ const fmtDateTime = (d) => new Date(d).toLocaleDateString('de-CH') + ' ' + new D
                             <% } %>
 
                             <!-- Bewertung -->
-                            <% if (m.requires_evaluation && m.double_evaluation) { %>
+                            <% if (m.requires_evaluation && m.double_evaluation && !studentEvalsHidden) { %>
                                 <%
                                 const phases = [
                                     { kind: 'first', title: 'Bewertung 1', role: m.evaluator_role, owner: isEvaluator1, ev: evalByKind['first'], canView: isAdmin || isEvaluator1 || finalExists },
@@ -254,7 +308,7 @@ const fmtDateTime = (d) => new Date(d).toLocaleDateString('de-CH') + ' ' + new D
                                         </div>
                                     <% }); %>
                                 </div>
-                            <% } else if (m.requires_evaluation) { %>
+                            <% } else if (m.requires_evaluation && !studentEvalsHidden) { %>
                                 <% const single = evalByKind['single']; %>
                                 <div class="mt-3 bg-light rounded p-2">
                                     <div class="d-flex justify-content-between align-items-center">
@@ -348,7 +402,7 @@ const fmtDateTime = (d) => new Date(d).toLocaleDateString('de-CH') + ' ' + new D
                                         </div>
                                     <% } %>
                                     <% approvalSlots.forEach(function(s) { %>
-                                        <% const canApproveSlot = (user.role === s.role) || isAdmin; %>
+                                        <% const canApproveSlot = ((user.role === s.role) && !studentReadOnly) || isAdmin; %>
                                         <div class="d-flex justify-content-between align-items-center py-1 small">
                                             <div>
                                                 <strong>Freigabe <%= s.n %></strong>
@@ -379,6 +433,7 @@ const fmtDateTime = (d) => new Date(d).toLocaleDateString('de-CH') + ' ' + new D
                                     <% }); %>
                                 </div>
                             <% } %>
+                            <% } /* Ende: nicht-minimale Karte */ %>
                         </div>
                     <% }); %>
                 <% } %>
@@ -540,6 +595,36 @@ const fmtDateTime = (d) => new Date(d).toLocaleDateString('de-CH') + ' ' + new D
                 </button>
                 <a id="feedbackPdfLink" target="_blank" class="btn btn-outline-danger d-none">
                     <i class="bi bi-file-earmark-pdf"></i> PDF
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Aufgabenstellung Modal (Ergänzungsfeld, Markdown) -->
+<div class="modal fade" id="assignmentModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Aufgabenstellung — <span id="assignmentModalLabel"></span></h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <input type="hidden" id="assignmentMilestoneId">
+                <div class="mb-3">
+                    <label class="form-label">Ergänzungsfeld — Korrekturen und Auflagen zum Pflichtenheft</label>
+                    <textarea class="form-control" id="assignmentText" rows="14" placeholder="Ergänzend zum Pflichtenheft geltende Korrekturen und Auflagen (Markdown)."></textarea>
+                    <div class="form-text">Wird auf der Seite «Aufgabenstellung» des generierten PDFs eingesetzt.</div>
+                </div>
+                <div id="assignmentError" class="alert alert-danger d-none"></div>
+            </div>
+            <div class="modal-footer flex-wrap gap-2">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Schliessen</button>
+                <button type="button" class="btn btn-primary" onclick="saveAssignment()">
+                    <i class="bi bi-save"></i> Speichern
+                </button>
+                <a id="assignmentPdfLink" target="_blank" class="btn btn-outline-danger">
+                    <i class="bi bi-file-earmark-pdf"></i> PDF generieren
                 </a>
             </div>
         </div>
@@ -1047,6 +1132,73 @@ function generateFeedback() {
         })
         .catch(err => { console.error(err); setFeedbackError('Netzwerkfehler bei der LLM-Anfrage'); })
         .finally(() => { btn.disabled = false; btn.innerHTML = orig; });
+}
+
+// ---------- Aufgabenstellung (Ergänzungsfeld, Markdown-Editor via EasyMDE) ----------
+let assignmentEditor = null;
+function getAssignmentText() {
+    return assignmentEditor ? assignmentEditor.value() : (document.getElementById('assignmentText').value || '');
+}
+function setAssignmentText(text) {
+    if (assignmentEditor) assignmentEditor.value(text || '');
+    else document.getElementById('assignmentText').value = text || '';
+}
+function ensureAssignmentEditor() {
+    if (assignmentEditor || typeof EasyMDE === 'undefined') return;
+    assignmentEditor = new EasyMDE({
+        element: document.getElementById('assignmentText'),
+        spellChecker: false,
+        status: ['lines', 'words'],
+        minHeight: '280px',
+        toolbar: ['bold', 'italic', 'heading', '|', 'unordered-list', 'ordered-list', '|', 'preview', 'side-by-side', '|', 'guide'],
+        previewRender: (plainText) => (window.marked ? marked.parse(plainText, { breaks: true, gfm: true }) : plainText),
+    });
+}
+function setAssignmentError(msg) {
+    const el = document.getElementById('assignmentError');
+    if (!msg) { el.classList.add('d-none'); el.textContent = ''; }
+    else { el.textContent = msg; el.classList.remove('d-none'); }
+}
+function openAssignmentModal(m) {
+    document.getElementById('assignmentMilestoneId').value = m.id;
+    document.getElementById('assignmentModalLabel').textContent = m.label || '';
+    document.getElementById('assignmentPdfLink').href = `/api/thesis-milestones/${m.id}/assignment.pdf`;
+    setAssignmentError('');
+
+    const modalEl = document.getElementById('assignmentModal');
+    modalEl.addEventListener('shown.bs.modal', function onceShown() {
+        modalEl.removeEventListener('shown.bs.modal', onceShown);
+        ensureAssignmentEditor();
+        if (modalEl.dataset.pendingText != null) {
+            setAssignmentText(modalEl.dataset.pendingText);
+            delete modalEl.dataset.pendingText;
+        }
+    });
+
+    fetch(`/api/thesis-milestones/${m.id}/assignment`)
+        .then(r => r.json())
+        .then(d => {
+            if (!d.success) { setAssignmentError(d.message || 'Fehler beim Laden'); return; }
+            if (assignmentEditor) setAssignmentText(d.assignment_text || '');
+            else modalEl.dataset.pendingText = d.assignment_text || '';
+        })
+        .catch(err => { console.error(err); setAssignmentError('Netzwerkfehler'); });
+    new bootstrap.Modal(modalEl).show();
+}
+function saveAssignment() {
+    setAssignmentError('');
+    const id = document.getElementById('assignmentMilestoneId').value;
+    fetch(`/api/thesis-milestones/${id}/assignment`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ assignment_text: getAssignmentText() }),
+    })
+    .then(r => r.json())
+    .then(d => {
+        if (!d.success) { setAssignmentError(d.message || 'Fehler beim Speichern'); return; }
+        bootstrap.Modal.getInstance(document.getElementById('assignmentModal')).hide();
+    })
+    .catch(err => { console.error(err); setAssignmentError('Netzwerkfehler beim Speichern'); });
 }
 
 function saveFeedback() {

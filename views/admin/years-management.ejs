@@ -84,6 +84,30 @@
                         <label for="editYearLabelFr" class="form-label">Bezeichnung (Französisch)</label>
                         <input type="text" class="form-control" id="editYearLabelFr" placeholder="optional – Fallback auf Jahreszahl">
                     </div>
+                    <hr>
+                    <h6 class="mb-1"><i class="bi bi-file-earmark-text"></i> Aufgabenstellungs-Termine</h6>
+                    <div class="form-text mb-2">
+                        Meilenstein 1 = Ausgabe der Aufgabenstellung (Titelseite und «Administratives»; ab diesem
+                        Zeitpunkt steht das PDF Studierenden zum Download bereit). Meilenstein 2 = Abgabe der Diplomarbeit.
+                    </div>
+                    <div class="row g-2 mb-2">
+                        <div class="col-md-6">
+                            <label class="form-label small">Meilenstein 1 — Vollzeit</label>
+                            <input type="datetime-local" class="form-control" id="editYearAssignM1Ft">
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label small">Meilenstein 1 — Berufsbegleitend</label>
+                            <input type="datetime-local" class="form-control" id="editYearAssignM1Pt">
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label small">Meilenstein 2 — Vollzeit</label>
+                            <input type="datetime-local" class="form-control" id="editYearAssignM2Ft">
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label small">Meilenstein 2 — Berufsbegleitend</label>
+                            <input type="datetime-local" class="form-control" id="editYearAssignM2Pt">
+                        </div>
+                    </div>
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Abbrechen</button>
@@ -173,11 +197,22 @@ document.getElementById('addYearForm').addEventListener('submit', function(e) {
         .catch(err => { console.error(err); alert('Fehler beim Anlegen'); });
 });
 
+function toLocalInput(iso) {
+    if (!iso) return '';
+    const d = new Date(iso);
+    const pad = n => String(n).padStart(2, '0');
+    return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
+
 function editYear(y) {
     document.getElementById('editYearId').value = y.id;
     document.getElementById('editYearReadonly').value = y.year;
     document.getElementById('editYearLabelDe').value = y.label_de || '';
     document.getElementById('editYearLabelFr').value = y.label_fr || '';
+    document.getElementById('editYearAssignM1Ft').value = toLocalInput(y.assignment_m1_fulltime);
+    document.getElementById('editYearAssignM1Pt').value = toLocalInput(y.assignment_m1_parttime);
+    document.getElementById('editYearAssignM2Ft').value = toLocalInput(y.assignment_m2_fulltime);
+    document.getElementById('editYearAssignM2Pt').value = toLocalInput(y.assignment_m2_parttime);
     new bootstrap.Modal(document.getElementById('editYearModal')).show();
 }
 
@@ -186,7 +221,14 @@ document.getElementById('editYearForm').addEventListener('submit', function(e) {
     const id = document.getElementById('editYearId').value;
     const label_de = document.getElementById('editYearLabelDe').value.trim();
     const label_fr = document.getElementById('editYearLabelFr').value.trim();
-    fetch('/api/years/' + id, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ label_de, label_fr }) })
+    const body = {
+        label_de, label_fr,
+        assignment_m1_fulltime: document.getElementById('editYearAssignM1Ft').value,
+        assignment_m1_parttime: document.getElementById('editYearAssignM1Pt').value,
+        assignment_m2_fulltime: document.getElementById('editYearAssignM2Ft').value,
+        assignment_m2_parttime: document.getElementById('editYearAssignM2Pt').value,
+    };
+    fetch('/api/years/' + id, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) })
         .then(r => r.json())
         .then(d => {
             if (d.success) {

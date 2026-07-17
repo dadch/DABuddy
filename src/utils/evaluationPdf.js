@@ -214,12 +214,14 @@ const colX = () => {
 
 // ---------- Public API ----------
 
-// Streams a PDF of an evaluation to `res`. data = { thesis, milestone, title, kind, evaluation, freeText }
+// Streams a PDF of an evaluation to `res`. data = { thesis, milestone, title, kind, evaluation, freeText, blank }
+// blank: unausgefülltes Formular — Stammdaten-Zeilen leer, keine Punkte/Noten-Summen.
 function streamEvaluationPdf(res, data) {
   const { thesis, milestone } = data;
   const isForm = !!data.evaluation;
   const title = data.title || ('Bewertung ' + (milestone.label || ''));
-  const footerLeft = 'Bewertung ' + (milestone.label || '');
+  // blank: der Formulartitel steht für sich (kein "Bewertung "-Präfix davor).
+  const footerLeft = data.blank ? title : 'Bewertung ' + (milestone.label || '');
 
   const doc = new PDFDocument({
     size: 'A4',
@@ -230,7 +232,7 @@ function streamEvaluationPdf(res, data) {
   doc.pipe(res);
 
   if (isForm) {
-    renderForm(doc, { thesis, title, evaluation: data.evaluation });
+    renderForm(doc, { thesis, title, evaluation: data.evaluation, blank: !!data.blank });
   } else {
     renderFreeText(doc, { thesis, milestone, title, freeText: data.freeText });
   }
@@ -265,12 +267,19 @@ function streamEvaluationPdf(res, data) {
 
 // ---------- Thesis info block ----------
 
-function drawThesisInfo(doc, thesis, title, startY, fullWidth) {
+function drawThesisInfo(doc, thesis, title, startY, fullWidth, blank) {
   let y = startY;
   doc.font('Helvetica-Bold').fontSize(13).fillColor('black').text(title, MARGIN, y);
   y = doc.y + 4;
 
-  const rows = [
+  // blank: Stammdaten-Zeilen leer lassen (zum Handausfüllen).
+  const rows = blank ? [
+    ['Diplomjahr', ''],
+    ['Student/in', ''],
+    ['Fachbereich', ''],
+    ['Titel der Arbeit', ''],
+    ['Sprache', ''],
+  ] : [
     ['Diplomjahr', thesis.year ? String(thesis.year.year) : ''],
     ['Student/in', studentsText(thesis)],
     ['Fachbereich', thesis.department ? thesis.department.name : ''],
@@ -309,8 +318,8 @@ function renderFreeText(doc, { thesis, title, freeText }) {
 
 // ---------- Form evaluation (landscape table) ----------
 
-function renderForm(doc, { thesis, title, evaluation }) {
-  let y = drawThesisInfo(doc, thesis, title, CONTENT_TOP, CONTENT_W);
+function renderForm(doc, { thesis, title, evaluation, blank }) {
+  let y = drawThesisInfo(doc, thesis, title, CONTENT_TOP, CONTENT_W, blank);
 
   const xs = colX();
 
@@ -373,7 +382,7 @@ function renderForm(doc, { thesis, title, evaluation }) {
     }
 
     // Ergebnis-Zeile der Gruppe
-    const resVals = ['Ergebnis: ' + (g.name || ''), fmtNum(groupMax), '', fmtNum(groupAchieved), '', '', '', '', '', '', ''];
+    const resVals = ['Ergebnis: ' + (g.name || ''), fmtNum(groupMax), '', blank ? '' : fmtNum(groupAchieved), '', '', '', '', '', '', ''];
     const rh = 16;
     y = ensureSpace(rh, y);
     doc.rect(MARGIN, y, CONTENT_W, rh).fillAndStroke('#f5f5f5', '#888');
@@ -381,8 +390,8 @@ function renderForm(doc, { thesis, title, evaluation }) {
     doc.text(resVals[0], xs[0] + PAD, y + 4, { width: COLS[0].w - 2 * PAD });
     doc.text(resVals[1], xs[1] + PAD, y + 4, { width: COLS[1].w - 2 * PAD });
     doc.text(resVals[3], xs[3] + PAD, y + 4, { width: COLS[3].w - 2 * PAD });
-    // "Note: X.X" über die Stufen-Spalten
-    doc.text('Note: ' + fmtGrade(g.grade), xs[4] + PAD, y + 4, { width: (COLS[4].w + COLS[5].w + COLS[6].w) - 2 * PAD });
+    // "Note: X.X" über die Stufen-Spalten (blank: Platz zum Handausfüllen)
+    doc.text('Note: ' + (blank ? '' : fmtGrade(g.grade)), xs[4] + PAD, y + 4, { width: (COLS[4].w + COLS[5].w + COLS[6].w) - 2 * PAD });
     y += rh;
     y += 4;
   }
@@ -391,7 +400,7 @@ function renderForm(doc, { thesis, title, evaluation }) {
   y = ensureSpace(18, y);
   doc.rect(MARGIN, y, CONTENT_W, 16).fillAndStroke('#d8e2f3', '#666');
   doc.fillColor('black').font('Helvetica-Bold').fontSize(9)
-    .text('Gesamtnote (gewichteter Durchschnitt): ' + fmtGrade(evaluation.overall_grade), MARGIN + PAD, y + 3, { width: CONTENT_W - 2 * PAD });
+    .text('Gesamtnote (gewichteter Durchschnitt): ' + (blank ? '' : fmtGrade(evaluation.overall_grade)), MARGIN + PAD, y + 3, { width: CONTENT_W - 2 * PAD });
 }
 
 // ---------- Low-level table drawing ----------

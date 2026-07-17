@@ -113,6 +113,13 @@ const Milestone = sequelize.define('Milestone', {
     allowNull: false,
     defaultValue: false,
   },
+  // Aufgabenstellungs-Meilenstein: Der Verantwortliche füllt das Ergänzungsfeld
+  // aus und generiert die Aufgabenstellung als PDF.
+  is_assignment: {
+    type: DataTypes.BOOLEAN,
+    allowNull: false,
+    defaultValue: false,
+  },
   // Feedbackformular am Meilenstein aktivierbar — erzeugt PDF "Diplomarbeit: Feedback
   // für Studierende" basierend auf der finalen Bewertung dieses Meilensteins.
   feedback_form_enabled: {

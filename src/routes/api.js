@@ -53,6 +53,9 @@ const {
   deleteThesisMilestoneDocument,
   downloadThesisMilestoneDocument,
   evaluateThesisMilestone,
+  getAssignment,
+  saveAssignment,
+  printAssignment,
   generateConfidentialityPdf,
   uploadConfidentialityDocument,
   downloadConfidentialityDocument,
@@ -167,6 +170,11 @@ router.put('/thesis-milestones/:id/release', setThesisMilestoneReleased);
 router.post('/thesis-milestones/:id/document', uploadThesisMilestoneDocument);
 router.put('/thesis-milestones/:id/evaluation', evaluateThesisMilestone);
 
+// Aufgabenstellung (Ergänzungsfeld + PDF)
+router.get('/thesis-milestones/:id/assignment', getAssignment);
+router.put('/thesis-milestones/:id/assignment', saveAssignment);
+router.get('/thesis-milestones/:id/assignment.pdf', printAssignment);
+
 // Versioned milestone documents
 router.get('/thesis-milestone-documents/:docId/download', downloadThesisMilestoneDocument);
 router.delete('/thesis-milestone-documents/:docId', requireRole(['admin']), deleteThesisMilestoneDocument);
@@ -208,6 +216,7 @@ router.get('/chat-messages/:msgId/attachment', downloadChatAttachment);
 // Evaluation form templates (admin)
 router.get('/evaluation-forms', requireRole(['admin']), evalCtrl.listForms);
 router.post('/evaluation-forms', requireRole(['admin']), evalCtrl.createForm);
+router.get('/evaluation-forms/:id/blank.pdf', requireRole(['admin']), evalCtrl.printBlankEvaluationForm);
 router.get('/evaluation-forms/:id', requireRole(['admin']), evalCtrl.getForm);
 router.put('/evaluation-forms/:id', requireRole(['admin']), evalCtrl.updateForm);
 router.delete('/evaluation-forms/:id', requireRole(['admin']), evalCtrl.deleteForm);
