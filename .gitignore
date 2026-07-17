@@ -11,3 +11,5 @@ coverage/
 dist/
 uploads/
 data/
+# Produktions-Bind-Mounts (Deployment-Host)
+volumes/

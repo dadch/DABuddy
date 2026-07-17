@@ -1,0 +1,47 @@
+# ThesisBuddy — Produktions-Stack (App + PostgreSQL)
+# Veröffentlichung auf Port 3000; TLS terminiert der vorgelagerte Reverse Proxy
+# (https://thesisbuddy.hftm.ch -> 10.109.1.25:3000).
+#
+# Alle persistenten Daten liegen als Bind-Mounts auf dem Host unter
+# ./volumes/ (siehe DEPLOYMENT.md — Verzeichnisse müssen vor dem ersten
+# Start angelegt werden, uploads/appdata mit Besitzer uid 1000).
+services:
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${DB_NAME:-dabuddy}
+      POSTGRES_USER: ${DB_USER:-dabuddy}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:?DB_PASSWORD fehlt in .env}
+    volumes:
+      - ./volumes/db:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-dabuddy} -d ${DB_NAME:-dabuddy}"]
+      interval: 5s
+      timeout: 3s
+      retries: 12
+
+  app:
+    build: .
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    env_file: .env
+    environment:
+      # Innerhalb des Stacks immer der db-Service — überschreibt Werte aus .env.
+      NODE_ENV: production
+      PORT: "3000"
+      DB_HOST: db
+      DB_PORT: "5432"
+    volumes:
+      - ./volumes/uploads:/app/uploads   # hochgeladene Dokumente, Vorlagen
+      - ./volumes/appdata:/app/data      # app-settings.json, simulated-today.json
+    depends_on:
+      db:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "node", "-e", "require('http').get('http://localhost:3000/login', r => process.exit(r.statusCode < 500 ? 0 : 1)).on('error', () => process.exit(1))"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 30s

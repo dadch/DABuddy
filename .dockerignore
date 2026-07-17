@@ -1,0 +1,19 @@
+# Nie ins Image: Secrets und lokale Daten
+.env
+.env.*
+!.env.production.example
+
+# Laufzeitdaten (kommen als Volumes)
+uploads/
+data/
+logs/
+*.log
+
+# Entwicklung
+node_modules/
+.git/
+.gitignore
+.DS_Store
+coverage/
+.nyc_output/
+dist/
