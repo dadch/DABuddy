@@ -564,6 +564,95 @@ const createUser = async (req, res) => {
   }
 };
 
+// ---------- CSV-Import Dozierende/Experten ----------
+// Format (Spaltentrenner ;): Nachname;Vorname;E-Mail;Geschlecht(m/w/d);
+// Fachbereich(e, kommagetrennt);Rolle(Dozent|Experte). Kopfzeile wird erkannt
+// und übersprungen. Eindeutigkeit über die E-Mail-Adresse — bestehende
+// Benutzer werden nicht angetastet, sondern als "übersprungen" gemeldet.
+const csvImportUpload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 2 * 1024 * 1024 },
+});
+
+const importUsersCsv = (req, res) => {
+  csvImportUpload.single('file')(req, res, async (err) => {
+    if (err) return res.status(400).json({ success: false, message: err.message });
+    if (!req.file) return res.status(400).json({ success: false, message: 'Keine Datei hochgeladen' });
+    try {
+      const text = req.file.buffer.toString('utf8').replace(/^﻿/, '');
+      const lines = text.split(/\r?\n/).filter(l => l.trim() !== '');
+      const imported = [];
+      const skipped = [];
+      const errors = [];
+
+      const existingUsers = await User.findAll({ attributes: ['email', 'username'] });
+      const existingEmails = new Set(existingUsers.map(u => (u.email || '').toLowerCase()));
+      const usernames = new Set(existingUsers.map(u => (u.username || '').toLowerCase()));
+      const allDepts = await Department.findAll();
+      const deptByName = new Map(allDepts.map(d => [d.name.trim().toLowerCase(), d]));
+
+      for (let i = 0; i < lines.length; i++) {
+        const line = i + 1;
+        const cols = lines[i].split(';').map(c => c.trim());
+        // Kopfzeile: dritte Spalte enthält keine E-Mail-Adresse
+        if (i === 0 && !(cols[2] || '').includes('@')) continue;
+        if (cols.length < 6) {
+          errors.push({ line, message: `${cols.length} Spalten gefunden, 6 erwartet (Nachname;Vorname;E-Mail;Geschlecht;Fachbereich;Rolle)` });
+          continue;
+        }
+        const [nachname, vorname, emailRaw, genderRaw, fbRaw, roleRaw] = cols;
+        const email = emailRaw.toLowerCase();
+
+        if (!nachname || !vorname) { errors.push({ line, message: 'Nachname/Vorname fehlt' }); continue; }
+        if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) { errors.push({ line, message: `Ungültige E-Mail-Adresse "${emailRaw}"` }); continue; }
+        if (existingEmails.has(email)) { skipped.push(email); continue; }
+
+        // Rolle (Spalte 6) → Primärrolle
+        const rl = roleRaw.toLowerCase();
+        let role = null;
+        if (rl.startsWith('doz')) role = 'coach';
+        else if (rl.startsWith('exp')) role = 'expert';
+        if (!role) { errors.push({ line, message: `Unbekannte Rolle "${roleRaw}" (erwartet: Dozent oder Experte)` }); continue; }
+
+        // Fachbereiche (Spalte 5, kommagetrennt) — Dozierende können mehreren angehören
+        const fbNames = fbRaw.split(',').map(s => s.trim()).filter(Boolean);
+        if (fbNames.length === 0) { errors.push({ line, message: 'Kein Fachbereich angegeben' }); continue; }
+        const depts = [];
+        const missing = [];
+        for (const nm of fbNames) {
+          const d = deptByName.get(nm.toLowerCase());
+          if (d) depts.push(d); else missing.push(nm);
+        }
+        if (missing.length > 0) { errors.push({ line, message: `Unbekannte(r) Fachbereich(e): ${missing.join(', ')}` }); continue; }
+
+        const gender = ['m', 'w', 'd'].includes(genderRaw.toLowerCase()) ? genderRaw.toLowerCase() : null;
+
+        // Benutzername aus dem E-Mail-Localpart, bei Kollision Ziffern-Suffix
+        const base = email.split('@')[0];
+        let username = base;
+        let n = 1;
+        while (usernames.has(username.toLowerCase())) username = `${base}${++n}`;
+
+        // Zufallspasswort — Login erfolgt via M365 oder nach Passwort-Neusetzung
+        const password = require('crypto').randomBytes(12).toString('base64url');
+
+        const user = await User.create({ username, password, firstname: vorname, name: nachname, email, role, gender });
+        await user.setDepartments(depts);
+        await syncUserRoles(user.id, role, []);
+
+        existingEmails.add(email);
+        usernames.add(username.toLowerCase());
+        imported.push(email);
+      }
+
+      res.json({ success: true, imported, skipped, errors });
+    } catch (e) {
+      console.error('importUsersCsv error:', e);
+      res.status(500).json({ success: false, message: 'Interner Serverfehler beim Import' });
+    }
+  });
+};
+
 const updateUser = async (req, res) => {
   try {
     const { id } = req.params;
@@ -3292,4 +3381,5 @@ module.exports = {
   getAssignment,
   saveAssignment,
   printAssignment,
+  importUsersCsv,
 };

@@ -24,7 +24,7 @@
                 <li><button class="dropdown-item" type="button" onclick="openBulkDownloadModal()"><i class="bi bi-archive"></i> <%= t('dashboard.actions.bulkDownload') %></button></li>
                 <li><button class="dropdown-item" type="button" onclick="archiveSelected()"><i class="bi bi-box-seam"></i> Archivierung selektierter DAs</button></li>
                 <li><hr class="dropdown-divider"></li>
-                <li><button class="dropdown-item" type="button" onclick="openUserManagementModal()"><i class="bi bi-person-gear"></i> <%= t('dashboard.actions.userManagement') %></button></li>
+                <li><button class="dropdown-item" type="button" onclick="openUserManagementModal()"><i class="bi bi-people"></i> <%= t('dashboard.actions.userManagement') %></button></li>
                 <li><button class="dropdown-item" type="button" onclick="openStudentManagement()"><i class="bi bi-mortarboard"></i> <%= t('dashboard.actions.studentManagement') %></button></li>
                 <li><button class="dropdown-item" type="button" onclick="openDepartmentManagementModal()"><i class="bi bi-building"></i> <%= t('dashboard.actions.departmentManagement') %></button></li>
             </ul>
@@ -316,13 +316,24 @@
                 <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
             </div>
             <div class="modal-body">
-                <div class="row mb-3">
+                <div class="row mb-3 align-items-center">
                     <div class="col-md-6">
                         <button type="button" class="btn btn-success" onclick="openAddUserModal()">
                             <i class="bi bi-person-plus"></i> Benutzer hinzufügen
                         </button>
                     </div>
+                    <div class="col-md-6 text-md-end">
+                        <input type="file" id="userImportFile" accept=".csv,text/csv" class="d-none" onchange="importUsersCsv(this)">
+                        <button type="button" class="btn btn-outline-primary" onclick="document.getElementById('userImportFile').click()"
+                                title="CSV mit ;-Trenner: Nachname;Vorname;E-Mail;Geschlecht(m/w);Fachbereiche(kommagetrennt);Rolle(Dozent|Experte)">
+                            <i class="bi bi-upload"></i> CSV-Import Dozierende/Experten
+                        </button>
+                        <div class="form-text text-md-end">
+                            Format: Nachname;Vorname;E-Mail;m/w;Fachbereiche (kommagetrennt);Dozent|Experte
+                        </div>
+                    </div>
                 </div>
+                <div id="userImportResult"></div>
                 <div id="usersList">
                     <!-- Benutzer werden via AJAX geladen -->
                 </div>
@@ -598,9 +609,46 @@ function openAddThesisModal() {
 }
 
 function openUserManagementModal() {
+    document.getElementById('userImportResult').innerHTML = '';
     loadUsers();
     loadDepartmentOptions();
     new bootstrap.Modal(document.getElementById('userManagementModal')).show();
+}
+
+// CSV-Import Dozierende/Experten (Format siehe Button-Tooltip).
+function importUsersCsv(input) {
+    const file = input.files && input.files[0];
+    if (!file) return;
+    const esc = s => String(s == null ? '' : s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+    const target = document.getElementById('userImportResult');
+    target.innerHTML = '<div class="text-muted mb-3"><i class="bi bi-hourglass-split"></i> Import läuft…</div>';
+    const fd = new FormData();
+    fd.append('file', file);
+    fetch('/api/users/import-csv', { method: 'POST', body: fd })
+        .then(r => r.json())
+        .then(d => {
+            input.value = '';
+            if (!d.success) {
+                target.innerHTML = `<div class="alert alert-danger"><i class="bi bi-x-circle"></i> ${esc(d.message || 'Import fehlgeschlagen')}</div>`;
+                return;
+            }
+            const cls = d.errors.length ? 'warning' : 'success';
+            let html = `<div class="alert alert-${cls} mb-3">`
+                + `<i class="bi bi-check-circle"></i> <strong>${d.imported.length}</strong> importiert`
+                + ` · ${d.skipped.length} übersprungen (E-Mail bereits vorhanden)`
+                + (d.errors.length ? ` · ${d.errors.length} fehlerhaft` : '');
+            if (d.errors.length) {
+                html += `<hr class="my-2"><ul class="mb-0 small">${d.errors.map(e => `<li>Zeile ${e.line}: ${esc(e.message)}</li>`).join('')}</ul>`;
+            }
+            html += '</div>';
+            target.innerHTML = html;
+            loadUsers();
+        })
+        .catch(err => {
+            console.error(err);
+            input.value = '';
+            target.innerHTML = '<div class="alert alert-danger">Netzwerkfehler beim Import</div>';
+        });
 }
 
 function openAddUserModal() {

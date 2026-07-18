@@ -1,0 +1,197 @@
+(Person) Nachname;(Person) Vorname;(Person) E-Mail;(Person) Geschlecht;Veranstaltung
+Andreatta;Cyril;cyril.andreatta@hftm.ch;m;26775 / BBEL24.2a.EL206 / Netzwerktechnik
+Barcia;Antonio;antonio.barcia@hftm.ch;m;26781 / BBEL24.2a.EL213 / SPS Grundlagen
+Barjasic;Ivan;ivan.barjasic@hftm.ch;m;26941 / BBPZ24.2b.PZ203 / Industry 4.0
+Baumann;Dominic;dominic.baumann@hftm.ch;m;28484 / BBIN24.3a.IN267 / IT Security
+Berliat;Roger;roger.berliat@hftm.ch;m;26872 / BBMB24.2a.MB242 / Industry 4.0
+Berliat;Roger;roger.berliat@hftm.ch;m;26923 / BBPZ24.2a.PZ203 / Industry 4.0
+Beutler;Marc;marc.beutler@hftm.ch;m;26880 / BBMB24.2b.MB230 / Organisation Development & Simulation
+Beutler;Marc;marc.beutler@hftm.ch;m;26890 / BBMB24.2b.MB240 / Physics Basic
+Beutler;Marc;marc.beutler@hftm.ch;m;26929 / BBPZ24.2a.PZ209 / Environmental Management
+Beutler;Marc;marc.beutler@hftm.ch;m;26930 / BBPZ24.2a.PZ210 / Innovation Management
+Beutler;Marc;marc.beutler@hftm.ch;m;28631 / BBT24.3b.GS400 / Projekt-Oriented Engineering
+Beutler;Marc;marc.beutler@hftm.ch;m;28629 / BBT24.3a.GS400 / Projekt-Oriented Engineering
+Borer;Bruno;bruno.borer@hftm.ch;m;26779 / BBEL24.2a.EL211 / Innovation im industriellen Umfeld (PP)
+Borer;Bruno;bruno.borer@hftm.ch;m;26951 / BBPZ24.2b.PZ213 / Quality Management
+Borer;Bruno;bruno.borer@hftm.ch;m;28636 / BBT24.3h.GS400 / Projekt-Oriented Engineering
+Brechbühl;Jonathan Simon;jonathan.brechbuehl@hftm.ch;m;26783 / BBEL24.2a.EL216 / Visualisierung und Steuerung
+Bürki;Philippe;philippe.buerki@hftm.ch;m;26900 / BBMB24.2f.MB230 / Organisation Development & Simulation
+Bürki;Philippe;philippe.buerki@hftm.ch;m;26901 / BBMB24.2f.MB231 / Innovation Project
+Büttiker;Jan;jan.buettiker@hftm.ch;m;28496 / BBINSY24.3a.IN358 / Modern Workplace
+Cadilha;Angelo;angelo.cadilha@hftm.ch;m;26932 / BBPZ24.2a.PZ212 / Product Life Cycle Management
+Cadilha;Angelo;angelo.cadilha@hftm.ch;m;28553 / BBPZBT24.3b.PZ305 / E-Logistics
+Cadilha;Angelo;angelo.cadilha@hftm.ch;m;28542 / BBPZBT24.3a.PZ305 / E-Logistics
+D'Amico;Saverio;saverio.damico@hftm.ch;m;26913 / BBMB24.2f.MB243 / Automation Basic
+D'Amico;Saverio;saverio.damico@hftm.ch;m;26914 / BBMB24.2f.MB244 / Automation Advanced
+Dänzer;Jürg;juerg.daenzer@hftm.ch;m;26867 / BBMB24.2a.MB237 / Material Sciences Basic
+Dänzer;Jürg;juerg.daenzer@hftm.ch;m;26868 / BBMB24.2a.MB238 / Material Sciences Advanced
+Dänzer;Jürg;juerg.daenzer@hftm.ch;m;26887 / BBMB24.2b.MB237 / Material Sciences Basic
+Dänzer;Jürg;juerg.daenzer@hftm.ch;m;26888 / BBMB24.2b.MB238 / Material Sciences Advanced
+Dänzer;Jürg;juerg.daenzer@hftm.ch;m;26907 / BBMB24.2f.MB237 / Material Sciences Basic
+Dänzer;Jürg;juerg.daenzer@hftm.ch;m;26908 / BBMB24.2f.MB238 / Material Sciences Advanced
+Dänzer;Jürg;juerg.daenzer@hftm.ch;m;28525 / BBMBPT24.3e.MB352 / Manufacturing Technologies
+Diallo;Bocar;bocar.diallo@hftm.ch;m;26911 / BBMB24.2f.MB241 / Product Development Basic
+Diallo;Bocar;bocar.diallo@hftm.ch;m;28512 / BBMBKT24.3f.MB358 / Product Development Advanced
+Diallo;Bocar;bocar.diallo@hftm.ch;m;28507 / BBMBKT24.3a.MB359 / CAx Simulation
+Diallo;Bocar;bocar.diallo@hftm.ch;m;28513 / BBMBKT24.3f.MB359 / CAx Simulation
+Di Francesco;Aldo;aldo.difrancesco@hftm.ch;m;26945 / BBPZ24.2b.PZ207 / Supply Chain Management Basic
+Di Francesco;Aldo;aldo.difrancesco@hftm.ch;m;28536 / BBMB24.3f.GS400 / Project-Oriented Engineering
+Di Francesco;Aldo;aldo.difrancesco@hftm.ch;m;28537 / BBMB24.3f.GS401 / Field Project
+Di Francesco;Aldo;aldo.difrancesco@hftm.ch;m;28534 / BBMB24.3f.MB248 / Lean Basic
+Erhardt;Simon;simon.erhardt@hftm.ch;m;26849 / BBIN24.2a.IN257 / Relational Databases
+Erhardt;Simon;simon.erhardt@hftm.ch;m;28489 / BBINSE24.3a.IN352 / Database Development
+Fankhauser;Dominik;dominik.fankhauser@hftm.ch;m;28356 / BBGA24.3a.GA302 / Raumautomation II (inkl. DALI, BACnet)
+Ferreiro;Juan;juan.ferreiro@hftm.ch;m;26841 / BBIN24.2b.IN253 / Programming 1 (Java)
+Ferreiro;Juan;juan.ferreiro@hftm.ch;m;26842 / BBIN24.2b.IN254 / Programming 2 (Java)
+Ferreiro;Juan;juan.ferreiro@hftm.ch;m;26846 / BBIN24.2b.IN255 / Programming 3 (Java)
+Ferreiro;Juan;juan.ferreiro@hftm.ch;m;28481 / BBIN24.3a.IN264 / Software Quality Management
+Fetai;Ilir;ilir.fetai@hftm.ch;m;26843 / BBIN24.2c.IN270 / Programming 1 (Python)
+Fetai;Ilir;ilir.fetai@hftm.ch;m;26844 / BBIN24.2c.IN271 / Programming 2 (Python)
+Fetai;Ilir;ilir.fetai@hftm.ch;m;26845 / BBIN24.2c.IN272 / Programming 3 (Python)
+Fetai;Ilir;ilir.fetai@hftm.ch;m;26847 / BBIN24.2b.IN256 / Algorithms and Datastructures
+Flückiger;Bruno;bruno.flueckiger@hftm.ch;m;26851 / BBIN24.2a.IN259 / Operating Systems
+Flückiger;Bruno;bruno.flueckiger@hftm.ch;m;26840 / BBIN24.2a.IN252 / Internet Technologies
+Flückiger;Bruno;bruno.flueckiger@hftm.ch;m;26848 / BBIN24.2c.IN273 / Shell Scripting
+Flückiger;Rick;rick.flueckiger@hftm.ch;m;28524 / BBMBPT24.3e.MB351 / Industrialisation Advanced
+Frei;Reto;reto.frei@hftm.ch;m;28568 / BBPZSC24.3a.PZ302 / Lean Admin
+Frisch;Lukas;lukas.frisch@hftm.ch;m;26909 / BBMB24.2f.MB239 / Design Consulting
+Frisch;Lukas;lukas.frisch@hftm.ch;m;26926 / BBPZ24.2a.PZ206 / Lean Management Advanced
+Frisch;Lukas;lukas.frisch@hftm.ch;m;26944 / BBPZ24.2b.PZ206 / Lean Management Advanced
+Frisch;Lukas;lukas.frisch@hftm.ch;m;26869 / BBMB24.2a.MB239 / Design Consulting
+Frisch;Lukas;lukas.frisch@hftm.ch;m;26889 / BBMB24.2b.MB239 / Design Consulting
+Frisch;Lukas;lukas.frisch@hftm.ch;m;28519 / BBMBPT24.3a.MB248 / Lean Basic
+Frisch;Lukas;lukas.frisch@hftm.ch;m;28527 / BBMBPT24.3e.MB354 / Lean Advanced
+Gäumann;Thomas;thomas.gaeumann@hftm.ch;m;26869 / BBMB24.2a.MB239 / Design Consulting
+Gaxherri;Armend;armend.gaxherri@hftm.ch;m;28533 / BBMB24.3f.MB247 / Supply Chain Management
+Gürsu;Atakan;atakan.guersu@hftm.ch;m;28563 / BBPZSC24.3a.PZ216 / Maintenance 4.0
+Gürsu;Atakan;atakan.guersu@hftm.ch;m;28540 / BBPZBT24.3a.PZ216 / Maintenance 4.0
+Haller;Nadja;nadja.haller@hftm.ch;w;28508 / BBMBKT24.3a.GS401 / Field Project
+Haller;Nadja;nadja.haller@hftm.ch;w;28521 / BBMBPT24.3a.GS401 / Field Project
+Haller;Nadja;nadja.haller@hftm.ch;w;28502 / BBMBKT24.3a.MB248 / Lean Basic
+Haller;Nadja;nadja.haller@hftm.ch;w;28528 / BBMBPT24.3e.MB355 / Leadership for Production Managers
+Hamdi;Alain;alain.hamdi@hftm.ch;m;28557 / BBPZBT24.3b.PZ309 / Knowledge Management
+Hamdi;Alain;alain.hamdi@hftm.ch;m;28546 / BBPZBT24.3a.PZ309 / Knowledge Management
+Hamdi;Alain;alain.hamdi@hftm.ch;m;28538 / BBPZBT24.3a.PZ214 / Business Process Management
+Hamdi;Alain;alain.hamdi@hftm.ch;m;28561 / BBPZSC24.3a.PZ214 / Business Process Management
+Herzog;Andreas;andreas.herzog@hftm.ch;m;28564 / BBPZSC24.3a.PZ217 / Business Applications
+Herzog;Andreas;andreas.herzog@hftm.ch;m;28541 / BBPZBT24.3a.PZ217 / Business Applications
+Hosslin;David;david.hosslin@hftm.ch;m;26828 / BBGA24.2a.GA206 / Automation & Sensortechnik
+Inniger;Aron;aron.inniger@hftm.ch;m;28354 / BBGA24.3a.GA300 / Raumautomation Grundlagen (KNX)
+Jacob;Florence;florence.jacob@hftm.ch;w;28500 / BBMBKT24.3a.MB234 / Quality Measuring & Control
+Jacob;Florence;florence.jacob@hftm.ch;w;28517 / BBMBPT24.3a.MB234 / Quality Measuring & Control
+Jacob;Florence;florence.jacob@hftm.ch;w;28532 / BBMB24.3f.MB234 / Quality Measuring & Control
+Jäggli;Reto;reto.jaeggli@hftm.ch;m;28498 / BBMBKT24.3a.MB232 / Big Data Analytics
+Jäggli;Reto;reto.jaeggli@hftm.ch;m;28515 / BBMBPT24.3a.MB232 / Big Data Analytics
+Jordi;Thomas;thomas.jordi@hftm.ch;m;28637 / BBT24.3g.GS400 / Projekt-Oriented Engineering
+Jordi;Thomas;thomas.jordi@hftm.ch;m;28629 / BBT24.3a.GS400 / Projekt-Oriented Engineering
+Jufer;Rolf;rolf.jufer@hftm.ch;m;28480 / BBIN24.3a.IN263 / Process Models
+Jufer;Rolf;rolf.jufer@hftm.ch;m;28482 / BBIN24.3a.IN265 / Software Architecture
+Känzig;René;rene.kaenzig@hftm.ch;m;28635 / BBT24.3f.GS400 / Projekt-Oriented Engineering
+Känzig;René;rene.kaenzig@hftm.ch;m;28559 / BBPZBT24.3b.GS400 / Project-Oriented Engineering
+Känzig;René;rene.kaenzig@hftm.ch;m;28629 / BBT24.3a.GS400 / Projekt-Oriented Engineering
+Knuchel;Christian;christian.knuchel@hftm.ch;m;28511 / BBMBKT24.3f.MB357 / Mechanical Elements
+Kramer;Thorsten;thorsten.kramer@hftm.ch;m;28525 / BBMBPT24.3e.MB352 / Manufacturing Technologies
+Lägeler;Philipp;philipp.laegeler@hftm.ch;m;26823 / BBGA24.2a.GA201 / Elektrotechnik & Sicherheit
+Lägeler;Philipp;philipp.laegeler@hftm.ch;m;28345 / BBELEL24.3a.EL305 / Sicherheitstechnik
+Liniger;Simeon;simeon.liniger@hftm.ch;m;28487 / BBINSE24.3a.IN350 / Distributed Systems 1
+Liniger;Simeon;simeon.liniger@hftm.ch;m;28488 / BBINSE24.3a.IN351 / Distributed Systems 2
+Liniger;Simeon;simeon.liniger@hftm.ch;m;28491 / BBINSE24.3a.IN354 / Mobile Computing
+Lucca;Hugo;hugo.lucca@hftm.ch;m;26822 / BBGA24.2a.GA200 / Thermodynamik
+Lucca;Hugo;hugo.lucca@hftm.ch;m;26850 / BBIN24.2a.IN258 / Document-Oriented Databases & Exchange Formats
+Lucca;Hugo;hugo.lucca@hftm.ch;m;26776 / BBEL24.2a.EL207 / Physik
+Lucca;Hugo;hugo.lucca@hftm.ch;m;26829 / BBGA24.2a.GA207 / Regelungstechnik
+Lucca;Hugo;hugo.lucca@hftm.ch;m;26933 / BBPZ24.2a.PZ213 / Quality Management
+Markovic;Zeljko;zeljko.markovic@hftm.ch;m;26939 / BBPZ24.2b.PZ201 / Process Technology Project
+Markovic;Zeljko;zeljko.markovic@hftm.ch;m;28548 / BBPZBT24.3a.GS401 / Field Project
+Marti;Christoph;christoph.marti@hftm.ch;m;28353 / BBGA24.3a.GA215 / HLK II
+Marti;Christoph;christoph.marti@hftm.ch;m;28632 / BBT24.3c.GS400 / Projekt-Oriented Engineering
+Marti;Christoph;christoph.marti@hftm.ch;m;28629 / BBT24.3a.GS400 / Projekt-Oriented Engineering
+Marti;Christoph;christoph.marti@hftm.ch;m;28358 / BBGA24.3a.GS401 / Field Project
+Miftari;Avdulla;avdulla.miftari@hftm.ch;m;26946 / BBPZ24.2b.PZ208 / Supply Chain Management Advanced
+Moor;Richard;richard.moor@hftm.ch;m;26824 / BBGA24.2a.GA202 / Digitaltechnik & Mikrocontroller
+Moor;Richard;richard.moor@hftm.ch;m;26852 / BBIN24.2a.IN260 / Networking
+Moor;Richard;richard.moor@hftm.ch;m;26825 / BBGA24.2a.GA203 / Programmieren I
+Moor;Richard;richard.moor@hftm.ch;m;26826 / BBGA24.2a.GA204 / Programmieren II
+Moor;Richard;richard.moor@hftm.ch;m;26830 / BBGA24.2a.GA208 / Bussysteme und Übertragungstechnik
+Moor;Richard;richard.moor@hftm.ch;m;26831 / BBGA24.2a.GA209 / Daten-Netzwerke Grundlagen I (OSI, IP)
+Moor;Richard;richard.moor@hftm.ch;m;26832 / BBGA24.2a.GA210 / Daten-Netzwerke II (Vertiefung)
+Moor;Richard;richard.moor@hftm.ch;m;28338 / BBELAT24.3a.EL324 / Netzwerktechnik 2 /Security
+Moor;Richard;richard.moor@hftm.ch;m;28351 / BBGA24.3a.GA211 / Netzwerk- & System-Sicherheit (FW, VPN Security)
+Moor;Richard;richard.moor@hftm.ch;m;28355 / BBGA24.3a.GA301 / Intelligente Gebäude, IoT, BIM
+Moser;Daniel;daniel.moser@hftm.ch;m;28634 / BBT24.3e.GS400 / Projekt-Oriented Engineering
+Moser;Daniel;daniel.moser@hftm.ch;m;28629 / BBT24.3a.GS400 / Projekt-Oriented Engineering
+Müller;Michael;michael.mueller@hftm.ch;m;28335 / BBEL24.3a.EL221 / Mikrokontroller
+Müller;Michael;michael.mueller@hftm.ch;m;28347 / BBELEL24.3a.EL307 / Elektronik / Leistungselektronik
+Müller;Michael;michael.mueller@hftm.ch;m;28485 / BBIN24.3a.GS401 / Field Project
+Munter;Kurt;kurt.munter@hftm.ch;m;26854 / BBIN24.2a.IN262 / System Modelling
+Munter;Kurt;kurt.munter@hftm.ch;m;26839 / BBIN24.2a.IN251 / Web Programming Basics
+Munter;Kurt;kurt.munter@hftm.ch;m;28480 / BBIN24.3a.IN263 / Process Models
+Munter;Kurt;kurt.munter@hftm.ch;m;28482 / BBIN24.3a.IN265 / Software Architecture
+Niklaus;Thomas;thomas.niklaus@hftm.ch;m;28357 / BBGA24.3a.GA303 / Leittechnik
+Noga;Etienne;etienne.noga@hftm.ch;m;28531 / BBMB24.3f.MB233 / Quality Processes & Standards
+Pacheco;Luis;luis.pacheco@hftm.ch;m;28518 / BBMBPT24.3a.MB247 / Supply Chain Management
+Pfeiffer;Nicolas;nicolas.pfeiffer@hftm.ch;m;26947 / BBPZ24.2b.PZ209 / Environmental Management
+Pfeiffer;Nicolas;nicolas.pfeiffer@hftm.ch;m;26948 / BBPZ24.2b.PZ210 / Innovation Management
+Poncet;Jean-Martin;jean-martin.poncet@hftm.ch;m;28506 / BBMBKT24.3a.MB358 / Product Development Advanced
+Rao;Adriano;adriano.rao@hftm.ch;m;26928 / BBPZ24.2a.PZ208 / Supply Chain Management Advanced
+Rao;Adriano;adriano.rao@hftm.ch;m;26942 / BBPZ24.2b.PZ204 / Process Modelling and Optimisation
+Rao;Adriano;adriano.rao@hftm.ch;m;28501 / BBMBKT24.3a.MB247 / Supply Chain Management
+Rao;Adriano;adriano.rao@hftm.ch;m;28566 / BBPZSC24.3a.PZ300 / Supply Chain 4.0
+Rao;Adriano;adriano.rao@hftm.ch;m;28567 / BBPZSC24.3a.PZ301 / Supply Chain Risk Management
+Rao;Adriano;adriano.rao@hftm.ch;m;28556 / BBPZBT24.3b.PZ308 / Digital Leadership
+Rao;Adriano;adriano.rao@hftm.ch;m;28558 / BBPZBT24.3b.PZ310 / Business Simulation
+Rao;Adriano;adriano.rao@hftm.ch;m;28545 / BBPZBT24.3a.PZ308 / Digital Leadership
+Rao;Adriano;adriano.rao@hftm.ch;m;28547 / BBPZBT24.3a.PZ310 / Business Simulation
+Rao;Adriano;adriano.rao@hftm.ch;m;28565 / BBPZSC24.3a.GS401 / Field Project
+Rast;Simon;simon.rast@hftm.ch;m;26774 / BBEL24.2a.EL204 / Technische Mathematik
+Rast;Simon;simon.rast@hftm.ch;m;26778 / BBEL24.2a.EL209 / Automatisiertes Testen
+Rebecchi;Roland;roland.rebecchi@hftm.ch;m;28333 / BBEL24.3a.EL218 / Industrielle Kommunikation
+Rebecchi;Roland;roland.rebecchi@hftm.ch;m;28334 / BBEL24.3a.EL219 / SPS Hochsprachenprogrammierung
+Reissich;Georg;georg.reissich@hftm.ch;m;28499 / BBMBKT24.3a.MB233 / Quality Processes & Standards
+Reissich;Georg;georg.reissich@hftm.ch;m;28516 / BBMBPT24.3a.MB233 / Quality Processes & Standards
+Rieger;Daniel;daniel.rieger@hftm.ch;m;28555 / BBPZBT24.3b.PZ307 / Lean Assembly
+Rieger;Daniel;daniel.rieger@hftm.ch;m;28544 / BBPZBT24.3a.PZ307 / Lean Assembly
+Ritter;Fritz;fritz.ritter@hftm.ch;m;26943 / BBPZ24.2b.PZ205 / Lean Management Basic
+Ritter;Fritz;fritz.ritter@hftm.ch;m;28523 / BBMBPT24.3e.MB350 / Production Engineering Advanced
+Rohr;Alain;alain.rohr@hftm.ch;m;26780 / BBEL24.2a.EL212 / Systemmanagement
+Rohr;Alain;alain.rohr@hftm.ch;m;26782 / BBEL24.2a.EL214 / Webtechnologien
+Rudin;Roger;roger.rudin@hftm.ch;m;28490 / BBINSE24.3a.IN353 / Web Applications
+Rütti;Gerald;gerald.ruetti@hftm.ch;m;28503 / BBMBKT24.3a.MB249 / Maintenance 4.0
+Rütti;Gerald;gerald.ruetti@hftm.ch;m;28520 / BBMBPT24.3a.MB249 / Maintenance 4.0
+Rütti;Gerald;gerald.ruetti@hftm.ch;m;28526 / BBMBPT24.3e.MB353 / Plant Design
+Rütti;Gerald;gerald.ruetti@hftm.ch;m;28562 / BBPZSC24.3a.PZ215 / Plant Design
+Rütti;Gerald;gerald.ruetti@hftm.ch;m;28539 / BBPZBT24.3a.PZ215 / Plant Design
+Rütti;Janick;janick.ruetti@hftm.ch;m;26834 / BBGA24.2a.GA212 / Gebäudetechnik / Techn. Geb. Ausrüst.
+Rütti;Janick;janick.ruetti@hftm.ch;m;26835 / BBGA24.2a.GA213 / Gebäudetechnik II & Energieeffizienz (Nachhaltigkeit)
+Sahin;Kubilay;kubilay.sahin@hftm.ch;m;28332 / BBEL24.3a.EL217 / Regelungstechnik
+Savoy ;Philippe ;philippe.savoy@hftm.ch;m;28630 / BBT24.3a.GS400 / Projekt-Oriented Engineering
+Savoy ;Philippe ;philippe.savoy@hftm.ch;m;28629 / BBT24.3a.GS400 / Projekt-Oriented Engineering
+Savoy ;Philippe ;philippe.savoy@hftm.ch;m;28569 / BBPZSC24.3a.PZ303 / Change Management
+Schild;Urs-Peter;urs.schild@hftm.ch;m;26920 / BBPZ24.2a.PZ200 / Organisational Development
+Schlaeppi;Yves;yves.schlaeppi@hftm.ch;m;28549 / BBPZBT24.3b.PZ214 / Business Process Management
+Schlaeppi;Yves;yves.schlaeppi@hftm.ch;m;28552 / BBPZBT24.3b.PZ217 / Business Applications
+Schlecht;Daniel;daniel.schlecht@hftm.ch;m;26922 / BBPZ24.2a.PZ202 / Big Data Analytics
+Schlecht;Daniel;daniel.schlecht@hftm.ch;m;26940 / BBPZ24.2b.PZ202 / Big Data Analytics
+Schlecht;Daniel;daniel.schlecht@hftm.ch;m;28530 / BBMB24.3f.MB232 / Big Data Analytics
+Schüpbach;Manuel;manuel.schuepbach@hftm.ch;m;26949 / BBPZ24.2b.PZ211 / Evaluation IT Systems & Software
+Schüpbach;Manuel;manuel.schuepbach@hftm.ch;m;26931 / BBPZ24.2a.PZ211 / Evaluation IT Systems & Software
+Singer;Marc;marc.singer@hftm.ch;m;26838 / BBIN24.2a.IN250 / Developement Environment
+Spelina;Patrick;patrick.spelina@hftm.ch;m;26853 / BBIN24.2a.IN261 / Requirements Engineering
+Stächele;Alexander;alexander.staechele@hftm.ch;m;26925 / BBPZ24.2a.PZ205 / Lean Management Basic
+Stauffer;Rafael;rafael.stauffer@hftm.ch;m;28483 / BBIN24.3a.IN266 / DevOps
+Studer;Matthias;matthias.studer@hftm.ch;m;26773 / BBEL24.2a.EL203 / Wechselstrom 2 (RL/RC Schaltungen)
+Studer;Matthias;matthias.studer@hftm.ch;m;28340 / BBELAT24.3a.EL326 / Robotik
+Tschudin;Jan;jan.tschudin@hftm.ch;m;26771 / BBEL24.2a.EL201 / Gleichstromlehre
+Tschudin;Jan;jan.tschudin@hftm.ch;m;28346 / BBELEL24.3a.EL306 / Elektrische Maschinen
+Tschudin;Jan;jan.tschudin@hftm.ch;m;28348 / BBELEL24.3a.GS401 / Field Project
+Tschudin;Jan;jan.tschudin@hftm.ch;m;28342 / BBELAT24.3a.GS401 / Field Project
+Wagner;Dominik;dominik.wagner@hftm.ch;m;26772 / BBEL24.2a.EL202 / Wechselstrom 1
+Wahl;Guido;guido.wahl@hftm.ch;m;28554 / BBPZBT24.3b.PZ306 / Lean Innovation
+Wahl;Guido;guido.wahl@hftm.ch;m;28543 / BBPZBT24.3a.PZ306 / Lean Innovation
+Wegmüller;Simon;simon.wegmueller@hftm.ch;m;26777 / BBEL24.2a.EL208 / Regeln der Technik
+Witschi;Pascal;pascal.witschi@hftm.ch;m;26950 / BBPZ24.2b.PZ212 / Product Life Cycle Management
+Wüthrich;Anton;anton.wuethrich@hftm.ch;m;26938 / BBPZ24.2b.PZ200 / Organisational Development
+Wüthrich;Anton;anton.wuethrich@hftm.ch;m;28570 / BBPZSC24.3a.PZ304 / Business Simulation
+Wüthrich;Anton;anton.wuethrich@hftm.ch;m;28560 / BBPZBT24.3b.GS401 / Field Project
+Wüthrich;Anton;anton.wuethrich@hftm.ch;m;28550 / BBPZBT24.3b.PZ215 / Plant Design
+Wüthrich;Anton;anton.wuethrich@hftm.ch;m;28551 / BBPZBT24.3b.PZ216 / Maintenance 4.0

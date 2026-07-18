@@ -56,6 +56,7 @@ const {
   getAssignment,
   saveAssignment,
   printAssignment,
+  importUsersCsv,
   generateConfidentialityPdf,
   uploadConfidentialityDocument,
   downloadConfidentialityDocument,
@@ -126,6 +127,7 @@ router.put('/theses/:id/title', requireRole(['admin', 'field_project_coach']), u
 
 // User management
 router.get('/users', requireRole(['admin', 'department_lead']), getUsers);
+router.post('/users/import-csv', requireRole(['admin']), importUsersCsv);
 router.post('/users', requireRole(['admin', 'department_lead']), createUser);
 router.put('/users/:id', requireRole(['admin', 'department_lead']), updateUser);
 router.delete('/users/:id', requireRole(['admin', 'department_lead']), deleteUser);
