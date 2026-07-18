@@ -118,6 +118,33 @@
     </div>
 </div>
 
+<!-- Diplomjahr löschen Modal (kaskadiert, mit Sicherheitscode) -->
+<div class="modal fade" id="deleteYearModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content border-danger">
+            <div class="modal-header bg-danger text-white">
+                <h5 class="modal-title"><i class="bi bi-exclamation-triangle"></i> Diplomjahr <span id="deleteYearLabel"></span> unwiderruflich löschen</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <p class="mb-2">Mit dem Diplomjahr werden <strong>unwiderruflich</strong> gelöscht:</p>
+                <ul id="deleteYearSummary" class="mb-3"></ul>
+                <p class="mb-1">Zur Bestätigung den folgenden Code eingeben:</p>
+                <p class="mb-2"><code id="deleteYearCode" class="fs-5 user-select-all"></code></p>
+                <input type="text" class="form-control" id="deleteYearCodeInput" autocomplete="off"
+                       placeholder="10-Zeichen-Code abtippen">
+                <div id="deleteYearError" class="alert alert-danger mt-3 d-none"></div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Abbrechen</button>
+                <button type="button" class="btn btn-danger" id="deleteYearConfirmBtn" disabled onclick="confirmDeleteYear()">
+                    <i class="bi bi-trash"></i> Unwiderruflich löschen
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
 <script>
 function loadYears() {
     fetch('/api/years')
@@ -136,6 +163,7 @@ function loadYears() {
                         <th>Bezeichnung FR</th>
                         <th>Status</th>
                         <th>Diplomarbeiten</th>
+                        <th>Studierende</th>
                         <th>Meilenstein-Vorlagen</th>
                         <th>Aktionen</th>
                     </tr></thead>
@@ -149,15 +177,16 @@ function loadYears() {
                                     ? '<span class="badge bg-success"><i class="bi bi-check-circle"></i> Aktuell</span>'
                                     : '<span class="badge bg-secondary">—</span>'}</td>
                                 <td>${y.thesesCount}</td>
+                                <td>${y.studentsCount}</td>
                                 <td>${y.milestonesCount}</td>
                                 <td>
                                     <button class="btn btn-outline-primary btn-sm me-1" onclick='editYear(${JSON.stringify(y)})'><i class="bi bi-pencil"></i></button>
                                     ${y.is_current
                                       ? ''
                                       : `<button class="btn btn-outline-success btn-sm me-1" onclick="setYearCurrent(${y.id})"><i class="bi bi-check2-circle"></i> Als aktuell setzen</button>`}
-                                    ${y.is_current || y.thesesCount > 0 || y.milestonesCount > 0
+                                    ${y.is_current
                                       ? ''
-                                      : `<button class="btn btn-outline-danger btn-sm" onclick="deleteYear(${y.id}, ${y.year})"><i class="bi bi-trash"></i></button>`}
+                                      : `<button class="btn btn-outline-danger btn-sm" onclick='openDeleteYearModal(${JSON.stringify(y)})'><i class="bi bi-trash"></i></button>`}
                                 </td>
                             </tr>
                         `).join('')}
@@ -247,12 +276,64 @@ function setYearCurrent(id) {
         .catch(err => { console.error(err); alert('Fehler beim Setzen'); });
 }
 
-function deleteYear(id, label) {
-    if (!confirm(`Diplomjahr ${label} wirklich löschen?`)) return;
-    fetch('/api/years/' + id, { method: 'DELETE' })
+// Kaskadierendes Löschen mit strenger Sicherheitsabfrage: Der Admin muss
+// einen zufälligen 10-Zeichen-Code abtippen, bevor gelöscht werden kann.
+let _deleteYearId = null;
+let _deleteYearCode = '';
+
+function _randomCode(len) {
+    // Ohne verwechselbare Zeichen (I, O, 0, 1)
+    const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+    let out = '';
+    const rnd = new Uint32Array(len);
+    crypto.getRandomValues(rnd);
+    for (let i = 0; i < len; i++) out += chars[rnd[i] % chars.length];
+    return out;
+}
+
+function openDeleteYearModal(y) {
+    _deleteYearId = y.id;
+    _deleteYearCode = _randomCode(10);
+    document.getElementById('deleteYearLabel').textContent = y.label_de || y.year;
+    document.getElementById('deleteYearSummary').innerHTML =
+        `<li><strong>${y.thesesCount}</strong> Diplomarbeit(en) inkl. aller Dokumente, Bewertungen und Protokolle</li>` +
+        `<li><strong>${y.studentsCount}</strong> Studierende</li>` +
+        `<li><strong>${y.milestonesCount}</strong> Meilenstein-Vorlage(n)</li>`;
+    document.getElementById('deleteYearCode').textContent = _deleteYearCode;
+    const input = document.getElementById('deleteYearCodeInput');
+    input.value = '';
+    document.getElementById('deleteYearConfirmBtn').disabled = true;
+    document.getElementById('deleteYearError').classList.add('d-none');
+    new bootstrap.Modal(document.getElementById('deleteYearModal')).show();
+    setTimeout(() => input.focus(), 400);
+}
+
+document.getElementById('deleteYearCodeInput').addEventListener('input', function() {
+    document.getElementById('deleteYearConfirmBtn').disabled =
+        this.value.trim().toUpperCase() !== _deleteYearCode;
+});
+
+function confirmDeleteYear() {
+    const errEl = document.getElementById('deleteYearError');
+    errEl.classList.add('d-none');
+    const btn = document.getElementById('deleteYearConfirmBtn');
+    btn.disabled = true;
+    fetch('/api/years/' + _deleteYearId + '?cascade=true', { method: 'DELETE' })
         .then(r => r.json())
-        .then(d => { if (d.success) loadYears(); else alert('Fehler: ' + (d.message || 'Unbekannt')); })
-        .catch(err => { console.error(err); alert('Fehler beim Löschen'); });
+        .then(d => {
+            if (d.success) {
+                bootstrap.Modal.getInstance(document.getElementById('deleteYearModal')).hide();
+                loadYears();
+            } else {
+                errEl.textContent = d.message || 'Löschen fehlgeschlagen';
+                errEl.classList.remove('d-none');
+            }
+        })
+        .catch(err => {
+            console.error(err);
+            errEl.textContent = 'Netzwerkfehler beim Löschen';
+            errEl.classList.remove('d-none');
+        });
 }
 
 loadYears();

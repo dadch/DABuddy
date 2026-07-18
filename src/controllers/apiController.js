@@ -2862,8 +2862,15 @@ const getYears = async (req, res) => {
       group: ['year_id'],
       raw: true,
     });
+    const studentCounts = await User.findAll({
+      attributes: ['year_id', [fn('COUNT', col('id')), 'count']],
+      where: { year_id: ids, role: 'student' },
+      group: ['year_id'],
+      raw: true,
+    });
     const tMap = Object.fromEntries(thesisCounts.map(r => [r.year_id, parseInt(r.count, 10)]));
     const mMap = Object.fromEntries(milestoneCounts.map(r => [r.year_id, parseInt(r.count, 10)]));
+    const sMap = Object.fromEntries(studentCounts.map(r => [r.year_id, parseInt(r.count, 10)]));
 
     res.json(years.map(y => ({
       id: y.id,
@@ -2877,6 +2884,7 @@ const getYears = async (req, res) => {
       assignment_m2_parttime: y.assignment_m2_parttime,
       thesesCount: tMap[y.id] || 0,
       milestonesCount: mMap[y.id] || 0,
+      studentsCount: sMap[y.id] || 0,
     })));
   } catch (err) {
     console.error('getYears error:', err);
@@ -2946,6 +2954,10 @@ const setCurrentYear = async (req, res) => {
   }
 };
 
+// Löscht ein Diplomjahr KASKADIEREND: alle Diplomarbeiten des Jahres (inkl.
+// hochgeladener Dateien), alle Meilenstein-Vorlagen des Jahres und alle
+// Studierenden des Jahres. Die Bestätigung (10-Zeichen-Sicherheitscode)
+// erfolgt im UI; der Aufruf muss zusätzlich cascade=true mitgeben.
 const deleteYear = async (req, res) => {
   try {
     const yearId = parseInt(req.params.id, 10);
@@ -2953,16 +2965,37 @@ const deleteYear = async (req, res) => {
     if (!year) return res.status(404).json({ success: false, message: 'Diplomjahr nicht gefunden' });
     if (year.is_current) return res.status(400).json({ success: false, message: 'Das aktuelle Diplomjahr kann nicht gelöscht werden.' });
 
-    const thesesCount = await Thesis.count({ where: { year_id: yearId } });
-    const milestonesCount = await Milestone.count({ where: { year_id: yearId } });
-    if (thesesCount > 0 || milestonesCount > 0) {
-      return res.status(400).json({
-        success: false,
-        message: `Löschen nicht möglich: ${thesesCount} Diplomarbeit(en) und ${milestonesCount} Meilenstein-Vorlage(n) verwenden dieses Jahr.`,
-      });
+    if (req.query.cascade !== 'true') {
+      return res.status(400).json({ success: false, message: 'Löschen erfordert die Bestätigung über das Lösch-Modal (cascade=true).' });
     }
+
+    // 1) Diplomarbeiten des Jahres inkl. Dokument-Dateien löschen.
+    const theses = await Thesis.findAll({ where: { year_id: yearId }, attributes: ['id'] });
+    for (const thesis of theses) {
+      const tms = await ThesisMilestone.findAll({
+        where: { thesis_id: thesis.id },
+        include: [{ model: ThesisMilestoneDocument, as: 'documents' }],
+      });
+      for (const m of tms) {
+        (m.documents || []).forEach(doc => {
+          if (doc.file_path && fs.existsSync(doc.file_path)) {
+            try { fs.unlinkSync(doc.file_path); } catch (e) { console.error('unlink failed', e); }
+          }
+        });
+      }
+      await thesis.destroy();
+    }
+
+    // 2) Meilenstein-Vorlagen des Jahres.
+    const milestonesCount = await Milestone.destroy({ where: { year_id: yearId } });
+
+    // 3) Studierende des Jahres (nur Rolle student — andere Rollen sind jahresunabhängig).
+    const students = await User.findAll({ where: { year_id: yearId, role: 'student' } });
+    for (const s of students) await s.destroy();
+
     await year.destroy();
-    res.json({ success: true });
+    console.log(`[deleteYear] Jahr ${year.year} gelöscht: ${theses.length} DA(s), ${milestonesCount} Vorlage(n), ${students.length} Studierende`);
+    res.json({ success: true, deleted: { theses: theses.length, milestones: milestonesCount, students: students.length } });
   } catch (err) {
     console.error('deleteYear error:', err);
     res.status(500).json({ success: false, message: 'Diplomjahr konnte nicht gelöscht werden' });
