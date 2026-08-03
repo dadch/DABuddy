@@ -188,16 +188,31 @@ const importForm = async (req, res) => {
              || typeof src.title_fr !== 'string' || !src.title_fr.trim()) {
       return res.status(400).json({ success: false, message: 'Titel (DE und FR) fehlen in der Datei' });
     }
+    const MAX_LEN = 200; // Spaltenlimit von title_de/fr und name_de/fr
+    const validWeight = (v) => v === undefined || v === null || v === ''
+      || (Number.isFinite(Number(v)) && Number(v) >= 0 && Number(v) < 10000);
+    if (src.title_de.trim().length > MAX_LEN || src.title_fr.trim().length > MAX_LEN) {
+      return res.status(400).json({ success: false, message: `Titel zu lang (max. ${MAX_LEN} Zeichen)` });
+    }
     const groups = Array.isArray(src.groups) ? src.groups : [];
     for (const g of groups) {
       if (!g || typeof g.name_de !== 'string' || !g.name_de.trim()
              || typeof g.name_fr !== 'string' || !g.name_fr.trim()) {
         return res.status(400).json({ success: false, message: 'Ungültige Gruppe in der Datei (Name DE/FR erforderlich)' });
       }
+      if (g.name_de.trim().length > MAX_LEN || g.name_fr.trim().length > MAX_LEN) {
+        return res.status(400).json({ success: false, message: `Gruppenname zu lang (max. ${MAX_LEN} Zeichen)` });
+      }
+      if (!validWeight(g.weight)) {
+        return res.status(400).json({ success: false, message: 'Ungültige Gewichtung in der Datei (erlaubt: 0 bis 9999.99)' });
+      }
       for (const c of (Array.isArray(g.criteria) ? g.criteria : [])) {
         if (!c || typeof c.label_de !== 'string' || !c.label_de.trim()
                || typeof c.label_fr !== 'string' || !c.label_fr.trim()) {
           return res.status(400).json({ success: false, message: 'Ungültiges Kriterium in der Datei (Label DE/FR erforderlich)' });
+        }
+        if (!validWeight(c.weight)) {
+          return res.status(400).json({ success: false, message: 'Ungültige Gewichtung in der Datei (erlaubt: 0 bis 9999.99)' });
         }
       }
     }
@@ -213,8 +228,12 @@ const importForm = async (req, res) => {
       }
       title_de = candidate;
     }
+    if (title_de.length > MAX_LEN) {
+      return res.status(400).json({ success: false, message: 'Titel (DE) ist mit Import-Suffix zu lang (max. 200 Zeichen)' });
+    }
 
-    const num = (v, dflt) => (Number.isFinite(Number(v)) ? Number(v) : dflt);
+    const num = (v, dflt) => (v === null || v === undefined || v === ''
+      ? dflt : (Number.isFinite(Number(v)) ? Number(v) : dflt));
 
     const form = await sequelize.transaction(async (t) => {
       const created = await EvaluationForm.create(
