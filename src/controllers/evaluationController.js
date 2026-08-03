@@ -33,6 +33,10 @@ const normalizeLevels = (arr) => {
   return out;
 };
 
+// Dateiformat für Export/Import von Formularvorlagen (.tbform)
+const TBFORM_FORMAT = 'thesisbuddy-evaluation-form';
+const TBFORM_VERSION = 1;
+
 // ---------- Evaluation form templates (admin) ----------
 
 const listForms = async (req, res) => {
@@ -114,6 +118,56 @@ const printBlankEvaluationForm = async (req, res) => {
   } catch (e) {
     console.error('Error printing blank evaluation form:', e);
     if (!res.headersSent) res.status(500).send('Interner Serverfehler');
+  }
+};
+
+// GET /api/evaluation-forms/:id/export — Formularvorlage als .tbform-Datei
+// (JSON ohne Datenbank-IDs), z.B. zum Übertragen auf ein anderes System.
+const exportForm = async (req, res) => {
+  try {
+    const form = await EvaluationForm.findByPk(req.params.id, {
+      include: [{
+        model: EvaluationGroup, as: 'groups',
+        include: [{ model: EvaluationCriterion, as: 'criteria' }]
+      }],
+      order: [
+        [{ model: EvaluationGroup, as: 'groups' }, 'position', 'ASC'],
+        [{ model: EvaluationGroup, as: 'groups' }, { model: EvaluationCriterion, as: 'criteria' }, 'position', 'ASC'],
+      ]
+    });
+    if (!form) return res.status(404).json({ success: false, message: 'Formular nicht gefunden' });
+
+    const payload = {
+      format: TBFORM_FORMAT,
+      version: TBFORM_VERSION,
+      exported_at: new Date().toISOString(),
+      form: {
+        title_de: form.title_de,
+        title_fr: form.title_fr,
+        groups: (form.groups || []).map(g => ({
+          name_de: g.name_de,
+          name_fr: g.name_fr,
+          weight: Number(g.weight),
+          position: g.position,
+          criteria: (g.criteria || []).map(c => ({
+            label_de: c.label_de,
+            label_fr: c.label_fr,
+            weight: Number(c.weight),
+            position: c.position,
+            level_descriptions_de: normalizeLevels(c.level_descriptions_de),
+            level_descriptions_fr: normalizeLevels(c.level_descriptions_fr),
+          })),
+        })),
+      },
+    };
+
+    const safeName = (form.title_de || 'Formular').replace(/[^a-zA-Z0-9_-]+/g, '_');
+    res.setHeader('Content-Type', 'application/json; charset=utf-8');
+    res.setHeader('Content-Disposition', `attachment; filename="${safeName}.tbform"`);
+    res.send(JSON.stringify(payload, null, 2));
+  } catch (e) {
+    console.error('Error exporting evaluation form:', e);
+    res.status(500).json({ success: false, message: 'Interner Serverfehler' });
   }
 };
 
@@ -1209,6 +1263,7 @@ module.exports = {
   loadFullEvaluation,   // exponiert für den Archivierungs-Job
   loadFeedbackContext,  // exponiert für den Archivierungs-Job
   listForms, getForm, createForm, updateForm, deleteForm, printBlankEvaluationForm,
+  exportForm,
   createGroup, updateGroup, deleteGroup,
   createCriterion, updateCriterion, deleteCriterion, reorderCriteria,
   getThesisEvaluation, saveThesisEvaluation, printThesisEvaluation,
