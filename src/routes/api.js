@@ -222,7 +222,7 @@ router.get('/evaluation-forms', requireRole(['admin']), evalCtrl.listForms);
 router.post('/evaluation-forms', requireRole(['admin']), evalCtrl.createForm);
 router.get('/evaluation-forms/:id/blank.pdf', requireRole(['admin']), evalCtrl.printBlankEvaluationForm);
 router.get('/evaluation-forms/:id/export', requireRole(['admin']), evalCtrl.exportForm);
-router.post('/evaluation-forms/import', requireRole(['admin']), express.json({ limit: '2mb' }), evalCtrl.importForm);
+router.post('/evaluation-forms/import', requireRole(['admin']), evalCtrl.importForm);
 router.get('/evaluation-forms/:id', requireRole(['admin']), evalCtrl.getForm);
 router.put('/evaluation-forms/:id', requireRole(['admin']), evalCtrl.updateForm);
 router.delete('/evaluation-forms/:id', requireRole(['admin']), evalCtrl.deleteForm);

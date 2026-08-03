@@ -20,7 +20,8 @@ app.set('views', path.join(__dirname, 'views'));
 
 app.use(express.static(path.join(__dirname, 'public')));
 app.use(express.urlencoded({ extended: true }));
-app.use(express.json());
+// 2 MB statt 100 kB Default: Import von Bewertungsformularen (.tbform) kann grösser sein
+app.use(express.json({ limit: '2mb' }));
 
 const sessionStore = new SequelizeStore({
   db: sequelize,
