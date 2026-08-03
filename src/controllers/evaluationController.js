@@ -171,6 +171,87 @@ const exportForm = async (req, res) => {
   }
 };
 
+// POST /api/evaluation-forms/import — Formularvorlage aus .tbform-Datei anlegen.
+// Legt immer ein neues Formular an; bei DE-Titelkollision wird « (Import)»
+// bzw. « (Import 2)», … angehängt.
+const importForm = async (req, res) => {
+  try {
+    const data = req.body;
+    if (!data || data.format !== TBFORM_FORMAT) {
+      return res.status(400).json({ success: false, message: 'Datei ist kein gültiges ThesisBuddy-Formular (.tbform)' });
+    }
+    if (data.version !== TBFORM_VERSION) {
+      return res.status(400).json({ success: false, message: `Nicht unterstützte Formatversion: ${data.version}` });
+    }
+    const src = data.form;
+    if (!src || typeof src.title_de !== 'string' || !src.title_de.trim()
+             || typeof src.title_fr !== 'string' || !src.title_fr.trim()) {
+      return res.status(400).json({ success: false, message: 'Titel (DE und FR) fehlen in der Datei' });
+    }
+    const groups = Array.isArray(src.groups) ? src.groups : [];
+    for (const g of groups) {
+      if (!g || typeof g.name_de !== 'string' || !g.name_de.trim()
+             || typeof g.name_fr !== 'string' || !g.name_fr.trim()) {
+        return res.status(400).json({ success: false, message: 'Ungültige Gruppe in der Datei (Name DE/FR erforderlich)' });
+      }
+      for (const c of (Array.isArray(g.criteria) ? g.criteria : [])) {
+        if (!c || typeof c.label_de !== 'string' || !c.label_de.trim()
+               || typeof c.label_fr !== 'string' || !c.label_fr.trim()) {
+          return res.status(400).json({ success: false, message: 'Ungültiges Kriterium in der Datei (Label DE/FR erforderlich)' });
+        }
+      }
+    }
+
+    // Titelkollision auflösen: « (Import)», « (Import 2)», …
+    let title_de = src.title_de.trim();
+    if (await EvaluationForm.findOne({ where: { title_de } })) {
+      let n = 1;
+      let candidate = `${title_de} (Import)`;
+      while (await EvaluationForm.findOne({ where: { title_de: candidate } })) {
+        n += 1;
+        candidate = `${title_de} (Import ${n})`;
+      }
+      title_de = candidate;
+    }
+
+    const num = (v, dflt) => (Number.isFinite(Number(v)) ? Number(v) : dflt);
+
+    const form = await sequelize.transaction(async (t) => {
+      const created = await EvaluationForm.create(
+        { title_de, title_fr: src.title_fr.trim() }, { transaction: t });
+      for (let gi = 0; gi < groups.length; gi++) {
+        const g = groups[gi];
+        const group = await EvaluationGroup.create({
+          evaluation_form_id: created.id,
+          name_de: g.name_de.trim(),
+          name_fr: g.name_fr.trim(),
+          weight: num(g.weight, 1),
+          position: num(g.position, gi),
+        }, { transaction: t });
+        const criteria = Array.isArray(g.criteria) ? g.criteria : [];
+        for (let ci = 0; ci < criteria.length; ci++) {
+          const c = criteria[ci];
+          await EvaluationCriterion.create({
+            evaluation_group_id: group.id,
+            label_de: c.label_de,
+            label_fr: c.label_fr,
+            weight: num(c.weight, 1),
+            position: num(c.position, ci),
+            level_descriptions_de: normalizeLevels(c.level_descriptions_de),
+            level_descriptions_fr: normalizeLevels(c.level_descriptions_fr),
+          }, { transaction: t });
+        }
+      }
+      return created;
+    });
+
+    res.json({ success: true, form });
+  } catch (e) {
+    console.error('Error importing evaluation form:', e);
+    res.status(500).json({ success: false, message: 'Interner Serverfehler' });
+  }
+};
+
 const createForm = async (req, res) => {
   try {
     const { title_de, title_fr } = req.body;
@@ -1263,7 +1344,7 @@ module.exports = {
   loadFullEvaluation,   // exponiert für den Archivierungs-Job
   loadFeedbackContext,  // exponiert für den Archivierungs-Job
   listForms, getForm, createForm, updateForm, deleteForm, printBlankEvaluationForm,
-  exportForm,
+  exportForm, importForm,
   createGroup, updateGroup, deleteGroup,
   createCriterion, updateCriterion, deleteCriterion, reorderCriteria,
   getThesisEvaluation, saveThesisEvaluation, printThesisEvaluation,
