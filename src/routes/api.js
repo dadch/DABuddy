@@ -17,6 +17,7 @@ const {
   switchActiveRole,
   getThesis,
   createThesis,
+  generateThesesForDepartment,
   updateThesis,
   deleteThesis,
   getUsers,
@@ -120,6 +121,7 @@ router.post('/role/switch', switchActiveRole);
 // Thesis management
 router.get('/theses/:id', requireRole(['admin', 'department_lead']), getThesis);
 router.post('/theses', requireRole(['admin', 'department_lead']), createThesis);
+router.post('/theses/generate-for-department', requireRole(['admin', 'department_lead']), generateThesesForDepartment);
 router.put('/theses/:id', requireRole(['admin', 'department_lead']), updateThesis);
 router.delete('/theses/:id', requireRole(['admin', 'department_lead']), deleteThesis);
 // Titel-Edit für Dozent Transferprojekt (und Admin); Berechtigung wird im Handler präzisiert.

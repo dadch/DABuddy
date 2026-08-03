@@ -192,6 +192,27 @@ const createThesisMilestoneFromTemplate = (thesisId, template, released = false)
   feedback_due_at: template.feedback_due_at,
 });
 
+// Kopiert die Meilenstein-Vorlagen des Jahres als Snapshots auf eine DA.
+// Nur Vorlagen, die zur Studienform des Fachbereichs passen ('all' passt immer);
+// der früheste Meilenstein wird freigegeben.
+const snapshotMilestonesForThesis = async (thesisId, yearId, departmentId) => {
+  const thesisDept = await Department.findByPk(departmentId, { attributes: ['id', 'study_mode'] });
+  const templates = await Milestone.findAll({
+    where: {
+      year_id: yearId,
+      applies_to: { [Op.in]: ['all', thesisDept ? thesisDept.study_mode : 'parttime'] },
+    },
+    include: [{ model: UploadCategory, as: 'uploadCategories', through: { attributes: [] } }],
+    order: [['due_at', 'ASC'], ['id', 'ASC']],
+  });
+  for (let i = 0; i < templates.length; i++) {
+    const tm = await ThesisMilestone.create(createThesisMilestoneFromTemplate(thesisId, templates[i], i === 0));
+    if (templates[i].uploadCategories && templates[i].uploadCategories.length > 0) {
+      await tm.setUploadCategories(templates[i].uploadCategories.map(c => c.id));
+    }
+  }
+};
+
 const createThesis = async (req, res) => {
   try {
     const { title, department_id, sponsor, students, coach, expert, field_project_coach, language, is_confidential, is_repetent } = req.body;
@@ -258,30 +279,74 @@ const createThesis = async (req, res) => {
     }
 
     // Snapshot milestones for the thesis (earliest milestone is released by default).
-    // Nur Vorlagen, die zur Studienform des Fachbereichs passen ('all' passt immer).
-    const thesisDept = await Department.findByPk(department_id, { attributes: ['id', 'study_mode'] });
-    const templates = await Milestone.findAll({
-      where: {
-        year_id: selectedYearId,
-        applies_to: { [Op.in]: ['all', thesisDept ? thesisDept.study_mode : 'parttime'] },
-      },
-      include: [{ model: UploadCategory, as: 'uploadCategories', through: { attributes: [] } }],
-      order: [['due_at', 'ASC'], ['id', 'ASC']],
-    });
-    if (templates.length > 0) {
-      const createdTms = [];
-      for (let i = 0; i < templates.length; i++) {
-        const tm = await ThesisMilestone.create(createThesisMilestoneFromTemplate(thesis.id, templates[i], i === 0));
-        if (templates[i].uploadCategories && templates[i].uploadCategories.length > 0) {
-          await tm.setUploadCategories(templates[i].uploadCategories.map(c => c.id));
-        }
-        createdTms.push(tm);
-      }
-    }
+    await snapshotMilestonesForThesis(thesis.id, selectedYearId, department_id);
 
     res.json({ success: true, thesis });
   } catch (error) {
     console.error('Error creating thesis:', error);
+    res.status(500).json({ success: false, message: 'Interner Serverfehler' });
+  }
+};
+
+// Generiert für jeden Studierenden des Fachbereichs (im gewählten Diplomjahr)
+// eine Diplomarbeit: Titel "<tbd>", Sprache Deutsch, ohne Dozent/Experte/
+// Dozent Transferprojekt. Studierende, die im Jahr bereits einer DA zugeteilt
+// sind, werden übersprungen — der Aufruf ist damit beliebig wiederholbar.
+const generateThesesForDepartment = async (req, res) => {
+  try {
+    const departmentId = parseInt(req.body.department_id, 10);
+    const selectedYearId = req.session.selectedYear;
+    const userRole = req.session.userRole;
+    const userId = req.session.userId;
+
+    if (!Number.isInteger(departmentId)) {
+      return res.status(400).json({ success: false, message: 'Fachbereich fehlt' });
+    }
+    const department = await Department.findByPk(departmentId);
+    if (!department) return res.status(404).json({ success: false, message: 'Fachbereich nicht gefunden' });
+
+    if (userRole === 'department_lead' && department.department_lead_id !== userId) {
+      return res.status(403).json({ success: false, message: 'Sie können nur für Fachbereiche generieren, die Sie leiten.' });
+    }
+
+    // Studierende des Fachbereichs im gewählten Diplomjahr
+    const students = await User.findAll({
+      where: { role: 'student', year_id: selectedYearId },
+      include: [{ model: Department, as: 'departments', where: { id: departmentId }, required: true, attributes: [] }],
+      order: [['name', 'ASC'], ['firstname', 'ASC']],
+    });
+
+    // Bereits im Jahr zugeteilte Studierende überspringen
+    const assignedRows = await sequelize.query(
+      `SELECT DISTINCT ts.student_id FROM thesis_students ts
+       JOIN theses t ON t.id = ts.thesis_id
+       WHERE t.year_id = :yearId`,
+      { replacements: { yearId: selectedYearId }, type: sequelize.QueryTypes.SELECT }
+    );
+    const assigned = new Set(assignedRows.map(r => r.student_id));
+
+    const created = [];
+    const skipped = [];
+    for (const s of students) {
+      if (assigned.has(s.id)) { skipped.push(`${s.name}, ${s.firstname}`); continue; }
+      const thesis = await Thesis.create({
+        title: '<tbd>',
+        department_id: departmentId,
+        sponsor: null,
+        year_id: selectedYearId,
+        language: 'de',
+        is_confidential: false,
+        is_repetent: false,
+      });
+      await thesis.setStudents([s]);
+      await snapshotMilestonesForThesis(thesis.id, selectedYearId, departmentId);
+      created.push(`${s.name}, ${s.firstname}`);
+    }
+
+    console.log(`[generateTheses] ${department.name}: ${created.length} DA(s) generiert, ${skipped.length} übersprungen (durch User ${userId})`);
+    res.json({ success: true, created, skipped });
+  } catch (error) {
+    console.error('generateThesesForDepartment error:', error);
     res.status(500).json({ success: false, message: 'Interner Serverfehler' });
   }
 };
@@ -3353,6 +3418,7 @@ module.exports = {
   switchActiveRole,
   getThesis,
   createThesis,
+  generateThesesForDepartment,
   updateThesis,
   deleteThesis,
   getUsers,

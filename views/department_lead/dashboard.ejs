@@ -114,6 +114,7 @@ a.grade-badge.grade-link:not(.grade-final) { color: #212529; }
             </button>
             <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="dashboardActionsMenu">
                 <li><button class="dropdown-item" type="button" onclick="openAddThesisModal()"><i class="bi bi-plus"></i> Diplomarbeit hinzufügen</button></li>
+                <li><button class="dropdown-item" type="button" onclick="openGenerateThesesModal()"><i class="bi bi-journal-plus"></i> Diplomarbeiten für Studierende generieren</button></li>
                 <li><hr class="dropdown-divider"></li>
                 <li><a class="dropdown-item" href="/api/theses-list.pdf<%= selectedDepartment ? '?department=' + encodeURIComponent(selectedDepartment) : '' %>" target="_blank"><i class="bi bi-file-earmark-pdf"></i> Diplomarbeitenliste als PDF</a></li>
                 <li><a class="dropdown-item" href="/api/theses-list.csv<%= selectedDepartment ? '?department=' + encodeURIComponent(selectedDepartment) : '' %>"><i class="bi bi-file-earmark-spreadsheet"></i> Diplomarbeitenliste als CSV</a></li>
@@ -617,6 +618,42 @@ a.grade-badge.grade-link:not(.grade-final) { color: #212529; }
     </div>
 </div>
 
+<!-- Diplomarbeiten generieren Modal -->
+<div class="modal fade" id="generateThesesModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title"><i class="bi bi-journal-plus"></i> Diplomarbeiten für Studierende generieren</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="mb-3">
+                    <label for="generateThesesDept" class="form-label">Fachbereich</label>
+                    <select class="form-select" id="generateThesesDept">
+                        <% departments.forEach(function(dept) { %>
+                            <option value="<%= dept.id %>"><%= dept.name %></option>
+                        <% }); %>
+                    </select>
+                </div>
+                <p class="small text-muted mb-0">
+                    Für jede/n Studierende/n des Fachbereichs im aktuellen Diplomjahr wird eine
+                    Diplomarbeit angelegt: Titel <code>&lt;tbd&gt;</code>, Sprache Deutsch,
+                    ohne Dozent/Experte/Dozent Transferprojekt. Studierende, die bereits einer
+                    Diplomarbeit zugeteilt sind, werden übersprungen — die Funktion kann also
+                    gefahrlos wiederholt werden.
+                </p>
+                <div id="generateThesesResult" class="mt-3"></div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Schliessen</button>
+                <button type="button" class="btn btn-primary" id="generateThesesBtn" onclick="generateTheses()">
+                    <i class="bi bi-journal-plus"></i> Generieren
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
 <!-- Benutzerverwaltung Modal -->
 <div class="modal fade" id="userManagementModal" tabindex="-1">
     <div class="modal-dialog modal-xl">
@@ -792,6 +829,48 @@ function roleLabel(role) {
         field_project_coach: 'Dozent Transferprojekt'
     };
     return labels[role] || role;
+}
+
+// Diplomarbeiten für alle Studierenden eines Fachbereichs generieren.
+function openGenerateThesesModal() {
+    document.getElementById('generateThesesResult').innerHTML = '';
+    document.getElementById('generateThesesBtn').disabled = false;
+    new bootstrap.Modal(document.getElementById('generateThesesModal')).show();
+}
+
+function generateTheses() {
+    const esc = s => String(s == null ? '' : s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+    const btn = document.getElementById('generateThesesBtn');
+    const target = document.getElementById('generateThesesResult');
+    btn.disabled = true;
+    target.innerHTML = '<div class="text-muted"><i class="bi bi-hourglass-split"></i> Generiere…</div>';
+    fetch('/api/theses/generate-for-department', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ department_id: document.getElementById('generateThesesDept').value }),
+    })
+    .then(r => r.json())
+    .then(d => {
+        if (!d.success) {
+            btn.disabled = false;
+            target.innerHTML = `<div class="alert alert-danger">${esc(d.message || 'Generierung fehlgeschlagen')}</div>`;
+            return;
+        }
+        let html = `<div class="alert alert-success mb-0"><i class="bi bi-check-circle"></i> `
+            + `<strong>${d.created.length}</strong> Diplomarbeit(en) generiert`
+            + ` · ${d.skipped.length} Studierende übersprungen (bereits zugeteilt)`;
+        if (d.created.length) html += `<hr class="my-2"><div class="small">${d.created.map(esc).join(' · ')}</div>`;
+        html += '</div>';
+        target.innerHTML = html;
+        // Dashboard nach kurzer Anzeige neu laden, damit die neuen DAs erscheinen.
+        if (d.created.length) setTimeout(() => window.location.reload(), 2500);
+        else btn.disabled = false;
+    })
+    .catch(err => {
+        console.error(err);
+        btn.disabled = false;
+        target.innerHTML = '<div class="alert alert-danger">Netzwerkfehler bei der Generierung</div>';
+    });
 }
 
 function openAddThesisModal() {
