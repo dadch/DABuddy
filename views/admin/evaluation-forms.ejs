@@ -8,6 +8,10 @@
 <div class="page-header">
     <h1 class="page-title">Bewertungsformulare</h1>
     <div class="page-actions">
+        <button class="btn btn-outline-primary" onclick="document.getElementById('importFile').click()">
+            <i class="bi bi-upload"></i> Formular importieren
+        </button>
+        <input type="file" id="importFile" accept=".tbform,application/json" hidden>
         <button class="btn btn-primary" onclick="openCreateForm()">
             <i class="bi bi-plus"></i> Formular erstellen
         </button>
@@ -78,6 +82,9 @@ function loadForms() {
                                     <a href="/api/evaluation-forms/${f.id}/blank.pdf?lang=fr" target="_blank" class="btn btn-outline-danger btn-sm" title="Unausgefülltes Formular als PDF (Französisch)">
                                         <i class="bi bi-file-earmark-pdf"></i> FR
                                     </a>
+                                    <a href="/api/evaluation-forms/${f.id}/export" class="btn btn-outline-secondary btn-sm" title="Formular als .tbform-Datei exportieren (z.B. für ein anderes System)">
+                                        <i class="bi bi-download"></i> Export
+                                    </a>
                                     <button class="btn btn-outline-danger btn-sm" onclick="deleteForm(${f.id}, '${escapeHtml(f.title_de).replace(/'/g, "\\'")}')">
                                         <i class="bi bi-trash"></i>
                                     </button>
@@ -115,6 +122,26 @@ function deleteForm(id, title) {
         .then(d => { if (d.success) loadForms(); else alert('Fehler: ' + (d.message || 'Unbekannt')); })
         .catch(e => { console.error(e); alert('Fehler beim Löschen'); });
 }
+
+document.getElementById('importFile').addEventListener('change', function() {
+    const file = this.files[0];
+    this.value = '';
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => {
+        let data;
+        try { data = JSON.parse(reader.result); }
+        catch (e) { alert('Datei konnte nicht gelesen werden: kein gültiges JSON.'); return; }
+        fetch('/api/evaluation-forms/import', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify(data) })
+            .then(r => r.json())
+            .then(d => {
+                if (d.success) window.location.href = '/dashboard/admin/evaluation-forms/' + d.form.id;
+                else alert('Fehler: ' + (d.message || 'Unbekannt'));
+            })
+            .catch(e => { console.error(e); alert('Fehler beim Import'); });
+    };
+    reader.readAsText(file);
+});
 
 loadForms();
 </script>
