@@ -190,7 +190,7 @@ const importForm = async (req, res) => {
     }
     const MAX_LEN = 200; // Spaltenlimit von title_de/fr und name_de/fr
     const validWeight = (v) => v === undefined || v === null || v === ''
-      || (Number.isFinite(Number(v)) && Number(v) >= 0 && Number(v) < 10000);
+      || (Number.isFinite(Number(v)) && Number(v) >= 0 && Number(v) <= 9999.99);
     if (src.title_de.trim().length > MAX_LEN || src.title_fr.trim().length > MAX_LEN) {
       return res.status(400).json({ success: false, message: `Titel zu lang (max. ${MAX_LEN} Zeichen)` });
     }
