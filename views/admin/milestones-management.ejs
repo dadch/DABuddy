@@ -135,10 +135,10 @@ const ROLE_LABELS = { student: 'Student', coach: 'Dozent/in', expert: 'ExpertIn'
                                 </td>
                                 <td>
                                     <div class="btn-group">
-                                        <button class="btn btn-outline-primary btn-sm" onclick='editMilestone(<%- JSON.stringify(m) %>)'>
+                                        <button class="btn btn-outline-primary btn-sm" data-milestone="<%= JSON.stringify(m) %>" onclick="editMilestone(JSON.parse(this.dataset.milestone))">
                                             <i class="bi bi-pencil"></i>
                                         </button>
-                                        <button class="btn btn-outline-secondary btn-sm" onclick='copyMilestone(<%- JSON.stringify(m) %>)' title="Meilenstein kopieren">
+                                        <button class="btn btn-outline-secondary btn-sm" data-milestone="<%= JSON.stringify(m) %>" onclick="copyMilestone(JSON.parse(this.dataset.milestone))" title="Meilenstein kopieren">
                                             <i class="bi bi-files"></i>
                                         </button>
                                         <button class="btn btn-outline-danger btn-sm" onclick="deleteMilestone(<%= m.id %>, '<%= m.label.replace(/'/g, "\\'") %>')">
