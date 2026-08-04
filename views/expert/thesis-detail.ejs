@@ -1010,7 +1010,9 @@ function openOverrideDueAt(m) {
 document.getElementById('overrideForm').addEventListener('submit', function(e) {
     e.preventDefault();
     const id = document.getElementById('overrideMilestoneId').value;
-    const due_at = document.getElementById('overrideDueAt').value;
+    // datetime-local ohne Zeitzone -> ISO-UTC, unabhängig von der Server-Zeitzone
+    const localDue = document.getElementById('overrideDueAt').value;
+    const due_at = localDue ? new Date(localDue).toISOString() : localDue;
 
     fetch(`/api/thesis-milestones/${id}/due-at`, {
         method: 'PUT',

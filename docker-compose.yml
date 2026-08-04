@@ -33,6 +33,9 @@ services:
       PORT: "3000"
       DB_HOST: db
       DB_PORT: "5432"
+      # Serverseitige Datumsanzeige (Listen, PDFs) und Mail-Cron in Lokalzeit
+      # statt UTC des Containers.
+      TZ: Europe/Zurich
     volumes:
       - ./volumes/uploads:/app/uploads   # hochgeladene Dokumente, Vorlagen
       - ./volumes/appdata:/app/data      # app-settings.json, simulated-today.json

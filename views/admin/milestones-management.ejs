@@ -619,6 +619,17 @@ function toLocalInput(iso) {
     return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
 }
 
+// Gegenstück beim Speichern: datetime-local-Werte (ohne Zeitzone) -> ISO-UTC.
+// Sonst interpretiert der Server den String in SEINER Zeitzone — läuft er in
+// UTC (Docker), verschiebt jedes Speichern alle Termine um die Zeitzonendifferenz.
+const MILESTONE_DATE_FIELDS = ['due_at', 'reminder_start_at', 'single_due_at', 'first_due_at', 'second_due_at', 'final_due_at', 'feedback_due_at'];
+function datesToIsoUtc(data) {
+    MILESTONE_DATE_FIELDS.forEach(f => {
+        if (typeof data[f] === 'string' && data[f].trim()) data[f] = new Date(data[f]).toISOString();
+    });
+    return data;
+}
+
 let evaluationForms = [];
 
 function loadEvaluationForms() {
@@ -810,6 +821,7 @@ document.getElementById('addMilestoneForm').addEventListener('submit', function(
     const data = normalizeConfig(Object.fromEntries(new FormData(this)));
     data.applyToExisting = !!data.applyToExisting;
     data.upload_categories = Array.from(document.getElementById('addUploadCategories').selectedOptions).map(o => o.value);
+    datesToIsoUtc(data);
 
     fetch(`/api/years/${selectedYearId}/milestones`, {
         method: 'POST',
@@ -852,6 +864,8 @@ document.getElementById('editMilestoneForm').addEventListener('submit', function
         );
         if (!proceed) return;
     }
+
+    datesToIsoUtc(data);
 
     fetch(`/api/milestones/${id}`, {
         method: 'PUT',

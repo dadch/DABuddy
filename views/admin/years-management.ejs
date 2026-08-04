@@ -233,6 +233,11 @@ function toLocalInput(iso) {
     return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
 }
 
+// datetime-local ohne Zeitzone -> ISO-UTC, unabhängig von der Server-Zeitzone
+function toIsoUtc(v) {
+    return (typeof v === 'string' && v.trim()) ? new Date(v).toISOString() : v;
+}
+
 function editYear(y) {
     document.getElementById('editYearId').value = y.id;
     document.getElementById('editYearReadonly').value = y.year;
@@ -252,10 +257,10 @@ document.getElementById('editYearForm').addEventListener('submit', function(e) {
     const label_fr = document.getElementById('editYearLabelFr').value.trim();
     const body = {
         label_de, label_fr,
-        assignment_m1_fulltime: document.getElementById('editYearAssignM1Ft').value,
-        assignment_m1_parttime: document.getElementById('editYearAssignM1Pt').value,
-        assignment_m2_fulltime: document.getElementById('editYearAssignM2Ft').value,
-        assignment_m2_parttime: document.getElementById('editYearAssignM2Pt').value,
+        assignment_m1_fulltime: toIsoUtc(document.getElementById('editYearAssignM1Ft').value),
+        assignment_m1_parttime: toIsoUtc(document.getElementById('editYearAssignM1Pt').value),
+        assignment_m2_fulltime: toIsoUtc(document.getElementById('editYearAssignM2Ft').value),
+        assignment_m2_parttime: toIsoUtc(document.getElementById('editYearAssignM2Pt').value),
     };
     fetch('/api/years/' + id, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) })
         .then(r => r.json())
