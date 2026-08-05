@@ -61,7 +61,8 @@
                             <i class="bi bi-eye"></i> Details & Meilensteine
                         </a>
                         <button type="button" class="btn btn-outline-secondary btn-sm"
-                                onclick="openEditTitleModal(<%= thesis.id %>, <%- JSON.stringify(thesis.title || '') %>)">
+                                data-thesis-id="<%= thesis.id %>" data-thesis-title="<%= thesis.title || '' %>"
+                                onclick="openEditTitleModal(parseInt(this.dataset.thesisId, 10), this.dataset.thesisTitle)">
                             <i class="bi bi-pencil"></i> Titel bearbeiten
                         </button>
                     </div>
