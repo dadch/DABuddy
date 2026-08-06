@@ -79,6 +79,11 @@ const isFpcBlocked = (tm, userRole) =>
 // Rollen, die eine Bewertung vornehmen dürfen (ohne Student)
 const ASSESSOR_ROLES = ['coach', 'expert', 'admin', 'department_lead', 'field_project_coach'];
 
+// Include-Baustein für Personenzuweisungen: prüft die Rolle über user_roles
+// und berücksichtigt damit Primär- UND Sekundärrollen (die Primärrolle ist
+// immer auch in user_roles gespiegelt, siehe UserRole-Modell).
+const hasRoleInclude = (role) => ({ model: UserRole, as: 'extraRoles', where: { role }, required: true, attributes: [] });
+
 // Prüft, ob alle Voraussetzungen für eine Freigabe eines Meilensteins
 // erfüllt sind. Liefert eine Liste menschenlesbarer Defizit-Texte (DE).
 // Wird sowohl in setThesisMilestoneApproval als auch in der View
@@ -258,22 +263,22 @@ const createThesis = async (req, res) => {
     }
     if (coach) {
       const coachUser = await User.findOne({
-        where: { id: coach, role: 'coach' },
-        include: [{ model: Department, as: 'departments', where: { id: department_id }, required: true }]
+        where: { id: coach },
+        include: [{ model: Department, as: 'departments', where: { id: department_id }, required: true }, hasRoleInclude('coach')]
       });
       if (coachUser) await thesis.setCoaches([coachUser]);
     }
     if (expert) {
       const expertUser = await User.findOne({
-        where: { id: expert, role: 'expert' },
-        include: [{ model: Department, as: 'departments', where: { id: department_id }, required: true }]
+        where: { id: expert },
+        include: [{ model: Department, as: 'departments', where: { id: department_id }, required: true }, hasRoleInclude('expert')]
       });
       if (expertUser) await thesis.setExperts([expertUser]);
     }
     if (field_project_coach) {
       const fpcUser = await User.findOne({
-        where: { id: field_project_coach, role: 'field_project_coach' },
-        include: [{ model: Department, as: 'departments', where: { id: department_id }, required: true }]
+        where: { id: field_project_coach },
+        include: [{ model: Department, as: 'departments', where: { id: department_id }, required: true }, hasRoleInclude('field_project_coach')]
       });
       if (fpcUser) await thesis.setFieldProjectCoaches([fpcUser]);
     }
@@ -408,22 +413,22 @@ const updateThesis = async (req, res) => {
 
       const currentCoaches = await thesis.getCoaches();
       const validCoaches = await User.findAll({
-        where: { id: currentCoaches.map(c => c.id), role: 'coach' },
-        include: [{ model: Department, as: 'departments', where: { id: department_id }, required: true }]
+        where: { id: currentCoaches.map(c => c.id) },
+        include: [{ model: Department, as: 'departments', where: { id: department_id }, required: true }, hasRoleInclude('coach')]
       });
       await thesis.setCoaches(validCoaches);
 
       const currentExperts = await thesis.getExperts();
       const validExperts = await User.findAll({
-        where: { id: currentExperts.map(e => e.id), role: 'expert' },
-        include: [{ model: Department, as: 'departments', where: { id: department_id }, required: true }]
+        where: { id: currentExperts.map(e => e.id) },
+        include: [{ model: Department, as: 'departments', where: { id: department_id }, required: true }, hasRoleInclude('expert')]
       });
       await thesis.setExperts(validExperts);
 
       const currentFpcs = await thesis.getFieldProjectCoaches();
       const validFpcs = await User.findAll({
-        where: { id: currentFpcs.map(f => f.id), role: 'field_project_coach' },
-        include: [{ model: Department, as: 'departments', where: { id: department_id }, required: true }]
+        where: { id: currentFpcs.map(f => f.id) },
+        include: [{ model: Department, as: 'departments', where: { id: department_id }, required: true }, hasRoleInclude('field_project_coach')]
       });
       await thesis.setFieldProjectCoaches(validFpcs);
     }
@@ -449,8 +454,8 @@ const updateThesis = async (req, res) => {
     if (coach !== undefined) {
       if (coach) {
         const coachUser = await User.findOne({
-          where: { id: coach, role: 'coach' },
-          include: [{ model: Department, as: 'departments', where: { id: department_id }, required: true }]
+          where: { id: coach },
+          include: [{ model: Department, as: 'departments', where: { id: department_id }, required: true }, hasRoleInclude('coach')]
         });
         if (coachUser) await thesis.setCoaches([coachUser]);
       } else {
@@ -461,8 +466,8 @@ const updateThesis = async (req, res) => {
     if (expert !== undefined) {
       if (expert) {
         const expertUser = await User.findOne({
-          where: { id: expert, role: 'expert' },
-          include: [{ model: Department, as: 'departments', where: { id: department_id }, required: true }]
+          where: { id: expert },
+          include: [{ model: Department, as: 'departments', where: { id: department_id }, required: true }, hasRoleInclude('expert')]
         });
         if (expertUser) await thesis.setExperts([expertUser]);
       } else {
@@ -473,8 +478,8 @@ const updateThesis = async (req, res) => {
     if (field_project_coach !== undefined) {
       if (field_project_coach) {
         const fpcUser = await User.findOne({
-          where: { id: field_project_coach, role: 'field_project_coach' },
-          include: [{ model: Department, as: 'departments', where: { id: department_id }, required: true }]
+          where: { id: field_project_coach },
+          include: [{ model: Department, as: 'departments', where: { id: department_id }, required: true }, hasRoleInclude('field_project_coach')]
         });
         if (fpcUser) await thesis.setFieldProjectCoaches([fpcUser]);
       } else {

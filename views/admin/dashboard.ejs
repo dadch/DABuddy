@@ -754,10 +754,12 @@ function loadUserOptions(departmentId = null) {
                 );
             }
 
+            // Für Zuweisungen zählen Primär- UND Sekundärrollen (additional_roles).
+            const hasRole = (user, role) => user.role === role || (user.additional_roles || []).includes(role);
             const students = filteredUsers.filter(user => user.role === 'student');
-            const coaches = filteredUsers.filter(user => user.role === 'coach');
-            const experts = filteredUsers.filter(user => user.role === 'expert');
-            const fieldProjectCoaches = filteredUsers.filter(user => user.role === 'field_project_coach');
+            const coaches = filteredUsers.filter(user => hasRole(user, 'coach'));
+            const experts = filteredUsers.filter(user => hasRole(user, 'expert'));
+            const fieldProjectCoaches = filteredUsers.filter(user => hasRole(user, 'field_project_coach'));
 
             ['thesisStudents', 'editThesisStudents'].forEach(selectId => {
                 const select = document.getElementById(selectId);
