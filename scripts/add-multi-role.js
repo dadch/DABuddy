@@ -25,10 +25,17 @@ const { sequelize } = require('../src/models');
     `);
     console.log('  ok  users.last_active_role');
 
-    // Bestehende Primärrolle in user_roles spiegeln (idempotent durch ON CONFLICT DO NOTHING)
+    // Bestehende Primärrolle in user_roles spiegeln (idempotent durch ON CONFLICT DO NOTHING).
+    // Der Enum-Typ von user_roles.role hängt davon ab, wer die Tabelle angelegt hat:
+    // dieses Skript verwendet enum_users_role, sequelize.sync erzeugt enum_user_roles_role.
+    // Deshalb den tatsächlichen Typ auslesen und über ::text dorthin casten.
+    const [[{ udt_name }]] = await sequelize.query(`
+      SELECT udt_name FROM information_schema.columns
+      WHERE table_name = 'user_roles' AND column_name = 'role';
+    `);
     await sequelize.query(`
       INSERT INTO "user_roles" ("user_id", "role", "created_at", "updated_at")
-      SELECT "id", "role", now(), now() FROM "users"
+      SELECT "id", "role"::text::"${udt_name}", now(), now() FROM "users"
       ON CONFLICT ("user_id", "role") DO NOTHING;
     `);
     console.log('  ok  Primärrollen in user_roles dupliziert.');
