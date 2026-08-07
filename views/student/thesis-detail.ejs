@@ -124,11 +124,11 @@ const assignmentAvailableForStudent = !!assignmentM1 && new Date(assignmentM1).g
                                             </span>
                                         <% } %>
                                         <% if (canEditDueAt) { %>
-                                            <button class="btn btn-sm btn-link p-0 ms-1" data-milestone="<%= JSON.stringify({ id: m.id, label: m.label, due_at: m.due_at }) %>" onclick="openOverrideDueAt(JSON.parse(this.dataset.milestone))" title="<%= t('thesisDetail.overrideDueAtTitle') %>">
+                                            <button class="btn btn-sm btn-link p-0 ms-1" data-milestone="<%= JSON.stringify({ id: m.id, label: milestoneLabel(m), due_at: m.due_at }) %>" onclick="openOverrideDueAt(JSON.parse(this.dataset.milestone))" title="<%= t('thesisDetail.overrideDueAtTitle') %>">
                                                 <i class="bi bi-pencil"></i>
                                             </button>
                                             <% if (m.due_at_overridden) { %>
-                                                <button class="btn btn-sm btn-link p-0 ms-1" onclick="resetDueAt(<%= m.id %>, '<%= m.label.replace(/'/g, "\\'") %>')" title="<%= t('thesisDetail.resetDueAtTitle') %>">
+                                                <button class="btn btn-sm btn-link p-0 ms-1" onclick="resetDueAt(<%= m.id %>, '<%= milestoneLabel(m).replace(/'/g, "\\'") %>')" title="<%= t('thesisDetail.resetDueAtTitle') %>">
                                                     <i class="bi bi-arrow-counterclockwise"></i>
                                                 </button>
                                             <% } %>
@@ -153,7 +153,7 @@ const assignmentAvailableForStudent = !!assignmentM1 && new Date(assignmentM1).g
                                 <div class="text-end">
                                     <% if (m.is_assignment) { %>
                                         <% if (user.role === m.responsible_role || isAdmin) { %>
-                                            <button class="btn btn-outline-dark btn-sm" data-milestone="<%= JSON.stringify({ id: m.id, label: m.label }) %>" onclick="openAssignmentModal(JSON.parse(this.dataset.milestone))">
+                                            <button class="btn btn-outline-dark btn-sm" data-milestone="<%= JSON.stringify({ id: m.id, label: milestoneLabel(m) }) %>" onclick="openAssignmentModal(JSON.parse(this.dataset.milestone))">
                                                 <i class="bi bi-file-earmark-text"></i> <%= t('thesisDetail.editAssignment') %>
                                             </button>
                                             <a class="btn btn-outline-danger btn-sm" href="/api/thesis-milestones/<%= m.id %>/assignment.pdf" target="_blank" title="<%= t('thesisDetail.assignmentPdfGenerateTitle') %>">
@@ -173,7 +173,7 @@ const assignmentAvailableForStudent = !!assignmentM1 && new Date(assignmentM1).g
                                         <% } %>
                                     <% } %>
                                     <% if (showUpload) { %>
-                                        <button class="btn btn-outline-primary btn-sm" onclick="openUploadModal(<%= m.id %>, '<%= m.label.replace(/'/g, "\\'") %>')">
+                                        <button class="btn btn-outline-primary btn-sm" onclick="openUploadModal(<%= m.id %>, '<%= milestoneLabel(m).replace(/'/g, "\\'") %>')">
                                             <i class="bi bi-upload"></i> <%= hasDocs ? t('thesisDetail.update') : t('common.upload') %>
                                         </button>
                                     <% } else if (!m.released) { %>
@@ -241,7 +241,7 @@ const assignmentAvailableForStudent = !!assignmentM1 && new Date(assignmentM1).g
                                                 <div>
                                                     <% if (catShowUpload) { %>
                                                         <button class="btn btn-outline-primary btn-sm"
-                                                                onclick="openUploadModal(<%= m.id %>, '<%= m.label.replace(/'/g, "\\'") %>', <%= cat.id %>, '<%= categoryLabel(cat).replace(/'/g, "\\'") %>')">
+                                                                onclick="openUploadModal(<%= m.id %>, '<%= milestoneLabel(m).replace(/'/g, "\\'") %>', <%= cat.id %>, '<%= categoryLabel(cat).replace(/'/g, "\\'") %>')">
                                                             <i class="bi bi-upload"></i> <%= catHasDocs ? t('thesisDetail.update') : t('common.upload') %>
                                                         </button>
                                                     <% } else if (!m.released) { %>
@@ -327,7 +327,7 @@ const assignmentAvailableForStudent = !!assignmentM1 && new Date(assignmentM1).g
                                             <% } %>
                                         <% } else { %>
                                             <% if (canEvaluate) { %>
-                                                <button class="btn btn-outline-secondary btn-sm" data-milestone="<%= JSON.stringify({ id: m.id, label: m.label, evaluation: m.evaluation || "" }) %>" onclick="openEvalModal(JSON.parse(this.dataset.milestone))">
+                                                <button class="btn btn-outline-secondary btn-sm" data-milestone="<%= JSON.stringify({ id: m.id, label: milestoneLabel(m), evaluation: m.evaluation || "" }) %>" onclick="openEvalModal(JSON.parse(this.dataset.milestone))">
                                                     <i class="bi bi-pencil"></i> <%= m.evaluation ? t('thesisDetail.editEvaluation') : t('thesisDetail.evaluate') %>
                                                 </button>
                                             <% } %>
@@ -375,7 +375,7 @@ const assignmentAvailableForStudent = !!assignmentM1 && new Date(assignmentM1).g
                                     <div class="d-flex justify-content-between align-items-center">
                                         <strong class="small"><i class="bi bi-chat-square-text"></i> <%= t('thesisDetail.feedbackForm') %></strong>
                                         <% if (feedbackFinal) { %>
-                                            <button class="btn btn-outline-secondary btn-sm" data-milestone="<%= JSON.stringify({ id: m.id, label: m.label }) %>" onclick="openFeedbackModal(JSON.parse(this.dataset.milestone))">
+                                            <button class="btn btn-outline-secondary btn-sm" data-milestone="<%= JSON.stringify({ id: m.id, label: milestoneLabel(m) }) %>" onclick="openFeedbackModal(JSON.parse(this.dataset.milestone))">
                                                 <i class="bi bi-pencil"></i> <%= t('thesisDetail.editFeedback') %>
                                             </button>
                                         <% } else { %>
