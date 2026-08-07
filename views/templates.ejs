@@ -1,4 +1,4 @@
-<%- include('partials/header', { title: 'Dokumentvorlagen - ThesisBuddy', user: user }) %>
+<%- include('partials/header', { title: 'Informationen - ThesisBuddy', user: user }) %>
 
 <%
 const canManage = ['admin', 'department_lead'].includes(user.role);
@@ -11,11 +11,11 @@ const canManage = ['admin', 'department_lead'].includes(user.role);
         <a href="/dashboard/thesis/<%= fromThesisId %>"><%= fromThesisTitle || 'Diplomarbeit' %></a>
     <% } %>
     <span class="sep"></span>
-    <span>Dokumentvorlagen</span>
+    <span>Informationen</span>
 </div>
 <div class="page-header">
     <div>
-        <h1 class="page-title">Dokumentvorlagen</h1>
+        <h1 class="page-title">Informationen</h1>
         <div class="page-subtitle">Vorlagen und Dokumente zum Herunterladen</div>
     </div>
     <div class="page-actions">
