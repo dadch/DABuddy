@@ -670,6 +670,10 @@ a.grade-badge.grade-link:not(.grade-final) { color: #212529; }
                         </button>
                     </div>
                 </div>
+                <div class="mb-3">
+                    <input type="search" class="form-control" id="userSearchInput"
+                           placeholder="Nach Vor- oder Nachname suchen…" oninput="renderUsersList()">
+                </div>
                 <div id="usersList">
                     <!-- Benutzer werden hier geladen -->
                 </div>
@@ -880,6 +884,7 @@ function openAddThesisModal() {
 }
 
 function openUserManagementModal() {
+    document.getElementById('userSearchInput').value = '';
     loadDepartmentUsers();
     loadDepartmentLeadOptions();
     new bootstrap.Modal(document.getElementById('userManagementModal')).show();
@@ -1042,12 +1047,29 @@ function loadUserOptions(departmentId = null) {
         });
 }
 
+let allUsersCache = [];
+
 function loadDepartmentUsers() {
     fetch('/api/department-lead/users')
         .then(response => response.json())
         .then(users => {
-            const usersList = document.getElementById('usersList');
-            usersList.innerHTML = `
+            allUsersCache = users;
+            renderUsersList();
+        })
+        .catch(error => {
+            console.error('Fehler beim Laden der Benutzer:', error);
+            document.getElementById('usersList').innerHTML = '<div class="alert alert-danger">Fehler beim Laden der Benutzer</div>';
+        });
+}
+
+// Teilstring-Suche (case-insensitiv) über Vor- und Nachname
+function renderUsersList() {
+    const q = (document.getElementById('userSearchInput').value || '').trim().toLowerCase();
+    const users = q
+        ? allUsersCache.filter(u => (u.firstname || '').toLowerCase().includes(q) || (u.name || '').toLowerCase().includes(q))
+        : allUsersCache;
+    const usersList = document.getElementById('usersList');
+    usersList.innerHTML = `
                 <div class="table-responsive">
                     <table class="table table-striped">
                         <thead>
@@ -1081,16 +1103,11 @@ function loadDepartmentUsers() {
                                         </button>
                                     </td>
                                 </tr>
-                            `).join('')}
+                            `).join('') || '<tr><td colspan="6" class="text-center text-muted">Keine Benutzer gefunden.</td></tr>'}
                         </tbody>
                     </table>
                 </div>
             `;
-        })
-        .catch(error => {
-            console.error('Fehler beim Laden der Benutzer:', error);
-            document.getElementById('usersList').innerHTML = '<div class="alert alert-danger">Fehler beim Laden der Benutzer</div>';
-        });
 }
 
 function loadDepartmentLeadOptions() {

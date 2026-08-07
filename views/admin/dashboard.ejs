@@ -335,6 +335,10 @@
                     </div>
                 </div>
                 <div id="userImportResult"></div>
+                <div class="mb-3">
+                    <input type="search" class="form-control" id="userSearchInput"
+                           placeholder="Nach Vor- oder Nachname suchen…" oninput="renderUsersList()">
+                </div>
                 <div id="usersList">
                     <!-- Benutzer werden via AJAX geladen -->
                 </div>
@@ -611,6 +615,7 @@ function openAddThesisModal() {
 
 function openUserManagementModal() {
     document.getElementById('userImportResult').innerHTML = '';
+    document.getElementById('userSearchInput').value = '';
     loadUsers();
     loadDepartmentOptions();
     new bootstrap.Modal(document.getElementById('userManagementModal')).show();
@@ -831,12 +836,29 @@ function roleLabel(role) {
     return labels[role] || role;
 }
 
+let allUsersCache = [];
+
 function loadUsers() {
     fetch('/api/users')
         .then(response => response.json())
         .then(users => {
-            const usersList = document.getElementById('usersList');
-            usersList.innerHTML = `
+            allUsersCache = users;
+            renderUsersList();
+        })
+        .catch(error => {
+            console.error('Fehler beim Laden der Benutzer:', error);
+            document.getElementById('usersList').innerHTML = '<div class="alert alert-danger">Fehler beim Laden der Benutzer</div>';
+        });
+}
+
+// Teilstring-Suche (case-insensitiv) über Vor- und Nachname
+function renderUsersList() {
+    const q = (document.getElementById('userSearchInput').value || '').trim().toLowerCase();
+    const users = q
+        ? allUsersCache.filter(u => (u.firstname || '').toLowerCase().includes(q) || (u.name || '').toLowerCase().includes(q))
+        : allUsersCache;
+    const usersList = document.getElementById('usersList');
+    usersList.innerHTML = `
                 <div class="table-responsive">
                     <table class="table table-striped">
                         <thead>
@@ -870,16 +892,11 @@ function loadUsers() {
                                         </button>
                                     </td>
                                 </tr>
-                            `).join('')}
+                            `).join('') || '<tr><td colspan="6" class="text-center text-muted">Keine Benutzer gefunden.</td></tr>'}
                         </tbody>
                     </table>
                 </div>
             `;
-        })
-        .catch(error => {
-            console.error('Fehler beim Laden der Benutzer:', error);
-            document.getElementById('usersList').innerHTML = '<div class="alert alert-danger">Fehler beim Laden der Benutzer</div>';
-        });
 }
 
 function editUser(userId) {
