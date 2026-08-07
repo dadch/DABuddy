@@ -5,41 +5,41 @@
 <% if (thesis.is_confidential) { %>
 <div class="card mb-4" style="background-color: #ffe5e5; border-color: #f5b1b1;">
     <div class="card-header" style="background-color: #f9c8c8; border-bottom-color: #f5b1b1;">
-        <h5 class="mb-0"><i class="bi bi-lock-fill text-danger"></i> Geheimhaltung</h5>
+        <h5 class="mb-0"><i class="bi bi-lock-fill text-danger"></i> <%= t('confidentiality.title') %></h5>
     </div>
     <div class="card-body">
         <p class="mb-3 text-danger-emphasis">
             <i class="bi bi-exclamation-triangle-fill"></i>
-            Diese Diplomarbeit unterliegt einer Geheimhaltungsvereinbarung.
+            <%= t('confidentiality.subjectNotice') %>
         </p>
 
         <% if (thesis.confidentiality_document_filename) { %>
             <div class="alert alert-success mb-3">
                 <i class="bi bi-check-circle"></i>
-                Unterzeichnetes Dokument hinterlegt:
+                <%= t('confidentiality.documentDeposited') %>
                 <a href="/api/theses/<%= thesis.id %>/confidentiality-document" class="alert-link">
                     <i class="bi bi-file-earmark-pdf"></i> <%= thesis.confidentiality_document_filename %>
                 </a>
                 <% if (['admin','department_lead'].includes(user.role)) { %>
                     <button class="btn btn-sm btn-outline-danger ms-2" onclick="deleteConfidentialityDocument()">
-                        <i class="bi bi-trash"></i> Löschen
+                        <i class="bi bi-trash"></i> <%= t('common.delete') %>
                     </button>
                 <% } %>
             </div>
         <% } else { %>
             <div class="alert alert-warning mb-3">
                 <i class="bi bi-exclamation-triangle"></i>
-                Noch kein unterzeichnetes Dokument hinterlegt.
+                <%= t('confidentiality.noDocumentYet') %>
             </div>
         <% } %>
 
         <% if (['admin','department_lead'].includes(user.role)) { %>
             <div class="d-flex gap-2 flex-wrap">
                 <button class="btn btn-outline-danger" onclick="openGenerateConfidentialityModal()">
-                    <i class="bi bi-file-earmark-pdf"></i> Vorausgefülltes PDF erstellen
+                    <i class="bi bi-file-earmark-pdf"></i> <%= t('confidentiality.generatePdf') %>
                 </button>
                 <label class="btn btn-outline-danger mb-0">
-                    <i class="bi bi-upload"></i> Unterschriebenes PDF hochladen
+                    <i class="bi bi-upload"></i> <%= t('confidentiality.uploadSigned') %>
                     <input type="file" accept="application/pdf" hidden id="confidentialityUploadInput"
                            onchange="uploadConfidentialityDocument(this.files[0])">
                 </label>
@@ -54,31 +54,30 @@
     <div class="modal-dialog">
         <div class="modal-content">
             <div class="modal-header">
-                <h5 class="modal-title">Geheimhaltungsvereinbarung erstellen</h5>
+                <h5 class="modal-title"><%= t('confidentiality.createTitle') %></h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
             </div>
             <form id="generateConfidentialityForm">
                 <div class="modal-body">
                     <div class="mb-3">
-                        <label for="confUnternehmen" class="form-label">Unternehmen</label>
+                        <label for="confUnternehmen" class="form-label"><%= t('confidentiality.company') %></label>
                         <input type="text" class="form-control" id="confUnternehmen" required>
                     </div>
                     <div class="mb-3">
-                        <label for="confStudent" class="form-label">Student/in</label>
+                        <label for="confStudent" class="form-label"><%= t('confidentiality.student') %></label>
                         <input type="text" class="form-control" id="confStudent" required>
                     </div>
                     <div class="mb-3">
-                        <label for="confThema" class="form-label">Thema der Diplomarbeit</label>
+                        <label for="confThema" class="form-label"><%= t('confidentiality.topic') %></label>
                         <input type="text" class="form-control" id="confThema" required>
                     </div>
                     <p class="form-text mb-0">
-                        Die Felder werden direkt in das PDF eingefügt. Unterschriften, Ort und Datum
-                        bleiben leer und werden handschriftlich ergänzt.
+                        <%= t('confidentiality.fieldsHint') %>
                     </p>
                 </div>
                 <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Abbrechen</button>
-                    <button type="submit" class="btn btn-primary"><i class="bi bi-download"></i> PDF erzeugen</button>
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal"><%= t('common.cancel') %></button>
+                    <button type="submit" class="btn btn-primary"><i class="bi bi-download"></i> <%= t('confidentiality.generatePdfButton') %></button>
                 </div>
             </form>
         </div>
@@ -92,6 +91,14 @@
     const STUDENT_NAMES = <%- JSON.stringify((thesis.students || []).map(s => `${s.name}, ${s.firstname}`)) %>;
     const THESIS_TITLE = <%- JSON.stringify(thesis.title || '') %>;
     const THESIS_SPONSOR = <%- JSON.stringify(thesis.sponsor || '') %>;
+    const L = {
+        errorPrefix: <%- JSON.stringify(t('templatesPage.errorPrefix')) %>,
+        generateFailed: <%- JSON.stringify(t('confidentiality.generateFailed')) %>,
+        selectPdfOnly: <%- JSON.stringify(t('confidentiality.selectPdfOnly')) %>,
+        uploadFailed: <%- JSON.stringify(t('templatesPage.uploadFailed')) %>,
+        deleteConfirm: <%- JSON.stringify(t('confidentiality.deleteConfirm')) %>,
+        deleteFailed: <%- JSON.stringify(t('templatesPage.deleteFailed')) %>,
+    };
 
     window.openGenerateConfidentialityModal = function() {
         document.getElementById('confUnternehmen').value = THESIS_SPONSOR;
@@ -116,7 +123,7 @@
             });
             if (!res.ok) {
                 const d = await res.json().catch(() => ({}));
-                alert('Fehler: ' + (d.message || 'PDF konnte nicht erzeugt werden'));
+                alert(L.errorPrefix + (d.message || L.generateFailed));
                 return;
             }
             const blob = await res.blob();
@@ -132,20 +139,20 @@
 
     window.uploadConfidentialityDocument = async function(file) {
         if (!file) return;
-        if (file.type !== 'application/pdf') { alert('Bitte eine PDF-Datei auswählen.'); return; }
+        if (file.type !== 'application/pdf') { alert(L.selectPdfOnly); return; }
         const fd = new FormData(); fd.append('document', file);
         const res = await fetch(`/api/theses/${THESIS_ID}/confidentiality-document`, { method: 'POST', body: fd });
         const d = await res.json().catch(() => ({}));
         if (d.success) location.reload();
-        else alert('Fehler: ' + (d.message || 'Upload fehlgeschlagen'));
+        else alert(L.errorPrefix + (d.message || L.uploadFailed));
     };
 
     window.deleteConfidentialityDocument = async function() {
-        if (!confirm('Unterzeichnetes Dokument wirklich löschen?')) return;
+        if (!confirm(L.deleteConfirm)) return;
         const res = await fetch(`/api/theses/${THESIS_ID}/confidentiality-document`, { method: 'DELETE' });
         const d = await res.json().catch(() => ({}));
         if (d.success) location.reload();
-        else alert('Fehler: ' + (d.message || 'Löschen fehlgeschlagen'));
+        else alert(L.errorPrefix + (d.message || L.deleteFailed));
     };
 })();
 </script>

@@ -1,19 +1,19 @@
-<%- include('../partials/header', { title: 'Bewertungsformulare - ThesisBuddy', user: user }) %>
+<%- include('../partials/header', { title: t('evalFormsAdmin.pageTitle') + ' - ThesisBuddy', user: user }) %>
 
 <div class="page-breadcrumb mb-2">
-    <a href="/dashboard">Dashboard</a>
+    <a href="/dashboard"><%= t('nav.dashboard') %></a>
     <span class="sep"></span>
-    <span>Bewertungsformulare</span>
+    <span><%= t('evalFormsAdmin.breadcrumb') %></span>
 </div>
 <div class="page-header">
-    <h1 class="page-title">Bewertungsformulare</h1>
+    <h1 class="page-title"><%= t('evalFormsAdmin.pageTitle') %></h1>
     <div class="page-actions">
         <button class="btn btn-outline-primary" onclick="document.getElementById('importFile').click()">
-            <i class="bi bi-upload"></i> Formular importieren
+            <i class="bi bi-upload"></i> <%= t('evalFormsAdmin.importForm') %>
         </button>
         <input type="file" id="importFile" accept=".tbform,application/json" hidden>
         <button class="btn btn-primary" onclick="openCreateForm()">
-            <i class="bi bi-plus"></i> Formular erstellen
+            <i class="bi bi-plus"></i> <%= t('evalFormsAdmin.createForm') %>
         </button>
     </div>
 </div>
@@ -22,9 +22,9 @@
     <div class="card-body">
         <div class="alert alert-info">
             <i class="bi bi-info-circle"></i>
-            Bewertungsformulare sind zweisprachig (Deutsch / Französisch) und können mehreren Meilensteinen zugewiesen werden.
+            <%= t('evalFormsAdmin.infoBanner') %>
         </div>
-        <div id="formsList"><p class="text-muted">Wird geladen…</p></div>
+        <div id="formsList"><p class="text-muted"><%= t('common.loading') %></p></div>
     </div>
 </div>
 
@@ -33,23 +33,23 @@
     <div class="modal-dialog">
         <div class="modal-content">
             <div class="modal-header">
-                <h5 class="modal-title">Neues Bewertungsformular</h5>
+                <h5 class="modal-title"><%= t('evalFormsAdmin.createModal.title') %></h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
             </div>
             <form id="createForm">
                 <div class="modal-body">
                     <div class="mb-3">
-                        <label class="form-label">Titel (Deutsch)</label>
+                        <label class="form-label"><%= t('evalFormsAdmin.createModal.titleDe') %></label>
                         <input type="text" class="form-control" name="title_de" required>
                     </div>
                     <div class="mb-3">
-                        <label class="form-label">Titel (Französisch)</label>
+                        <label class="form-label"><%= t('evalFormsAdmin.createModal.titleFr') %></label>
                         <input type="text" class="form-control" name="title_fr" required>
                     </div>
                 </div>
                 <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Abbrechen</button>
-                    <button type="submit" class="btn btn-primary">Erstellen</button>
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal"><%= t('common.cancel') %></button>
+                    <button type="submit" class="btn btn-primary"><%= t('evalFormsAdmin.createModal.create') %></button>
                 </div>
             </form>
         </div>
@@ -57,15 +57,40 @@
 </div>
 
 <script>
+const L = {
+    noForms: <%- JSON.stringify(t('evalFormsAdmin.noForms')) %>,
+    loadError: <%- JSON.stringify(t('evalFormsAdmin.loadError')) %>,
+    table: {
+        titleDe: <%- JSON.stringify(t('evalFormsAdmin.table.titleDe')) %>,
+        titleFr: <%- JSON.stringify(t('evalFormsAdmin.table.titleFr')) %>,
+        groups: <%- JSON.stringify(t('evalFormsAdmin.table.groups')) %>,
+        actions: <%- JSON.stringify(t('evalFormsAdmin.table.actions')) %>
+    },
+    edit: <%- JSON.stringify(t('evalFormsAdmin.edit')) %>,
+    blankPdfDeTitle: <%- JSON.stringify(t('evalFormsAdmin.blankPdfDeTitle')) %>,
+    blankPdfDe: <%- JSON.stringify(t('evalFormsAdmin.blankPdfDe')) %>,
+    blankPdfFrTitle: <%- JSON.stringify(t('evalFormsAdmin.blankPdfFrTitle')) %>,
+    blankPdfFr: <%- JSON.stringify(t('evalFormsAdmin.blankPdfFr')) %>,
+    exportTitle: <%- JSON.stringify(t('evalFormsAdmin.exportTitle')) %>,
+    export: <%- JSON.stringify(t('evalFormsAdmin.export')) %>,
+    errorPrefix: <%- JSON.stringify(t('templatesPage.errorPrefix')) %>,
+    unknown: <%- JSON.stringify(t('evalFormsAdmin.errors.unknown')) %>,
+    createError: <%- JSON.stringify(t('evalFormsAdmin.errors.create')) %>,
+    deleteError: <%- JSON.stringify(t('evalFormsAdmin.errors.delete')) %>,
+    importError: <%- JSON.stringify(t('evalFormsAdmin.errors.import')) %>,
+    deleteConfirm: <%- JSON.stringify(t('evalFormsAdmin.deleteConfirm')) %>,
+    importParseError: <%- JSON.stringify(t('evalFormsAdmin.importParseError')) %>
+};
+
 function loadForms() {
     fetch('/api/evaluation-forms')
         .then(r => r.json())
         .then(forms => {
             const el = document.getElementById('formsList');
-            if (!forms.length) { el.innerHTML = '<p class="text-muted mb-0">Noch keine Formulare erfasst.</p>'; return; }
+            if (!forms.length) { el.innerHTML = `<p class="text-muted mb-0">${L.noForms}</p>`; return; }
             el.innerHTML = `
                 <div class="table-responsive"><table class="table table-striped">
-                    <thead><tr><th>Titel (DE)</th><th>Titel (FR)</th><th>Gruppen</th><th>Aktionen</th></tr></thead>
+                    <thead><tr><th>${L.table.titleDe}</th><th>${L.table.titleFr}</th><th>${L.table.groups}</th><th>${L.table.actions}</th></tr></thead>
                     <tbody>
                         ${forms.map(f => `
                             <tr>
@@ -74,16 +99,16 @@ function loadForms() {
                                 <td>${f.groupCount}</td>
                                 <td>
                                     <a href="/dashboard/admin/evaluation-forms/${f.id}" class="btn btn-outline-primary btn-sm">
-                                        <i class="bi bi-pencil"></i> Bearbeiten
+                                        <i class="bi bi-pencil"></i> ${L.edit}
                                     </a>
-                                    <a href="/api/evaluation-forms/${f.id}/blank.pdf" target="_blank" class="btn btn-outline-danger btn-sm" title="Unausgefülltes Formular als PDF (Deutsch)">
-                                        <i class="bi bi-file-earmark-pdf"></i> Leerformular DE
+                                    <a href="/api/evaluation-forms/${f.id}/blank.pdf" target="_blank" class="btn btn-outline-danger btn-sm" title="${L.blankPdfDeTitle}">
+                                        <i class="bi bi-file-earmark-pdf"></i> ${L.blankPdfDe}
                                     </a>
-                                    <a href="/api/evaluation-forms/${f.id}/blank.pdf?lang=fr" target="_blank" class="btn btn-outline-danger btn-sm" title="Unausgefülltes Formular als PDF (Französisch)">
-                                        <i class="bi bi-file-earmark-pdf"></i> FR
+                                    <a href="/api/evaluation-forms/${f.id}/blank.pdf?lang=fr" target="_blank" class="btn btn-outline-danger btn-sm" title="${L.blankPdfFrTitle}">
+                                        <i class="bi bi-file-earmark-pdf"></i> ${L.blankPdfFr}
                                     </a>
-                                    <a href="/api/evaluation-forms/${f.id}/export" class="btn btn-outline-secondary btn-sm" title="Formular als .tbform-Datei exportieren (z.B. für ein anderes System)">
-                                        <i class="bi bi-download"></i> Export
+                                    <a href="/api/evaluation-forms/${f.id}/export" class="btn btn-outline-secondary btn-sm" title="${L.exportTitle}">
+                                        <i class="bi bi-download"></i> ${L.export}
                                     </a>
                                     <button class="btn btn-outline-danger btn-sm" onclick="deleteForm(${f.id}, '${escapeHtml(f.title_de).replace(/'/g, "\\'")}')">
                                         <i class="bi bi-trash"></i>
@@ -93,7 +118,7 @@ function loadForms() {
                     </tbody>
                 </table></div>`;
         })
-        .catch(e => { console.error(e); document.getElementById('formsList').innerHTML = '<div class="alert alert-danger">Fehler beim Laden</div>'; });
+        .catch(e => { console.error(e); document.getElementById('formsList').innerHTML = `<div class="alert alert-danger">${L.loadError}</div>`; });
 }
 
 function escapeHtml(s) { return (s || '').replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
@@ -110,17 +135,17 @@ document.getElementById('createForm').addEventListener('submit', function(e) {
         .then(r => r.json())
         .then(d => {
             if (d.success) window.location.href = '/dashboard/admin/evaluation-forms/' + d.form.id;
-            else alert('Fehler: ' + (d.message || 'Unbekannt'));
+            else alert(L.errorPrefix + (d.message || L.unknown));
         })
-        .catch(e => { console.error(e); alert('Fehler beim Erstellen'); });
+        .catch(e => { console.error(e); alert(L.createError); });
 });
 
 function deleteForm(id, title) {
-    if (!confirm(`Formular "${title}" wirklich löschen? Zugewiesene Meilensteine verlieren die Zuordnung; bestehende Bewertungen bleiben erhalten.`)) return;
+    if (!confirm(L.deleteConfirm.replace('{{title}}', title))) return;
     fetch('/api/evaluation-forms/' + id, { method: 'DELETE' })
         .then(r => r.json())
-        .then(d => { if (d.success) loadForms(); else alert('Fehler: ' + (d.message || 'Unbekannt')); })
-        .catch(e => { console.error(e); alert('Fehler beim Löschen'); });
+        .then(d => { if (d.success) loadForms(); else alert(L.errorPrefix + (d.message || L.unknown)); })
+        .catch(e => { console.error(e); alert(L.deleteError); });
 }
 
 document.getElementById('importFile').addEventListener('change', function() {
@@ -131,14 +156,14 @@ document.getElementById('importFile').addEventListener('change', function() {
     reader.onload = () => {
         let data;
         try { data = JSON.parse(reader.result); }
-        catch (e) { alert('Datei konnte nicht gelesen werden: kein gültiges JSON.'); return; }
+        catch (e) { alert(L.importParseError); return; }
         fetch('/api/evaluation-forms/import', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify(data) })
             .then(r => r.json())
             .then(d => {
                 if (d.success) window.location.href = '/dashboard/admin/evaluation-forms/' + d.form.id;
-                else alert('Fehler: ' + (d.message || 'Unbekannt'));
+                else alert(L.errorPrefix + (d.message || L.unknown));
             })
-            .catch(e => { console.error(e); alert('Fehler beim Import'); });
+            .catch(e => { console.error(e); alert(L.importError); });
     };
     reader.readAsText(file);
 });

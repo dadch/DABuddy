@@ -15,9 +15,9 @@ const _lockedAtStr = _lockedAt
     <div class="card-header" <% if (_isLocked) { %>style="background-color: #ffe69c; border-bottom-color: #ffd866;"<% } %>>
         <h5 class="mb-0">
             <% if (_isLocked) { %>
-                <i class="bi bi-lock-fill text-warning"></i> Diplomarbeit gesperrt
+                <i class="bi bi-lock-fill text-warning"></i> <%= t('dashboard.thesisLocked') %>
             <% } else { %>
-                <i class="bi bi-lock"></i> Sperrung
+                <i class="bi bi-lock"></i> <%= t('thesisLock.title') %>
             <% } %>
         </h5>
     </div>
@@ -25,29 +25,28 @@ const _lockedAtStr = _lockedAt
         <% if (_isLocked) { %>
             <p class="mb-2">
                 <i class="bi bi-exclamation-triangle-fill text-warning"></i>
-                <strong>Diese Diplomarbeit ist gesperrt.</strong>
-                Die Studierende/der Studierende kann sich nicht mehr einloggen und hat keinen Zugriff auf den bisherigen Verlauf.
+                <strong><%= t('thesisLock.isLocked') %></strong>
+                <%= t('thesisLock.lockedDescription') %>
             </p>
             <% if (_lockedAtStr) { %>
-                <p class="mb-1 text-muted small">Gesperrt am <%= _lockedAtStr %></p>
+                <p class="mb-1 text-muted small"><%= t('thesisLock.lockedOn', { date: _lockedAtStr }) %></p>
             <% } %>
             <% if (thesis.locked_reason) { %>
-                <p class="mb-3"><strong>Begründung:</strong> <%= thesis.locked_reason %></p>
+                <p class="mb-3"><strong><%= t('thesisLock.reasonLabel') %></strong> <%= thesis.locked_reason %></p>
             <% } else { %>
                 <div class="mb-3"></div>
             <% } %>
             <% if (_canLock) { %>
                 <button class="btn btn-outline-success" onclick="openUnlockThesisModal()">
-                    <i class="bi bi-unlock"></i> Sperrung aufheben
+                    <i class="bi bi-unlock"></i> <%= t('thesisLock.unlock') %>
                 </button>
             <% } %>
         <% } else if (_canLock) { %>
             <p class="mb-3 text-muted">
-                Eine Sperrung verhindert den Login der Studierenden dieser Diplomarbeit
-                (z.&nbsp;B. wenn die Arbeit abgebrochen wurde).
+                <%= t('thesisLock.lockExplanation') %>
             </p>
             <button class="btn btn-outline-warning" onclick="openLockThesisModal()">
-                <i class="bi bi-lock"></i> Diplomarbeit sperren
+                <i class="bi bi-lock"></i> <%= t('thesisLock.lockAction') %>
             </button>
         <% } %>
     </div>
@@ -59,25 +58,23 @@ const _lockedAtStr = _lockedAt
     <div class="modal-dialog">
         <div class="modal-content">
             <div class="modal-header">
-                <h5 class="modal-title">Diplomarbeit sperren</h5>
+                <h5 class="modal-title"><%= t('thesisLock.lockAction') %></h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
             </div>
             <form id="lockThesisForm">
                 <div class="modal-body">
                     <p>
-                        Die Studierende/der Studierende kann sich nach dem Sperren nicht mehr einloggen
-                        und hat keinen Zugriff auf den bisherigen Verlauf der Arbeit. Andere Rollen
-                        (Dozent/in, Expert/in, FBL, Admin) können die Arbeit weiterhin einsehen.
+                        <%= t('thesisLock.lockModalBody') %>
                     </p>
                     <div class="mb-3">
-                        <label for="lockReason" class="form-label">Begründung (optional)</label>
+                        <label for="lockReason" class="form-label"><%= t('thesisLock.reasonOptional') %></label>
                         <textarea id="lockReason" class="form-control" rows="3"
-                                  placeholder="z. B. Abbruch der Diplomarbeit per ..."></textarea>
+                                  placeholder="<%= t('thesisLock.reasonPlaceholder') %>"></textarea>
                     </div>
                 </div>
                 <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Abbrechen</button>
-                    <button type="submit" class="btn btn-warning"><i class="bi bi-lock"></i> Sperren</button>
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal"><%= t('common.cancel') %></button>
+                    <button type="submit" class="btn btn-warning"><i class="bi bi-lock"></i> <%= t('thesisLock.lockSubmit') %></button>
                 </div>
             </form>
         </div>
@@ -89,19 +86,18 @@ const _lockedAtStr = _lockedAt
     <div class="modal-dialog">
         <div class="modal-content">
             <div class="modal-header">
-                <h5 class="modal-title">Sperrung aufheben</h5>
+                <h5 class="modal-title"><%= t('thesisLock.unlock') %></h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
             </div>
             <div class="modal-body">
                 <p class="mb-0">
-                    Soll die Sperrung dieser Diplomarbeit aufgehoben werden? Die Studierende/der
-                    Studierende kann sich anschliessend wieder einloggen.
+                    <%= t('thesisLock.unlockModalBody') %>
                 </p>
             </div>
             <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Abbrechen</button>
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal"><%= t('common.cancel') %></button>
                 <button type="button" class="btn btn-success" id="unlockThesisConfirmBtn">
-                    <i class="bi bi-unlock"></i> Entsperren
+                    <i class="bi bi-unlock"></i> <%= t('thesisLock.unlockSubmit') %>
                 </button>
             </div>
         </div>
@@ -111,6 +107,11 @@ const _lockedAtStr = _lockedAt
 <script>
 (function() {
     const THESIS_ID = <%= thesis.id %>;
+    const L = {
+        errorPrefix: <%- JSON.stringify(t('templatesPage.errorPrefix')) %>,
+        lockFailed: <%- JSON.stringify(t('thesisLock.lockFailed')) %>,
+        unlockFailed: <%- JSON.stringify(t('thesisLock.unlockFailed')) %>,
+    };
 
     window.openLockThesisModal = function() {
         const ta = document.getElementById('lockReason');
@@ -134,7 +135,7 @@ const _lockedAtStr = _lockedAt
             });
             const d = await res.json().catch(() => ({}));
             if (d.success) location.reload();
-            else alert('Fehler: ' + (d.message || 'Sperren fehlgeschlagen'));
+            else alert(L.errorPrefix + (d.message || L.lockFailed));
         });
     }
 
@@ -144,7 +145,7 @@ const _lockedAtStr = _lockedAt
             const res = await fetch(`/api/theses/${THESIS_ID}/unlock`, { method: 'POST' });
             const d = await res.json().catch(() => ({}));
             if (d.success) location.reload();
-            else alert('Fehler: ' + (d.message || 'Entsperren fehlgeschlagen'));
+            else alert(L.errorPrefix + (d.message || L.unlockFailed));
         });
     }
 })();

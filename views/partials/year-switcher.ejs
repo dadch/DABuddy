@@ -29,8 +29,8 @@ function switchDiplomjahr(yearId) {
     .then(r => r.json())
     .then(d => {
         if (d.success) location.href = '/dashboard';
-        else alert('Fehler: ' + (d.message || 'Unbekannt'));
+        else alert(<%- JSON.stringify(t('templatesPage.errorPrefix')) %> + (d.message || <%- JSON.stringify(t('misc.unknown')) %>));
     })
-    .catch(err => { console.error(err); alert('Fehler beim Wechseln'); });
+    .catch(err => { console.error(err); alert(<%- JSON.stringify(t('misc.switchFailed')) %>); });
 }
 </script>

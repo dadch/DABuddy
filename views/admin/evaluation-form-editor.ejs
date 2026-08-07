@@ -1,31 +1,31 @@
-<%- include('../partials/header', { title: 'Formular bearbeiten - ThesisBuddy', user: user }) %>
+<%- include('../partials/header', { title: t('evalFormsAdmin.editor.pageTitle') + ' - ThesisBuddy', user: user }) %>
 
 <div class="page-breadcrumb mb-2">
-    <a href="/dashboard">Dashboard</a>
+    <a href="/dashboard"><%= t('nav.dashboard') %></a>
     <span class="sep"></span>
-    <a href="/dashboard/admin/evaluation-forms">Bewertungsformulare</a>
+    <a href="/dashboard/admin/evaluation-forms"><%= t('evalFormsAdmin.breadcrumb') %></a>
     <span class="sep"></span>
-    <span>Bearbeiten</span>
+    <span><%= t('evalFormsAdmin.editor.breadcrumb') %></span>
 </div>
 <div class="page-header">
-    <h1 class="page-title">Formular bearbeiten</h1>
+    <h1 class="page-title"><%= t('evalFormsAdmin.editor.pageTitle') %></h1>
 </div>
 
 <!-- Formular-Titel -->
 <div class="card mb-4">
-    <div class="card-header"><h5 class="mb-0">Formular</h5></div>
+    <div class="card-header"><h5 class="mb-0"><%= t('evalFormsAdmin.editor.formCardTitle') %></h5></div>
     <div class="card-body">
         <form id="titleForm" class="row g-3">
             <div class="col-md-5">
-                <label class="form-label">Titel (Deutsch)</label>
+                <label class="form-label"><%= t('evalFormsAdmin.editor.titleDe') %></label>
                 <input type="text" class="form-control" id="titleDe" required>
             </div>
             <div class="col-md-5">
-                <label class="form-label">Titel (Französisch)</label>
+                <label class="form-label"><%= t('evalFormsAdmin.editor.titleFr') %></label>
                 <input type="text" class="form-control" id="titleFr" required>
             </div>
             <div class="col-md-2 d-flex align-items-end">
-                <button type="submit" class="btn btn-primary w-100">Titel speichern</button>
+                <button type="submit" class="btn btn-primary w-100"><%= t('evalFormsAdmin.editor.saveTitle') %></button>
             </div>
         </form>
     </div>
@@ -33,8 +33,8 @@
 
 <!-- Gruppen -->
 <div class="d-flex justify-content-between align-items-center mb-2">
-    <h4 class="mb-0">Bewertungsgruppen</h4>
-    <button class="btn btn-success btn-sm" onclick="openGroupModal()"><i class="bi bi-plus"></i> Gruppe hinzufügen</button>
+    <h4 class="mb-0"><%= t('evalFormsAdmin.editor.groupsHeading') %></h4>
+    <button class="btn btn-success btn-sm" onclick="openGroupModal()"><i class="bi bi-plus"></i> <%= t('evalFormsAdmin.editor.addGroup') %></button>
 </div>
 <div id="groups"></div>
 
@@ -42,15 +42,15 @@
 <div class="modal fade" id="groupModal" tabindex="-1">
     <div class="modal-dialog">
         <div class="modal-content">
-            <div class="modal-header"><h5 class="modal-title" id="groupModalTitle">Gruppe</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
+            <div class="modal-header"><h5 class="modal-title" id="groupModalTitle"><%= t('evalFormsAdmin.editor.groupModal.addTitle') %></h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
             <form id="groupForm">
                 <div class="modal-body">
                     <input type="hidden" id="groupId">
-                    <div class="mb-3"><label class="form-label">Name (Deutsch)</label><input type="text" class="form-control" id="groupNameDe" required></div>
-                    <div class="mb-3"><label class="form-label">Name (Französisch)</label><input type="text" class="form-control" id="groupNameFr" required></div>
-                    <div class="mb-3"><label class="form-label">Gewichtung (Faktor für Gesamtnote)</label><input type="number" step="0.1" min="0" class="form-control" id="groupWeight" value="1" required></div>
+                    <div class="mb-3"><label class="form-label"><%= t('evalFormsAdmin.editor.groupModal.nameDe') %></label><input type="text" class="form-control" id="groupNameDe" required></div>
+                    <div class="mb-3"><label class="form-label"><%= t('evalFormsAdmin.editor.groupModal.nameFr') %></label><input type="text" class="form-control" id="groupNameFr" required></div>
+                    <div class="mb-3"><label class="form-label"><%= t('evalFormsAdmin.editor.groupModal.weight') %></label><input type="number" step="0.1" min="0" class="form-control" id="groupWeight" value="1" required></div>
                 </div>
-                <div class="modal-footer"><button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Abbrechen</button><button type="submit" class="btn btn-primary">Speichern</button></div>
+                <div class="modal-footer"><button type="button" class="btn btn-secondary" data-bs-dismiss="modal"><%= t('common.cancel') %></button><button type="submit" class="btn btn-primary"><%= t('common.save') %></button></div>
             </form>
         </div>
     </div>
@@ -60,34 +60,34 @@
 <div class="modal fade" id="criterionModal" tabindex="-1">
     <div class="modal-dialog modal-xl">
         <div class="modal-content">
-            <div class="modal-header"><h5 class="modal-title" id="criterionModalTitle">Kriterium</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
+            <div class="modal-header"><h5 class="modal-title" id="criterionModalTitle"><%= t('evalFormsAdmin.editor.criterionModal.addTitle') %></h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
             <form id="criterionForm">
                 <div class="modal-body">
                     <input type="hidden" id="criterionId">
                     <input type="hidden" id="criterionGroupId">
                     <div class="row g-3">
                         <div class="col-md-6">
-                            <label class="form-label">Bezeichnung (Deutsch) <span class="badge bg-info text-dark">Markdown</span></label>
+                            <label class="form-label"><%= t('evalFormsAdmin.editor.criterionModal.labelDe') %> <span class="badge bg-info text-dark"><%= t('evalFormsAdmin.editor.criterionModal.markdownBadge') %></span></label>
                             <textarea class="form-control" id="critLabelDe" rows="3" oninput="updateLabelPreview('de')" required></textarea>
-                            <div class="form-text">Vorschau:</div>
+                            <div class="form-text"><%= t('evalFormsAdmin.editor.criterionModal.preview') %></div>
                             <div class="border rounded p-2 bg-light small" id="critLabelDePreview"></div>
                         </div>
                         <div class="col-md-6">
-                            <label class="form-label">Bezeichnung (Französisch) <span class="badge bg-info text-dark">Markdown</span></label>
+                            <label class="form-label"><%= t('evalFormsAdmin.editor.criterionModal.labelFr') %> <span class="badge bg-info text-dark"><%= t('evalFormsAdmin.editor.criterionModal.markdownBadge') %></span></label>
                             <textarea class="form-control" id="critLabelFr" rows="3" oninput="updateLabelPreview('fr')" required></textarea>
-                            <div class="form-text">Vorschau:</div>
+                            <div class="form-text"><%= t('evalFormsAdmin.editor.criterionModal.preview') %></div>
                             <div class="border rounded p-2 bg-light small" id="critLabelFrPreview"></div>
                         </div>
                         <div class="col-md-4">
-                            <label class="form-label">Gewichtung</label>
+                            <label class="form-label"><%= t('evalFormsAdmin.editor.criterionModal.weight') %></label>
                             <input type="number" step="0.1" min="0" class="form-control" id="critWeight" value="1" required>
                         </div>
                     </div>
                     <hr>
-                    <p class="text-muted small mb-2">Qualitätsbeschreibung je Punktestufe (0–5)</p>
+                    <p class="text-muted small mb-2"><%= t('evalFormsAdmin.editor.criterionModal.levelsHint') %></p>
                     <div id="levelRows"></div>
                 </div>
-                <div class="modal-footer"><button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Abbrechen</button><button type="submit" class="btn btn-primary">Speichern</button></div>
+                <div class="modal-footer"><button type="button" class="btn btn-secondary" data-bs-dismiss="modal"><%= t('common.cancel') %></button><button type="submit" class="btn btn-primary"><%= t('common.save') %></button></div>
             </form>
         </div>
     </div>
@@ -98,13 +98,40 @@
 const FORM_ID = <%- JSON.stringify(formId) %>;
 let currentForm = null;
 
+const L = {
+    notFound: <%- JSON.stringify(t('evalFormsAdmin.editor.notFound')) %>,
+    noGroups: <%- JSON.stringify(t('evalFormsAdmin.editor.noGroups')) %>,
+    weight: <%- JSON.stringify(t('evalFormsAdmin.editor.weight')) %>,
+    addCriterion: <%- JSON.stringify(t('evalFormsAdmin.editor.addCriterion')) %>,
+    criterionHeaderLabel: <%- JSON.stringify(t('evalFormsAdmin.editor.criterionHeaderLabel')) %>,
+    criterionHeaderWeight: <%- JSON.stringify(t('evalFormsAdmin.editor.criterionHeaderWeight')) %>,
+    criterionHeaderMaxPoints: <%- JSON.stringify(t('evalFormsAdmin.editor.criterionHeaderMaxPoints')) %>,
+    criterionHeaderActions: <%- JSON.stringify(t('evalFormsAdmin.editor.criterionHeaderActions')) %>,
+    dragHandleTitle: <%- JSON.stringify(t('evalFormsAdmin.editor.dragHandleTitle')) %>,
+    dragHint: <%- JSON.stringify(t('evalFormsAdmin.editor.dragHint')) %>,
+    noCriteria: <%- JSON.stringify(t('evalFormsAdmin.editor.noCriteria')) %>,
+    groupModalAddTitle: <%- JSON.stringify(t('evalFormsAdmin.editor.groupModal.addTitle')) %>,
+    groupModalEditTitle: <%- JSON.stringify(t('evalFormsAdmin.editor.groupModal.editTitle')) %>,
+    deleteGroupConfirm: <%- JSON.stringify(t('evalFormsAdmin.editor.deleteGroupConfirm')) %>,
+    criterionModalAddTitle: <%- JSON.stringify(t('evalFormsAdmin.editor.criterionModal.addTitle')) %>,
+    criterionModalEditTitle: <%- JSON.stringify(t('evalFormsAdmin.editor.criterionModal.editTitle')) %>,
+    level: <%- JSON.stringify(t('evalFormsAdmin.editor.criterionModal.level')) %>,
+    levelDePlaceholder: <%- JSON.stringify(t('evalFormsAdmin.editor.criterionModal.levelDePlaceholder')) %>,
+    levelFrPlaceholder: <%- JSON.stringify(t('evalFormsAdmin.editor.criterionModal.levelFrPlaceholder')) %>,
+    deleteCriterionConfirm: <%- JSON.stringify(t('evalFormsAdmin.editor.deleteCriterionConfirm')) %>,
+    reorderFailed: <%- JSON.stringify(t('evalFormsAdmin.editor.reorderFailed')) %>,
+    reorderError: <%- JSON.stringify(t('evalFormsAdmin.editor.reorderError')) %>,
+    errorPrefix: <%- JSON.stringify(t('templatesPage.errorPrefix')) %>,
+    genericError: <%- JSON.stringify(t('evalFormsAdmin.editor.errors.generic')) %>
+};
+
 function escapeHtml(s){ return (s||'').replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
 
 function loadForm() {
     fetch('/api/evaluation-forms/' + FORM_ID)
         .then(r => r.json())
         .then(d => {
-            if (!d.success) { alert('Formular nicht gefunden'); return; }
+            if (!d.success) { alert(L.notFound); return; }
             currentForm = d.form;
             document.getElementById('titleDe').value = currentForm.title_de;
             document.getElementById('titleFr').value = currentForm.title_fr;
@@ -115,16 +142,16 @@ function loadForm() {
 function renderGroups() {
     const groups = (currentForm.groups || []).slice().sort((a,b)=>a.position-b.position);
     const el = document.getElementById('groups');
-    if (!groups.length) { el.innerHTML = '<div class="alert alert-light border">Noch keine Gruppen. Fügen Sie eine Gruppe hinzu.</div>'; return; }
+    if (!groups.length) { el.innerHTML = `<div class="alert alert-light border">${L.noGroups}</div>`; return; }
     el.innerHTML = groups.map(g => {
         const crits = (g.criteria || []).slice().sort((a,b)=>a.position-b.position);
         return `
         <div class="card mb-3">
             <div class="card-header d-flex justify-content-between align-items-center">
                 <div><strong>${escapeHtml(g.name_de)}</strong> <span class="text-muted">/ ${escapeHtml(g.name_fr)}</span>
-                    <span class="badge bg-secondary ms-2">Gewicht ${g.weight}</span></div>
+                    <span class="badge bg-secondary ms-2">${L.weight.replace('{{value}}', g.weight)}</span></div>
                 <div>
-                    <button class="btn btn-outline-success btn-sm" onclick='openCriterionModal(${g.id})'><i class="bi bi-plus"></i> Kriterium</button>
+                    <button class="btn btn-outline-success btn-sm" onclick='openCriterionModal(${g.id})'><i class="bi bi-plus"></i> ${L.addCriterion}</button>
                     <button class="btn btn-outline-primary btn-sm" onclick='openGroupModal(${JSON.stringify(g).replace(/'/g, "&#39;")})'><i class="bi bi-pencil"></i></button>
                     <button class="btn btn-outline-danger btn-sm" onclick="deleteGroup(${g.id})"><i class="bi bi-trash"></i></button>
                 </div>
@@ -132,11 +159,11 @@ function renderGroups() {
             <div class="card-body">
                 ${crits.length ? `
                 <table class="table table-sm align-middle">
-                    <thead><tr><th style="width:36px;"></th><th>Kriterium (DE / FR)</th><th style="width:110px;">Gewichtung</th><th style="width:110px;">Max. Punkte</th><th style="width:110px;">Aktionen</th></tr></thead>
+                    <thead><tr><th style="width:36px;"></th><th>${L.criterionHeaderLabel}</th><th style="width:110px;">${L.criterionHeaderWeight}</th><th style="width:110px;">${L.criterionHeaderMaxPoints}</th><th style="width:110px;">${L.criterionHeaderActions}</th></tr></thead>
                     <tbody id="crit-rows-${g.id}" data-group-id="${g.id}">
                         ${crits.map(c => `
                             <tr data-criterion-id="${c.id}">
-                                <td class="text-muted text-center crit-drag-handle" style="cursor:grab" title="Zum Sortieren ziehen"><i class="bi bi-grip-vertical"></i></td>
+                                <td class="text-muted text-center crit-drag-handle" style="cursor:grab" title="${L.dragHandleTitle}"><i class="bi bi-grip-vertical"></i></td>
                                 <td>${renderMarkdownInline(c.label_de)} <span class="text-muted">/ ${renderMarkdownInline(c.label_fr)}</span></td>
                                 <td>${c.weight}</td>
                                 <td>${(5 * Number(c.weight)).toFixed(1)}</td>
@@ -147,8 +174,8 @@ function renderGroups() {
                             </tr>`).join('')}
                     </tbody>
                 </table>
-                <div class="form-text"><i class="bi bi-info-circle"></i> Kriterien per Ziehen am Griff <i class="bi bi-grip-vertical"></i> sortieren.</div>
-                ` : '<p class="text-muted mb-0">Noch keine Kriterien in dieser Gruppe.</p>'}
+                <div class="form-text"><i class="bi bi-info-circle"></i> ${L.dragHint}</div>
+                ` : `<p class="text-muted mb-0">${L.noCriteria}</p>`}
             </div>
         </div>`;
     }).join('');
@@ -180,12 +207,12 @@ function persistCriteriaOrder(groupId, tbody) {
     })
     .then(r => r.json())
     .then(d => {
-        if (!d.success) { alert('Reihenfolge konnte nicht gespeichert werden: ' + (d.message || '')); loadForm(); return; }
+        if (!d.success) { alert(L.reorderFailed.replace('{{message}}', d.message || '')); loadForm(); return; }
         // update local state so positions stay consistent
         const grp = (currentForm.groups || []).find(x => x.id === groupId);
         if (grp && grp.criteria) order.forEach((cid, idx) => { const c = grp.criteria.find(x => x.id === cid); if (c) c.position = idx; });
     })
-    .catch(e => { console.error(e); alert('Fehler beim Speichern der Reihenfolge'); loadForm(); });
+    .catch(e => { console.error(e); alert(L.reorderError); loadForm(); });
 }
 
 // Titel speichern
@@ -193,14 +220,14 @@ document.getElementById('titleForm').addEventListener('submit', function(e){
     e.preventDefault();
     fetch('/api/evaluation-forms/' + FORM_ID, { method:'PUT', headers:{'Content-Type':'application/json'},
         body: JSON.stringify({ title_de: document.getElementById('titleDe').value, title_fr: document.getElementById('titleFr').value }) })
-        .then(r=>r.json()).then(d=>{ if(d.success){ loadForm(); } else alert('Fehler: '+(d.message||'')); });
+        .then(r=>r.json()).then(d=>{ if(d.success){ loadForm(); } else alert(L.errorPrefix+(d.message||'')); });
 });
 
 // Gruppe
 function openGroupModal(g) {
     document.getElementById('groupForm').reset();
     document.getElementById('groupId').value = g && g.id ? g.id : '';
-    document.getElementById('groupModalTitle').textContent = g && g.id ? 'Gruppe bearbeiten' : 'Gruppe hinzufügen';
+    document.getElementById('groupModalTitle').textContent = g && g.id ? L.groupModalEditTitle : L.groupModalAddTitle;
     document.getElementById('groupNameDe').value = g && g.name_de ? g.name_de : '';
     document.getElementById('groupNameFr').value = g && g.name_fr ? g.name_fr : '';
     document.getElementById('groupWeight').value = g && g.weight !== undefined ? g.weight : 1;
@@ -217,12 +244,12 @@ document.getElementById('groupForm').addEventListener('submit', function(e){
     });
     const url = id ? '/api/evaluation-groups/' + id : '/api/evaluation-forms/' + FORM_ID + '/groups';
     fetch(url, { method: id ? 'PUT' : 'POST', headers:{'Content-Type':'application/json'}, body })
-        .then(r=>r.json()).then(d=>{ if(d.success){ bootstrap.Modal.getInstance(document.getElementById('groupModal')).hide(); loadForm(); } else alert('Fehler: '+(d.message||'')); });
+        .then(r=>r.json()).then(d=>{ if(d.success){ bootstrap.Modal.getInstance(document.getElementById('groupModal')).hide(); loadForm(); } else alert(L.errorPrefix+(d.message||'')); });
 });
 
 function deleteGroup(id) {
-    if (!confirm('Gruppe inkl. Kriterien löschen?')) return;
-    fetch('/api/evaluation-groups/' + id, { method:'DELETE' }).then(r=>r.json()).then(d=>{ if(d.success) loadForm(); else alert('Fehler'); });
+    if (!confirm(L.deleteGroupConfirm)) return;
+    fetch('/api/evaluation-groups/' + id, { method:'DELETE' }).then(r=>r.json()).then(d=>{ if(d.success) loadForm(); else alert(L.genericError); });
 }
 
 // Kriterium
@@ -232,10 +259,10 @@ function renderLevelRows(de, fr) {
     let html = '';
     for (let i = 0; i <= 5; i++) {
         html += `<div class="mb-3">
-            <label class="form-label mb-1"><span class="badge bg-secondary">Stufe ${i}</span></label>
+            <label class="form-label mb-1"><span class="badge bg-secondary">${L.level.replace('{{n}}', i)}</span></label>
             <div class="row g-2">
-                <div class="col-md-6"><textarea class="form-control" rows="3" placeholder="Beschreibung (DE)" data-lvl-de="${i}">${escapeHtml(de[i]||'')}</textarea></div>
-                <div class="col-md-6"><textarea class="form-control" rows="3" placeholder="Beschreibung (FR)" data-lvl-fr="${i}">${escapeHtml(fr[i]||'')}</textarea></div>
+                <div class="col-md-6"><textarea class="form-control" rows="3" placeholder="${L.levelDePlaceholder}" data-lvl-de="${i}">${escapeHtml(de[i]||'')}</textarea></div>
+                <div class="col-md-6"><textarea class="form-control" rows="3" placeholder="${L.levelFrPlaceholder}" data-lvl-fr="${i}">${escapeHtml(fr[i]||'')}</textarea></div>
             </div>
         </div>`;
     }
@@ -251,7 +278,7 @@ function openCriterionModal(groupId, c) {
     document.getElementById('criterionForm').reset();
     document.getElementById('criterionGroupId').value = groupId;
     document.getElementById('criterionId').value = c && c.id ? c.id : '';
-    document.getElementById('criterionModalTitle').textContent = c && c.id ? 'Kriterium bearbeiten' : 'Kriterium hinzufügen';
+    document.getElementById('criterionModalTitle').textContent = c && c.id ? L.criterionModalEditTitle : L.criterionModalAddTitle;
     document.getElementById('critLabelDe').value = c && c.label_de ? c.label_de : '';
     document.getElementById('critLabelFr').value = c && c.label_fr ? c.label_fr : '';
     document.getElementById('critWeight').value = c && c.weight !== undefined ? c.weight : 1;
@@ -279,12 +306,12 @@ document.getElementById('criterionForm').addEventListener('submit', function(e){
     });
     const url = id ? '/api/evaluation-criteria/' + id : '/api/evaluation-groups/' + groupId + '/criteria';
     fetch(url, { method: id ? 'PUT' : 'POST', headers:{'Content-Type':'application/json'}, body })
-        .then(r=>r.json()).then(d=>{ if(d.success){ bootstrap.Modal.getInstance(document.getElementById('criterionModal')).hide(); loadForm(); } else alert('Fehler: '+(d.message||'')); });
+        .then(r=>r.json()).then(d=>{ if(d.success){ bootstrap.Modal.getInstance(document.getElementById('criterionModal')).hide(); loadForm(); } else alert(L.errorPrefix+(d.message||'')); });
 });
 
 function deleteCriterion(id) {
-    if (!confirm('Kriterium löschen?')) return;
-    fetch('/api/evaluation-criteria/' + id, { method:'DELETE' }).then(r=>r.json()).then(d=>{ if(d.success) loadForm(); else alert('Fehler'); });
+    if (!confirm(L.deleteCriterionConfirm)) return;
+    fetch('/api/evaluation-criteria/' + id, { method:'DELETE' }).then(r=>r.json()).then(d=>{ if(d.success) loadForm(); else alert(L.genericError); });
 }
 
 loadForm();

@@ -1,13 +1,13 @@
-<%- include('partials/header', { title: 'Serverfehler - ThesisBuddy' }) %>
+<%- include('partials/header', { title: t('errorPages.serverErrorTitle') + ' - ThesisBuddy' }) %>
 
 <div class="text-center">
     <div class="mb-4">
         <i class="bi bi-exclamation-circle text-danger" style="font-size: 4rem;"></i>
     </div>
-    <h1 class="mb-3">500 - Serverfehler</h1>
-    <p class="lead text-muted mb-4">Bei uns ist ein Fehler aufgetreten. Bitte versuchen Sie es später erneut.</p>
+    <h1 class="mb-3">500 - <%= t('errorPages.serverErrorTitle') %></h1>
+    <p class="lead text-muted mb-4"><%= t('errorPages.serverErrorBody') %></p>
     <a href="/dashboard" class="btn btn-primary">
-        <i class="bi bi-house"></i> Zum Dashboard
+        <i class="bi bi-house"></i> <%= t('errorPages.backToDashboard') %>
     </a>
 </div>
 

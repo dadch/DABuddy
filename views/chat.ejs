@@ -1,13 +1,13 @@
-<%- include('partials/header', { title: 'Chat - ' + thesis.title, user: user }) %>
+<%- include('partials/header', { title: t('nav.chat') + ' - ' + thesis.title, user: user }) %>
 
 <%
 const ROLE_LABELS = {
-    student: 'Student',
-    coach: 'Dozent/in',
-    expert: 'ExpertIn',
-    admin: 'Administrator',
-    department_lead: 'FachbereichsleiterIn',
-    field_project_coach: 'Dozent Transferprojekt',
+    student: t('roles.student'),
+    coach: t('roles.coach'),
+    expert: t('roles.expert'),
+    admin: t('roles.admin'),
+    department_lead: t('roles.department_lead'),
+    field_project_coach: t('roles.field_project_coach'),
 };
 const ROLE_BADGE = {
     student: 'bg-primary',
@@ -22,49 +22,49 @@ const ROLE_BADGE = {
 <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
     <div>
         <div class="page-breadcrumb mb-2">
-            <a href="/dashboard">Dashboard</a>
+            <a href="/dashboard"><%= t('nav.dashboard') %></a>
             <span class="sep"></span>
-            <a href="/dashboard/thesis/<%= thesis.id %>">Diplomarbeit</a>
+            <a href="/dashboard/thesis/<%= thesis.id %>"><%= t('templatesPage.thesisFallback') %></a>
             <span class="sep"></span>
-            <span>Chat</span>
+            <span><%= t('nav.chat') %></span>
         </div>
-        <h1 class="h4 mb-0"><i class="bi bi-chat-dots"></i> Chat: <%= thesis.title %></h1>
+        <h1 class="h4 mb-0"><i class="bi bi-chat-dots"></i> <%= t('nav.chat') %>: <%= thesis.title %></h1>
     </div>
     <div class="d-flex align-items-center gap-2 flex-wrap">
         <div class="position-relative">
             <i class="bi bi-search position-absolute"
                style="left: 10px; top: 50%; transform: translateY(-50%); color: var(--text-muted); pointer-events: none; font-size: 14px;"></i>
             <input type="search" id="chatSearch" class="form-control form-control-sm"
-                   placeholder="Im Chat suchen…"
+                   placeholder="<%= t('chat.searchPlaceholder') %>"
                    style="padding-left: 30px; min-width: 220px;"
                    autocomplete="off">
         </div>
         <span id="chatSearchCounter" class="text-muted small" style="min-width: 70px;"></span>
         <a href="/dashboard/thesis/<%= thesis.id %>" class="btn btn-outline-secondary btn-sm">
-            <i class="bi bi-arrow-left"></i> Zur Diplomarbeit
+            <i class="bi bi-arrow-left"></i> <%= t('chat.backToThesis') %>
         </a>
     </div>
 </div>
 
 <div class="card" style="height: calc(100vh - 240px); display: flex;">
     <div id="chatMessages" class="card-body overflow-auto" style="flex: 1;">
-        <p class="text-muted text-center">Wird geladen…</p>
+        <p class="text-muted text-center"><%= t('common.loading') %></p>
     </div>
     <div class="card-footer">
         <form id="chatForm" enctype="multipart/form-data">
             <div class="d-flex align-items-end gap-2">
                 <div class="flex-grow-1">
                     <textarea class="form-control" id="chatContent" rows="2"
-                              placeholder="Nachricht schreiben… (Shift+Enter für neue Zeile)"></textarea>
+                              placeholder="<%= t('chat.messagePlaceholder') %>"></textarea>
                     <div id="chatFilePreview" class="form-text mt-1"></div>
                 </div>
                 <div class="d-flex flex-column gap-1">
-                    <label class="btn btn-outline-secondary btn-sm mb-0" title="Datei anhängen">
+                    <label class="btn btn-outline-secondary btn-sm mb-0" title="<%= t('chat.attachFile') %>">
                         <i class="bi bi-paperclip"></i>
                         <input type="file" id="chatFile" hidden onchange="updateChatFilePreview()">
                     </label>
                     <button type="submit" class="btn btn-primary" id="chatSendBtn">
-                        <i class="bi bi-send"></i> Senden
+                        <i class="bi bi-send"></i> <%= t('chat.send') %>
                     </button>
                 </div>
             </div>
@@ -78,6 +78,18 @@ const ROLE_BADGE = {
     const ME_ID = <%= user.id %>;
     const ROLE_LABELS = <%- JSON.stringify(ROLE_LABELS) %>;
     const ROLE_BADGE = <%- JSON.stringify(ROLE_BADGE) %>;
+    const L = {
+        unknownSender: <%- JSON.stringify(t('chat.unknownSender')) %>,
+        notReadYet: <%- JSON.stringify(t('chat.notReadYet')) %>,
+        readBy: <%- JSON.stringify(t('chat.readBy')) %>,
+        matchOne: <%- JSON.stringify(t('chat.matchOne')) %>,
+        matchOther: <%- JSON.stringify(t('chat.matchOther')) %>,
+        noResults: <%- JSON.stringify(t('chat.noResults')) %>,
+        removeFile: <%- JSON.stringify(t('chat.removeFile')) %>,
+        noMessagesYet: <%- JSON.stringify(t('chat.noMessagesYet')) %>,
+        sendFailed: <%- JSON.stringify(t('chat.sendFailed')) %>,
+        errorPrefix: <%- JSON.stringify(t('templatesPage.errorPrefix')) %>,
+    };
     let lastSeenId = 0;
     let pollTimer = null;
 
@@ -102,7 +114,7 @@ const ROLE_BADGE = {
 
     function renderMessage(m) {
         const own = m.sender && m.sender.id === ME_ID;
-        const senderName = m.sender ? `${esc(m.sender.name)}, ${esc(m.sender.firstname)}` : '<em>unbekannt</em>';
+        const senderName = m.sender ? `${esc(m.sender.name)}, ${esc(m.sender.firstname)}` : `<em>${esc(L.unknownSender)}</em>`;
         const roleLabel = m.sender ? ROLE_LABELS[m.sender.role] || m.sender.role : '';
         const roleBadgeClass = m.sender ? (ROLE_BADGE[m.sender.role] || 'bg-secondary') : 'bg-secondary';
         const bubbleColor = own ? '#d0ebff' : '#f1f3f5';
@@ -124,10 +136,10 @@ const ROLE_BADGE = {
         if (own) {
             const readers = (m.read_by || []).filter(r => r.id !== ME_ID);
             if (readers.length === 0) {
-                readMarker = '<i class="bi bi-check text-muted ms-1" title="Noch nicht gelesen"></i>';
+                readMarker = `<i class="bi bi-check text-muted ms-1" title="${esc(L.notReadYet)}"></i>`;
             } else {
                 const names = readers.map(r => `${r.name}, ${r.firstname}`).join('\n');
-                readMarker = `<i class="bi bi-check2-all text-primary ms-1" title="Gelesen von:\n${esc(names)}"></i>`;
+                readMarker = `<i class="bi bi-check2-all text-primary ms-1" title="${esc(L.readBy)}\n${esc(names)}"></i>`;
             }
         }
 
@@ -176,14 +188,14 @@ const ROLE_BADGE = {
             el.classList.toggle('d-none', !match);
             if (match) matches++;
         });
-        if (counter) counter.textContent = matches === 1 ? '1 Treffer' : `${matches} Treffer`;
+        if (counter) counter.textContent = matches === 1 ? L.matchOne : L.matchOther.replace('{{n}}', matches);
         // Inline-Banner, wenn keine Treffer.
         if (matches === 0) {
             if (!noMatchBanner) {
                 const el = document.createElement('div');
                 el.id = 'chatNoMatchBanner';
                 el.className = 'alert alert-warning text-center';
-                el.innerHTML = '<i class="bi bi-search"></i> Keine Nachrichten gefunden.';
+                el.innerHTML = `<i class="bi bi-search"></i> ${esc(L.noResults)}`;
                 document.getElementById('chatMessages').appendChild(el);
             }
         } else if (noMatchBanner) {
@@ -215,7 +227,7 @@ const ROLE_BADGE = {
             const data = await res.json();
             if (lastSeenId === 0 && data.length === 0) {
                 document.getElementById('chatMessages').innerHTML =
-                    '<p class="text-muted text-center mt-4"><i class="bi bi-chat-dots"></i> Noch keine Nachrichten. Schreiben Sie die erste!</p>';
+                    `<p class="text-muted text-center mt-4"><i class="bi bi-chat-dots"></i> ${esc(L.noMessagesYet)}</p>`;
                 return;
             }
             // Bei Polling (since>0): nur die NEUEN anhängen.
@@ -251,7 +263,7 @@ const ROLE_BADGE = {
     window.updateChatFilePreview = function() {
         const f = document.getElementById('chatFile').files[0];
         const el = document.getElementById('chatFilePreview');
-        el.innerHTML = f ? `<i class="bi bi-paperclip"></i> ${esc(f.name)} (${fmtSize(f.size)}) <a href="#" onclick="clearChatFile(); return false;">entfernen</a>` : '';
+        el.innerHTML = f ? `<i class="bi bi-paperclip"></i> ${esc(f.name)} (${fmtSize(f.size)}) <a href="#" onclick="clearChatFile(); return false;">${esc(L.removeFile)}</a>` : '';
     };
     window.clearChatFile = function() {
         document.getElementById('chatFile').value = '';
@@ -271,12 +283,12 @@ const ROLE_BADGE = {
         try {
             const res = await fetch(`/api/theses/${THESIS_ID}/chat`, { method: 'POST', body: fd });
             const d = await res.json().catch(() => ({}));
-            if (!d.success) { alert('Fehler: ' + (d.message || 'Senden fehlgeschlagen')); return; }
+            if (!d.success) { alert(L.errorPrefix + (d.message || L.sendFailed)); return; }
             document.getElementById('chatContent').value = '';
             clearChatFile();
             await loadMessages();
         } catch (e) {
-            alert('Senden fehlgeschlagen');
+            alert(L.sendFailed);
         } finally {
             btn.disabled = false;
             document.getElementById('chatContent').focus();

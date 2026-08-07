@@ -5,32 +5,28 @@
     <div class="modal-dialog">
         <div class="modal-content">
             <div class="modal-header">
-                <h5 class="modal-title"><i class="bi bi-archive"></i> Dokumente als ZIP herunterladen</h5>
+                <h5 class="modal-title"><i class="bi bi-archive"></i> <%= t('bulkDownload.title') %></h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
             </div>
             <form id="bulkDownloadForm">
                 <div class="modal-body">
                     <p class="text-muted small mb-3">
-                        Lädt alle aktuellen Dokumente der gewählten Upload-Kategorie
-                        (oder alle Feedbackformulare) aus den Diplomarbeiten, die unten
-                        in der Liste angezeigt werden, als ZIP herunter. Pro Fachbereich
-                        entsteht ein Unterordner.
+                        <%= t('bulkDownload.description') %>
                     </p>
                     <div class="mb-3">
-                        <label class="form-label">Dokumentart</label>
+                        <label class="form-label"><%= t('bulkDownload.documentType') %></label>
                         <select class="form-select" id="bulkDownloadCategory" required>
-                            <option value="">Wird geladen…</option>
+                            <option value=""><%= t('common.loading') %></option>
                         </select>
                         <div class="form-text">
-                            „Feedbackformular" ist kein Upload, sondern das aus der finalen
-                            Bewertung erzeugte PDF.
+                            <%- t('bulkDownload.feedbackHint') %>
                         </div>
                     </div>
                     <div id="bulkDownloadError" class="alert alert-danger mb-0 d-none"></div>
                 </div>
                 <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Abbrechen</button>
-                    <button type="submit" class="btn btn-primary"><i class="bi bi-download"></i> ZIP herunterladen</button>
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal"><%= t('common.cancel') %></button>
+                    <button type="submit" class="btn btn-primary"><i class="bi bi-download"></i> <%= t('bulkDownload.downloadZip') %></button>
                 </div>
             </form>
         </div>
@@ -39,6 +35,13 @@
 <script>
 (function() {
     const SELECTED_DEPARTMENT = <%- JSON.stringify(typeof selectedDepartment !== 'undefined' && selectedDepartment ? String(selectedDepartment) : '') %>;
+    const L = {
+        selectPlaceholder: <%- JSON.stringify(t('bulkDownload.selectPlaceholder')) %>,
+        uploadCategories: <%- JSON.stringify(t('dashboard.actions.uploadCategories')) %>,
+        otherGroup: <%- JSON.stringify(t('bulkDownload.otherGroup')) %>,
+        feedbackFormPdf: <%- JSON.stringify(t('bulkDownload.feedbackFormPdf')) %>,
+        loadCategoriesError: <%- JSON.stringify(t('bulkDownload.loadCategoriesError')) %>,
+    };
     let categoriesLoaded = false;
     // Feedbackformular ist keine echte Upload-Kategorie, wird aber im gleichen
     // Auswahl-Dropdown angeboten — mit reserviertem Wert 'feedback'.
@@ -49,16 +52,16 @@
             .then(r => r.json())
             .then(cats => {
                 const sel = document.getElementById('bulkDownloadCategory');
-                const options = ['<option value="">Bitte auswählen…</option>'];
+                const options = [`<option value="">${L.selectPlaceholder}</option>`];
                 if (Array.isArray(cats) && cats.length > 0) {
-                    options.push('<optgroup label="Upload-Kategorien">');
+                    options.push(`<optgroup label="${L.uploadCategories}">`);
                     for (const c of cats) {
                         options.push(`<option value="${c.id}">${c.label.replace(/[<>&"']/g, '')}</option>`);
                     }
                     options.push('</optgroup>');
                 }
-                options.push('<optgroup label="Sonstige">');
-                options.push(`<option value="${FEEDBACK_VALUE}">Feedbackformular (PDF)</option>`);
+                options.push(`<optgroup label="${L.otherGroup}">`);
+                options.push(`<option value="${FEEDBACK_VALUE}">${L.feedbackFormPdf}</option>`);
                 options.push('</optgroup>');
                 sel.innerHTML = options.join('');
                 categoriesLoaded = true;
@@ -68,7 +71,7 @@
         document.getElementById('bulkDownloadError').classList.add('d-none');
         loadCategoriesOnce().catch(() => {
             const e = document.getElementById('bulkDownloadError');
-            e.textContent = 'Kategorien konnten nicht geladen werden';
+            e.textContent = L.loadCategoriesError;
             e.classList.remove('d-none');
         });
         new bootstrap.Modal(document.getElementById('bulkDownloadModal')).show();

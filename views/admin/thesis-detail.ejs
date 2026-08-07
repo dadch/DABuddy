@@ -1,8 +1,8 @@
 <%- include('../partials/header', { title: 'Diplomarbeit-Details - ThesisBuddy', user: user }) %>
 
 <%
-const ROLE_LABELS = { student: 'Student', coach: 'Dozent/in', expert: 'ExpertIn', admin: 'Administrator', department_lead: 'FachbereichsleiterIn', field_project_coach: 'Dozent Transferprojekt' };
-const ACTION_LABELS = { document_upload: 'Dokument hochgeladen', document_update: 'Dokument aktualisiert', document_delete: 'Dokument gelöscht', evaluation_create: 'Bewertung erfasst', evaluation_update: 'Bewertung aktualisiert', milestone_approved: 'Dokument-Freigabe erteilt', milestone_revoked: 'Dokument-Freigabe zurückgezogen', milestone_released: 'Meilenstein freigegeben (gestartet)', milestone_locked: 'Meilenstein gesperrt' };
+const ROLE_LABELS = { student: t('roles.student'), coach: t('roles.coach'), expert: t('roles.expert'), admin: t('roles.admin'), department_lead: t('roles.department_lead'), field_project_coach: t('roles.field_project_coach') };
+const ACTION_LABELS = { document_upload: t('thesisDetail.actionLabels.documentUpload'), document_update: t('thesisDetail.actionLabels.documentUpdate'), document_delete: t('thesisDetail.actionLabels.documentDelete'), evaluation_create: t('thesisDetail.actionLabels.evaluationCreate'), evaluation_update: t('thesisDetail.actionLabels.evaluationUpdate'), milestone_approved: t('thesisDetail.actionLabels.milestoneApproved'), milestone_revoked: t('thesisDetail.actionLabels.milestoneRevoked'), milestone_released: t('thesisDetail.actionLabels.milestoneReleased'), milestone_locked: t('thesisDetail.actionLabels.milestoneLocked') };
 const isAdmin = user.role === 'admin';
 const fmtDateTime = (d) => new Date(d).toLocaleDateString('de-CH') + ' ' + new Date(d).toLocaleTimeString('de-CH', { hour: '2-digit', minute: '2-digit' });
 %>
@@ -35,13 +35,13 @@ const assignmentAvailableForStudent = !!assignmentM1 && new Date(assignmentM1).g
 
         <div class="card mb-4">
             <div class="card-header">
-                <h5 class="mb-0"><i class="bi bi-flag"></i> Meilensteine</h5>
+                <h5 class="mb-0"><i class="bi bi-flag"></i> <%= t('thesis.milestones') %></h5>
             </div>
             <div class="card-body">
                 <% if (milestones.length === 0) { %>
                     <div class="text-center py-4">
                         <i class="bi bi-flag text-muted" style="font-size: 48px;"></i>
-                        <p class="text-muted mt-2">Keine Meilensteine für diese Diplomarbeit.</p>
+                        <p class="text-muted mt-2"><%= t('thesis.noMilestones') %></p>
                     </div>
                 <% } else { %>
                     <% milestones.forEach(function(m) { %>
@@ -78,16 +78,16 @@ const assignmentAvailableForStudent = !!assignmentM1 && new Date(assignmentM1).g
                         const _hasGrade = (k) => { const e = evalByKind[k]; return !!(e && e.overall_grade !== null && e.overall_grade !== undefined); };
                         if (m.requires_evaluation) {
                             if (m.double_evaluation) {
-                                if (!_hasGrade('first'))  approvalMissing.push('Bewertung 1 fehlt');
-                                if (!_hasGrade('second')) approvalMissing.push('Bewertung 2 fehlt');
-                                if (!_hasGrade('final'))  approvalMissing.push('Finale Bewertung fehlt');
+                                if (!_hasGrade('first'))  approvalMissing.push(t('thesisDetail.missing.eval1'));
+                                if (!_hasGrade('second')) approvalMissing.push(t('thesisDetail.missing.eval2'));
+                                if (!_hasGrade('final'))  approvalMissing.push(t('thesisDetail.missing.evalFinal'));
                             } else if (!_hasGrade('single')) {
-                                approvalMissing.push('Bewertung fehlt');
+                                approvalMissing.push(t('thesisDetail.missing.eval'));
                             }
                         }
                         if (m.feedback_form_enabled) {
                             const _fb = m.feedback_text == null ? '' : String(m.feedback_text).trim();
-                            if (_fb.length === 0) approvalMissing.push('Feedbackformular noch nicht ausgefüllt');
+                            if (_fb.length === 0) approvalMissing.push(t('thesisDetail.missing.feedback'));
                         }
                         const canGrantApprovals = approvalMissing.length === 0;
                         const overdue = !hasDocs && new Date(m.due_at) < new Date();
@@ -105,7 +105,7 @@ const assignmentAvailableForStudent = !!assignmentM1 && new Date(assignmentM1).g
                                     <% if (m.is_assignment && assignmentAvailableForStudent) { %>
                                         <%# Aufgabenstellung ist ab M1-Termin verfügbar — unabhängig vom Meilenstein-Zustand. %>
                                         <a class="btn btn-outline-danger btn-sm" href="/api/thesis-milestones/<%= m.id %>/assignment.pdf" target="_blank">
-                                            <i class="bi bi-file-earmark-pdf"></i> Aufgabenstellung
+                                            <i class="bi bi-file-earmark-pdf"></i> <%= t('thesisDetail.assignment') %>
                                         </a>
                                     <% } %>
                                 </div>
@@ -116,37 +116,37 @@ const assignmentAvailableForStudent = !!assignmentM1 && new Date(assignmentM1).g
                                     <div class="small">
                                         <span class="<%= overdue ? 'text-danger fw-bold' : 'text-muted' %>">
                                             <i class="bi bi-calendar-event"></i> <%= fmtDateTime(m.due_at) %>
-                                            <% if (overdue) { %> (überfällig)<% } %>
+                                            <% if (overdue) { %> <%= t('thesis.overdue') %><% } %>
                                         </span>
                                         <% if (m.due_at_overridden) { %>
-                                            <span class="badge bg-info" title="Termin wurde für diese Diplomarbeit individuell gesetzt">
-                                                <i class="bi bi-clock-history"></i> Individuell
+                                            <span class="badge bg-info" title="<%= t('thesisDetail.individualDueDateTitle') %>">
+                                                <i class="bi bi-clock-history"></i> <%= t('thesis.individualDueDate') %>
                                             </span>
                                         <% } %>
                                         <% if (canEditDueAt) { %>
-                                            <button class="btn btn-sm btn-link p-0 ms-1" data-milestone="<%= JSON.stringify({ id: m.id, label: m.label, due_at: m.due_at }) %>" onclick="openOverrideDueAt(JSON.parse(this.dataset.milestone))" title="Termin pro Diplomarbeit übersteuern">
+                                            <button class="btn btn-sm btn-link p-0 ms-1" data-milestone="<%= JSON.stringify({ id: m.id, label: m.label, due_at: m.due_at }) %>" onclick="openOverrideDueAt(JSON.parse(this.dataset.milestone))" title="<%= t('thesisDetail.overrideDueAtTitle') %>">
                                                 <i class="bi bi-pencil"></i>
                                             </button>
                                             <% if (m.due_at_overridden) { %>
-                                                <button class="btn btn-sm btn-link p-0 ms-1" onclick="resetDueAt(<%= m.id %>, '<%= m.label.replace(/'/g, "\\'") %>')" title="Auf Vorlagen-Termin zurücksetzen">
+                                                <button class="btn btn-sm btn-link p-0 ms-1" onclick="resetDueAt(<%= m.id %>, '<%= m.label.replace(/'/g, "\\'") %>')" title="<%= t('thesisDetail.resetDueAtTitle') %>">
                                                     <i class="bi bi-arrow-counterclockwise"></i>
                                                 </button>
                                             <% } %>
                                         <% } %>
-                                        <span class="badge bg-secondary ms-2">Verantwortlich: <%= ROLE_LABELS[m.responsible_role] || m.responsible_role %></span>
+                                        <span class="badge bg-secondary ms-2"><%= t('thesis.responsibleRole') %>: <%= ROLE_LABELS[m.responsible_role] || m.responsible_role %></span>
                                         <% if (m.released) { %>
-                                            <span class="badge bg-success"><i class="bi bi-unlock"></i> Freigegeben</span>
+                                            <span class="badge bg-success"><i class="bi bi-unlock"></i> <%= t('thesis.released') %></span>
                                         <% } else { %>
-                                            <span class="badge bg-secondary"><i class="bi bi-lock"></i> Gesperrt</span>
+                                            <span class="badge bg-secondary"><i class="bi bi-lock"></i> <%= t('thesis.locked') %></span>
                                         <% } %>
                                         <% if (m.requires_evaluation) { %>
-                                            <span class="badge bg-warning text-dark">Bewertung: <%= ROLE_LABELS[m.evaluator_role] || m.evaluator_role %></span>
+                                            <span class="badge bg-warning text-dark"><%= t('thesis.evaluation') %>: <%= ROLE_LABELS[m.evaluator_role] || m.evaluator_role %></span>
                                         <% } %>
                                         <% if (m.is_transfer_project) { %>
-                                            <span class="badge bg-info"><i class="bi bi-arrow-left-right"></i> Transferprojekt</span>
+                                            <span class="badge bg-info"><i class="bi bi-arrow-left-right"></i> <%= t('thesis.transferProject') %></span>
                                         <% } %>
                                         <% if (m.is_assignment) { %>
-                                            <span class="badge bg-dark"><i class="bi bi-file-earmark-text"></i> Aufgabenstellung</span>
+                                            <span class="badge bg-dark"><i class="bi bi-file-earmark-text"></i> <%= t('thesisDetail.assignment') %></span>
                                         <% } %>
                                     </div>
                                 </div>
@@ -154,34 +154,34 @@ const assignmentAvailableForStudent = !!assignmentM1 && new Date(assignmentM1).g
                                     <% if (m.is_assignment) { %>
                                         <% if (user.role === m.responsible_role || isAdmin) { %>
                                             <button class="btn btn-outline-dark btn-sm" data-milestone="<%= JSON.stringify({ id: m.id, label: m.label }) %>" onclick="openAssignmentModal(JSON.parse(this.dataset.milestone))">
-                                                <i class="bi bi-file-earmark-text"></i> Aufgabenstellung bearbeiten
+                                                <i class="bi bi-file-earmark-text"></i> <%= t('thesisDetail.editAssignment') %>
                                             </button>
-                                            <a class="btn btn-outline-danger btn-sm" href="/api/thesis-milestones/<%= m.id %>/assignment.pdf" target="_blank" title="Aufgabenstellung als PDF generieren">
-                                                <i class="bi bi-file-earmark-pdf"></i> Aufgabenstellung
+                                            <a class="btn btn-outline-danger btn-sm" href="/api/thesis-milestones/<%= m.id %>/assignment.pdf" target="_blank" title="<%= t('thesisDetail.assignmentPdfGenerateTitle') %>">
+                                                <i class="bi bi-file-earmark-pdf"></i> <%= t('thesisDetail.assignment') %>
                                             </a>
                                         <% } else if (!isStudentView || assignmentAvailableForStudent) { %>
-                                            <a class="btn btn-outline-danger btn-sm" href="/api/thesis-milestones/<%= m.id %>/assignment.pdf" target="_blank" title="Aufgabenstellung als PDF">
-                                                <i class="bi bi-file-earmark-pdf"></i> Aufgabenstellung
+                                            <a class="btn btn-outline-danger btn-sm" href="/api/thesis-milestones/<%= m.id %>/assignment.pdf" target="_blank" title="<%= t('thesisDetail.assignmentPdfTitle') %>">
+                                                <i class="bi bi-file-earmark-pdf"></i> <%= t('thesisDetail.assignment') %>
                                             </a>
                                         <% } %>
                                     <% } %>
                                     <% if (canRelease) { %>
                                         <% if (!m.released) { %>
-                                            <button class="btn btn-success btn-sm" onclick="setMilestoneReleased(<%= m.id %>, true)"><i class="bi bi-unlock"></i> Freigeben</button>
+                                            <button class="btn btn-success btn-sm" onclick="setMilestoneReleased(<%= m.id %>, true)"><i class="bi bi-unlock"></i> <%= t('thesis.grant') %></button>
                                         <% } else { %>
-                                            <button class="btn btn-outline-secondary btn-sm" onclick="setMilestoneReleased(<%= m.id %>, false)"><i class="bi bi-lock"></i> Sperren</button>
+                                            <button class="btn btn-outline-secondary btn-sm" onclick="setMilestoneReleased(<%= m.id %>, false)"><i class="bi bi-lock"></i> <%= t('thesisDetail.lockMilestone') %></button>
                                         <% } %>
                                     <% } %>
                                     <% if (showUpload) { %>
                                         <button class="btn btn-outline-primary btn-sm" onclick="openUploadModal(<%= m.id %>, '<%= m.label.replace(/'/g, "\\'") %>')">
-                                            <i class="bi bi-upload"></i> <%= hasDocs ? 'Aktualisieren' : 'Hochladen' %>
+                                            <i class="bi bi-upload"></i> <%= hasDocs ? t('thesisDetail.update') : t('common.upload') %>
                                         </button>
                                     <% } else if (!m.released) { %>
-                                        <span class="text-muted small">Noch nicht freigegeben</span>
+                                        <span class="text-muted small"><%= t('thesisDetail.notYetReleased') %></span>
                                     <% } else if (!m.allow_upload) { %>
-                                        <span class="text-muted small">Kein Upload vorgesehen</span>
+                                        <span class="text-muted small"><%= t('thesisDetail.noUploadPlanned') %></span>
                                     <% } else if (!hasDocs) { %>
-                                        <span class="text-muted small">Wartet auf <%= ROLE_LABELS[m.responsible_role] || m.responsible_role %></span>
+                                        <span class="text-muted small"><%= t('thesisDetail.waitingFor') %> <%= ROLE_LABELS[m.responsible_role] || m.responsible_role %></span>
                                     <% } %>
                                 </div>
                             </div>
@@ -196,22 +196,22 @@ const assignmentAvailableForStudent = !!assignmentM1 && new Date(assignmentM1).g
                                             <i class="bi bi-file-earmark-pdf text-danger"></i> <%= doc.file_name %>
                                         </a>
                                         <% if (doc.is_current) { %>
-                                            <span class="badge bg-success ms-1">Aktuell · v<%= doc.version %></span>
+                                            <span class="badge bg-success ms-1"><%= t('thesisDetail.current') %> · v<%= doc.version %></span>
                                         <% } else { %>
-                                            <span class="badge bg-secondary ms-1">Frühere Version · v<%= doc.version %></span>
+                                            <span class="badge bg-secondary ms-1"><%= t('thesisDetail.previousVersion') %> · v<%= doc.version %></span>
                                         <% } %>
                                         <br>
                                         <small class="text-muted">
-                                            <%= formatFileSize(doc.file_size) %> · hochgeladen von
-                                            <%= doc.uploader ? (doc.uploader.name + ', ' + doc.uploader.firstname) : 'unbekannt' %>
-                                            am <%= fmtDateTime(doc.uploaded_at) %>
+                                            <%= formatFileSize(doc.file_size) %> · <%= t('thesisDetail.uploadedBy') %>
+                                            <%= doc.uploader ? (doc.uploader.name + ', ' + doc.uploader.firstname) : t('thesisDetail.unknown') %>
+                                            <%= t('thesisDetail.on') %> <%= fmtDateTime(doc.uploaded_at) %>
                                             <% if (!doc.is_current && doc.superseded_at) { %>
-                                                · ersetzt am <%= fmtDateTime(doc.superseded_at) %>
+                                                · <%= t('thesisDetail.supersededOn') %> <%= fmtDateTime(doc.superseded_at) %>
                                             <% } %>
                                         </small>
                                     </div>
                                     <% if (isAdmin) { %>
-                                        <button class="btn btn-outline-danger btn-sm" onclick="deleteDocument(<%= doc.id %>)" title="Dokumentversion löschen (Admin)">
+                                        <button class="btn btn-outline-danger btn-sm" onclick="deleteDocument(<%= doc.id %>)" title="<%= t('thesisDetail.deleteDocVersionTitle') %>">
                                             <i class="bi bi-trash"></i>
                                         </button>
                                     <% } %>
@@ -224,7 +224,7 @@ const assignmentAvailableForStudent = !!assignmentM1 && new Date(assignmentM1).g
                                         <% docs.forEach(function(doc) { renderDocRow(doc); }); %>
                                     </div>
                                 <% } else { %>
-                                    <div class="mt-2"><small class="text-muted"><i class="bi bi-dash-circle"></i> Noch kein Dokument hochgeladen.</small></div>
+                                    <div class="mt-2"><small class="text-muted"><i class="bi bi-dash-circle"></i> <%= t('thesisDetail.noDocumentYet') %></small></div>
                                 <% } %>
                             <% } else { /* Pro Upload-Kategorie ein eigener Slot */ %>
                                 <div class="mt-3">
@@ -242,19 +242,19 @@ const assignmentAvailableForStudent = !!assignmentM1 && new Date(assignmentM1).g
                                                     <% if (catShowUpload) { %>
                                                         <button class="btn btn-outline-primary btn-sm"
                                                                 onclick="openUploadModal(<%= m.id %>, '<%= m.label.replace(/'/g, "\\'") %>', <%= cat.id %>, '<%= categoryLabel(cat).replace(/'/g, "\\'") %>')">
-                                                            <i class="bi bi-upload"></i> <%= catHasDocs ? 'Aktualisieren' : 'Hochladen' %>
+                                                            <i class="bi bi-upload"></i> <%= catHasDocs ? t('thesisDetail.update') : t('common.upload') %>
                                                         </button>
                                                     <% } else if (!m.released) { %>
-                                                        <span class="text-muted small">Noch nicht freigegeben</span>
+                                                        <span class="text-muted small"><%= t('thesisDetail.notYetReleased') %></span>
                                                     <% } else if (!m.allow_upload) { %>
-                                                        <span class="text-muted small">Kein Upload</span>
+                                                        <span class="text-muted small"><%= t('thesisDetail.noUpload') %></span>
                                                     <% } else if (!catHasDocs) { %>
-                                                        <span class="text-muted small">Wartet auf <%= ROLE_LABELS[m.responsible_role] || m.responsible_role %></span>
+                                                        <span class="text-muted small"><%= t('thesisDetail.waitingFor') %> <%= ROLE_LABELS[m.responsible_role] || m.responsible_role %></span>
                                                     <% } %>
                                                 </div>
                                             </div>
                                             <% if (catHasDocs) { catDocs.forEach(function(doc) { renderDocRow(doc); }); } else { %>
-                                                <small class="text-muted d-block mt-1"><i class="bi bi-dash-circle"></i> Noch kein Dokument hochgeladen.</small>
+                                                <small class="text-muted d-block mt-1"><i class="bi bi-dash-circle"></i> <%= t('thesisDetail.noDocumentYet') %></small>
                                             <% } %>
                                         </div>
                                     <% }); %>
@@ -262,7 +262,7 @@ const assignmentAvailableForStudent = !!assignmentM1 && new Date(assignmentM1).g
                                     const orphans = docs.filter(d => !cats.find(c => c.id === d.upload_category_id));
                                     if (orphans.length > 0) { %>
                                         <div class="rounded border mb-2 p-2">
-                                            <strong class="small text-muted"><i class="bi bi-archive"></i> Weitere Dokumente</strong>
+                                            <strong class="small text-muted"><i class="bi bi-archive"></i> <%= t('thesisDetail.otherDocuments') %></strong>
                                             <% orphans.forEach(function(doc) { renderDocRow(doc); }); %>
                                         </div>
                                     <% } %>
@@ -273,13 +273,13 @@ const assignmentAvailableForStudent = !!assignmentM1 && new Date(assignmentM1).g
                             <% if (m.requires_evaluation && m.double_evaluation && !studentEvalsHidden) { %>
                                 <%
                                 const phases = [
-                                    { kind: 'first', title: 'Bewertung 1', role: m.evaluator_role, owner: isEvaluator1, ev: evalByKind['first'], canView: isAdmin || isEvaluator1 || finalExists },
-                                    { kind: 'second', title: 'Bewertung 2', role: m.evaluator_role_2, owner: isEvaluator2, ev: evalByKind['second'], canView: isAdmin || isEvaluator2 || finalExists },
-                                    { kind: 'final', title: 'Finale Bewertung', role: null, owner: (isEvaluator1 || isEvaluator2), ev: evalByKind['final'], canView: true },
+                                    { kind: 'first', title: t('thesisDetail.evaluation1'), role: m.evaluator_role, owner: isEvaluator1, ev: evalByKind['first'], canView: isAdmin || isEvaluator1 || finalExists },
+                                    { kind: 'second', title: t('thesisDetail.evaluation2'), role: m.evaluator_role_2, owner: isEvaluator2, ev: evalByKind['second'], canView: isAdmin || isEvaluator2 || finalExists },
+                                    { kind: 'final', title: t('thesisDetail.finalEvaluation'), role: null, owner: (isEvaluator1 || isEvaluator2), ev: evalByKind['final'], canView: true },
                                 ];
                                 %>
                                 <div class="mt-3 bg-light rounded p-2">
-                                    <strong class="small"><i class="bi bi-people"></i> Doppelbewertung</strong>
+                                    <strong class="small"><i class="bi bi-people"></i> <%= t('thesisDetail.doubleEvaluation') %></strong>
                                     <span class="text-muted small">· <%= ROLE_LABELS[m.evaluator_role] || m.evaluator_role %> + <%= ROLE_LABELS[m.evaluator_role_2] || m.evaluator_role_2 %></span>
                                     <% phases.forEach(function(p) { %>
                                         <div class="d-flex justify-content-between align-items-center py-1 small border-top">
@@ -287,22 +287,22 @@ const assignmentAvailableForStudent = !!assignmentM1 && new Date(assignmentM1).g
                                                 <strong><%= p.title %></strong>
                                                 <% if (p.role) { %><span class="text-muted">· <%= ROLE_LABELS[p.role] || p.role %></span><% } %>
                                                 <% if (p.ev && p.canView && p.ev.overall_grade != null) { %>
-                                                    <span class="badge bg-success">Note <%= Number(p.ev.overall_grade).toFixed(1) %></span>
-                                                    <% if (!p.ev.completed) { %><span class="text-muted">(in Bearbeitung)</span><% } %>
+                                                    <span class="badge bg-success"><%= t('thesisDetail.grade') %> <%= Number(p.ev.overall_grade).toFixed(1) %></span>
+                                                    <% if (!p.ev.completed) { %><span class="text-muted">(<%= t('thesisDetail.inProgress') %>)</span><% } %>
                                                 <% } else if (p.ev) { %>
-                                                    <% if (p.canView) { %><span class="badge bg-warning text-dark">in Bearbeitung</span><% } else { %><span class="text-muted">verdeckt bis finale Bewertung</span><% } %>
+                                                    <% if (p.canView) { %><span class="badge bg-warning text-dark"><%= t('thesisDetail.inProgress') %></span><% } else { %><span class="text-muted"><%= t('thesisDetail.hiddenUntilFinal') %></span><% } %>
                                                 <% } else { %>
-                                                    <span class="text-muted">noch nicht erstellt</span>
+                                                    <span class="text-muted"><%= t('thesisDetail.notYetCreated') %></span>
                                                 <% } %>
                                             </div>
                                             <div>
                                                 <% if (p.owner) { %>
-                                                    <button class="btn btn-outline-secondary btn-sm" onclick="openEvaluationForm(<%= m.id %>, '<%= p.kind %>', true)"><i class="bi bi-clipboard-check"></i> ausfüllen</button>
+                                                    <button class="btn btn-outline-secondary btn-sm" onclick="openEvaluationForm(<%= m.id %>, '<%= p.kind %>', true)"><i class="bi bi-clipboard-check"></i> <%= t('thesisDetail.fillIn') %></button>
                                                 <% } else if (p.canView && p.ev) { %>
-                                                    <button class="btn btn-outline-secondary btn-sm" onclick="openEvaluationForm(<%= m.id %>, '<%= p.kind %>', false)"><i class="bi bi-eye"></i> ansehen</button>
+                                                    <button class="btn btn-outline-secondary btn-sm" onclick="openEvaluationForm(<%= m.id %>, '<%= p.kind %>', false)"><i class="bi bi-eye"></i> <%= t('thesisDetail.view') %></button>
                                                 <% } %>
                                                 <% if (p.ev && p.canView) { %>
-                                                    <a class="btn btn-outline-danger btn-sm" href="/api/thesis-milestones/<%= m.id %>/evaluation.pdf?kind=<%= p.kind %>" target="_blank" title="Als PDF"><i class="bi bi-file-earmark-pdf"></i> PDF</a>
+                                                    <a class="btn btn-outline-danger btn-sm" href="/api/thesis-milestones/<%= m.id %>/evaluation.pdf?kind=<%= p.kind %>" target="_blank" title="<%= t('thesisDetail.asPdfTitle') %>"><i class="bi bi-file-earmark-pdf"></i> PDF</a>
                                                 <% } %>
                                             </div>
                                         </div>
@@ -313,26 +313,26 @@ const assignmentAvailableForStudent = !!assignmentM1 && new Date(assignmentM1).g
                                 <div class="mt-3 bg-light rounded p-2">
                                     <div class="d-flex justify-content-between align-items-center">
                                         <strong class="small">
-                                            <i class="bi bi-star"></i> Bewertung
-                                            <% if (m.evaluation_form_id) { %><span class="badge bg-primary ms-1">Formular</span><% } %>
+                                            <i class="bi bi-star"></i> <%= t('thesis.evaluation') %>
+                                            <% if (m.evaluation_form_id) { %><span class="badge bg-primary ms-1"><%= t('thesisDetail.form') %></span><% } %>
                                             <span class="text-muted">· <%= ROLE_LABELS[m.evaluator_role] || m.evaluator_role %></span>
                                         </strong>
                                         <span>
                                         <% if (m.evaluation_form_id) { %>
                                             <button class="btn btn-outline-secondary btn-sm" onclick="openEvaluationForm(<%= m.id %>, 'single', <%= canEvaluate ? 'true' : 'false' %>)">
-                                                <i class="bi bi-clipboard-check"></i> Bewertung <%= canEvaluate ? 'ausfüllen' : 'ansehen' %>
+                                                <i class="bi bi-clipboard-check"></i> <%= t('thesis.evaluation') %> <%= canEvaluate ? t('thesisDetail.fillIn') : t('thesisDetail.view') %>
                                             </button>
                                             <% if (single) { %>
-                                                <a class="btn btn-outline-danger btn-sm" href="/api/thesis-milestones/<%= m.id %>/evaluation.pdf?kind=single" target="_blank" title="Als PDF"><i class="bi bi-file-earmark-pdf"></i> PDF</a>
+                                                <a class="btn btn-outline-danger btn-sm" href="/api/thesis-milestones/<%= m.id %>/evaluation.pdf?kind=single" target="_blank" title="<%= t('thesisDetail.asPdfTitle') %>"><i class="bi bi-file-earmark-pdf"></i> PDF</a>
                                             <% } %>
                                         <% } else { %>
                                             <% if (canEvaluate) { %>
                                                 <button class="btn btn-outline-secondary btn-sm" data-milestone="<%= JSON.stringify({ id: m.id, label: m.label, evaluation: m.evaluation || "" }) %>" onclick="openEvalModal(JSON.parse(this.dataset.milestone))">
-                                                    <i class="bi bi-pencil"></i> <%= m.evaluation ? 'Bewertung bearbeiten' : 'Bewerten' %>
+                                                    <i class="bi bi-pencil"></i> <%= m.evaluation ? t('thesisDetail.editEvaluation') : t('thesisDetail.evaluate') %>
                                                 </button>
                                             <% } %>
                                             <% if (m.evaluation) { %>
-                                                <a class="btn btn-outline-danger btn-sm" href="/api/thesis-milestones/<%= m.id %>/evaluation.pdf" target="_blank" title="Als PDF"><i class="bi bi-file-earmark-pdf"></i> PDF</a>
+                                                <a class="btn btn-outline-danger btn-sm" href="/api/thesis-milestones/<%= m.id %>/evaluation.pdf" target="_blank" title="<%= t('thesisDetail.asPdfTitle') %>"><i class="bi bi-file-earmark-pdf"></i> PDF</a>
                                             <% } %>
                                         <% } %>
                                         </span>
@@ -340,30 +340,30 @@ const assignmentAvailableForStudent = !!assignmentM1 && new Date(assignmentM1).g
                                     <% if (m.evaluation_form_id) { %>
                                         <% if (single && single.overall_grade != null) { %>
                                             <div class="mt-2">
-                                                Gesamtnote: <strong><%= Number(single.overall_grade).toFixed(1) %></strong>
+                                                <%= t('thesisDetail.overallGrade') %>: <strong><%= Number(single.overall_grade).toFixed(1) %></strong>
                                                 <% (single.groups || []).forEach(function(g) { %>
                                                     <% if (g.grade != null) { %>
                                                         <span class="badge bg-secondary ms-1" title="<%= g.name %>"><%= g.name %>: <%= Number(g.grade).toFixed(1) %></span>
                                                     <% } %>
                                                 <% }); %>
                                                 <br><small class="text-muted">
-                                                    <%= single.completed ? 'Abgeschlossen' : 'In Bearbeitung' %>
-                                                    <% if (single.evaluator) { %> · von <%= single.evaluator.name %>, <%= single.evaluator.firstname %><% } %>
-                                                    <% if (single.evaluated_at) { %> am <%= fmtDateTime(single.evaluated_at) %><% } %>
+                                                    <%= single.completed ? t('thesisDetail.completed') : t('thesisDetail.inProgress') %>
+                                                    <% if (single.evaluator) { %> · <%= t('thesisDetail.by') %> <%= single.evaluator.name %>, <%= single.evaluator.firstname %><% } %>
+                                                    <% if (single.evaluated_at) { %> <%= t('thesisDetail.on') %> <%= fmtDateTime(single.evaluated_at) %><% } %>
                                                 </small>
                                             </div>
                                         <% } else { %>
-                                            <div class="mt-1"><small class="text-muted">Noch keine Bewertung erfasst.</small></div>
+                                            <div class="mt-1"><small class="text-muted"><%= t('thesisDetail.noEvaluationYet') %></small></div>
                                         <% } %>
                                     <% } else { %>
                                         <% if (m.evaluation) { %>
                                             <div class="mt-2" style="white-space: pre-wrap;"><%= m.evaluation %></div>
                                             <small class="text-muted">
-                                                <%= m.evaluator ? ('von ' + m.evaluator.name + ', ' + m.evaluator.firstname) : '' %>
-                                                <% if (m.evaluated_at) { %> am <%= fmtDateTime(m.evaluated_at) %><% } %>
+                                                <%= m.evaluator ? (t('thesisDetail.by') + ' ' + m.evaluator.name + ', ' + m.evaluator.firstname) : '' %>
+                                                <% if (m.evaluated_at) { %> <%= t('thesisDetail.on') %> <%= fmtDateTime(m.evaluated_at) %><% } %>
                                             </small>
                                         <% } else { %>
-                                            <div class="mt-1"><small class="text-muted">Noch keine Bewertung erfasst.</small></div>
+                                            <div class="mt-1"><small class="text-muted"><%= t('thesisDetail.noEvaluationYet') %></small></div>
                                         <% } %>
                                     <% } %>
                                 </div>
@@ -373,17 +373,17 @@ const assignmentAvailableForStudent = !!assignmentM1 && new Date(assignmentM1).g
                             <% if (m.feedback_form_enabled && canFeedback) { %>
                                 <div class="mt-3 border rounded p-2">
                                     <div class="d-flex justify-content-between align-items-center">
-                                        <strong class="small"><i class="bi bi-chat-square-text"></i> Feedbackformular</strong>
+                                        <strong class="small"><i class="bi bi-chat-square-text"></i> <%= t('thesisDetail.feedbackForm') %></strong>
                                         <% if (feedbackFinal) { %>
                                             <button class="btn btn-outline-secondary btn-sm" data-milestone="<%= JSON.stringify({ id: m.id, label: m.label }) %>" onclick="openFeedbackModal(JSON.parse(this.dataset.milestone))">
-                                                <i class="bi bi-pencil"></i> Rückmeldung bearbeiten
+                                                <i class="bi bi-pencil"></i> <%= t('thesisDetail.editFeedback') %>
                                             </button>
                                         <% } else { %>
-                                            <span class="text-muted small">Eine finale Bewertung ist Voraussetzung.</span>
+                                            <span class="text-muted small"><%= t('thesisDetail.finalEvalRequired') %></span>
                                         <% } %>
                                     </div>
                                     <% if (m.feedback_text) { %>
-                                        <div class="mt-1"><small class="text-muted"><i class="bi bi-check"></i> Rückmeldung erfasst</small></div>
+                                        <div class="mt-1"><small class="text-muted"><i class="bi bi-check"></i> <%= t('thesisDetail.feedbackRecorded') %></small></div>
                                     <% } %>
                                 </div>
                             <% } %>
@@ -392,29 +392,29 @@ const assignmentAvailableForStudent = !!assignmentM1 && new Date(assignmentM1).g
                             <% if (approvalSlots.length > 0) { %>
                                 <div class="mt-3 border rounded p-2 <%= allApproved ? 'border-success' : '' %>">
                                     <div class="d-flex justify-content-between align-items-center mb-1">
-                                        <strong class="small"><i class="bi bi-unlock"></i> Freigaben</strong>
-                                        <% if (allApproved) { %><span class="badge bg-success"><i class="bi bi-check-circle"></i> Vollständig freigegeben</span><% } %>
+                                        <strong class="small"><i class="bi bi-unlock"></i> <%= t('thesis.approvals') %></strong>
+                                        <% if (allApproved) { %><span class="badge bg-success"><i class="bi bi-check-circle"></i> <%= t('thesis.approvalAllDone') %></span><% } %>
                                     </div>
                                     <% if (!canGrantApprovals) { %>
                                         <div class="alert alert-warning py-1 px-2 small mb-2">
                                             <i class="bi bi-exclamation-triangle"></i>
-                                            Freigaben erst möglich, wenn: <%= approvalMissing.join(' · ') %>.
+                                            <%= t('thesisDetail.approvalsRequirementPrefix') %> <%= approvalMissing.join(' · ') %>.
                                         </div>
                                     <% } %>
                                     <% approvalSlots.forEach(function(s) { %>
                                         <% const canApproveSlot = ((user.role === s.role) && !studentReadOnly) || isAdmin; %>
                                         <div class="d-flex justify-content-between align-items-center py-1 small">
                                             <div>
-                                                <strong>Freigabe <%= s.n %></strong>
+                                                <strong><%= t('thesisDetail.approvalNumber', { n: s.n }) %></strong>
                                                 <span class="text-muted">· <%= ROLE_LABELS[s.role] || s.role %></span>
                                                 <% if (s.approvedAt) { %>
-                                                    <span class="badge bg-success"><i class="bi bi-check-circle"></i> Freigegeben</span>
+                                                    <span class="badge bg-success"><i class="bi bi-check-circle"></i> <%= t('thesis.approvalGranted') %></span>
                                                     <span class="text-muted">
-                                                        <% if (s.approver) { %>von <%= s.approver.name %>, <%= s.approver.firstname %><% } %>
-                                                        am <%= fmtDateTime(s.approvedAt) %>
+                                                        <% if (s.approver) { %><%= t('thesisDetail.by') %> <%= s.approver.name %>, <%= s.approver.firstname %><% } %>
+                                                        <%= t('thesisDetail.on') %> <%= fmtDateTime(s.approvedAt) %>
                                                     </span>
                                                 <% } else { %>
-                                                    <span class="badge bg-warning text-dark">offen</span>
+                                                    <span class="badge bg-warning text-dark"><%= t('thesis.approvalPending') %></span>
                                                 <% } %>
                                             </div>
                                             <% if (canApproveSlot) { %>
@@ -422,10 +422,10 @@ const assignmentAvailableForStudent = !!assignmentM1 && new Date(assignmentM1).g
                                                     <% if (!s.approvedAt) { %>
                                                         <button class="btn btn-success btn-sm" onclick="setApproval(<%= m.id %>, <%= s.n %>, true)"
                                                                 <% if (!canGrantApprovals) { %>disabled title="<%= approvalMissing.join(' · ') %>"<% } %>>
-                                                            <i class="bi bi-check-lg"></i> Freigeben
+                                                            <i class="bi bi-check-lg"></i> <%= t('thesis.grant') %>
                                                         </button>
                                                     <% } else { %>
-                                                        <button class="btn btn-outline-danger btn-sm" onclick="setApproval(<%= m.id %>, <%= s.n %>, false)"><i class="bi bi-x-lg"></i> Zurückziehen</button>
+                                                        <button class="btn btn-outline-danger btn-sm" onclick="setApproval(<%= m.id %>, <%= s.n %>, false)"><i class="bi bi-x-lg"></i> <%= t('thesis.revoke') %></button>
                                                     <% } %>
                                                 </div>
                                             <% } %>
@@ -443,27 +443,27 @@ const assignmentAvailableForStudent = !!assignmentM1 && new Date(assignmentM1).g
         <!-- Änderungsprotokoll -->
         <div class="card mb-4">
             <div class="card-header">
-                <h5 class="mb-0"><i class="bi bi-clock-history"></i> Änderungsprotokoll</h5>
+                <h5 class="mb-0"><i class="bi bi-clock-history"></i> <%= t('thesisDetail.changeLog') %></h5>
             </div>
             <div class="card-body">
                 <% if (!logs || logs.length === 0) { %>
-                    <p class="text-muted mb-0">Noch keine Änderungen protokolliert.</p>
+                    <p class="text-muted mb-0"><%= t('thesisDetail.noChangesLogged') %></p>
                 <% } else { %>
                     <div class="table-responsive">
                         <table class="table table-sm">
                             <thead>
                                 <tr>
-                                    <th>Zeitstempel</th>
-                                    <th>Benutzer</th>
-                                    <th>Aktion</th>
-                                    <th>Detail</th>
+                                    <th><%= t('thesisDetail.timestamp') %></th>
+                                    <th><%= t('thesisDetail.user') %></th>
+                                    <th><%= t('thesisDetail.action') %></th>
+                                    <th><%= t('thesisDetail.detail') %></th>
                                 </tr>
                             </thead>
                             <tbody>
                                 <% logs.forEach(function(log) { %>
                                     <tr>
                                         <td class="text-nowrap"><small><%= fmtDateTime(log.createdAt) %></small></td>
-                                        <td><small><%= log.user ? (log.user.name + ', ' + log.user.firstname) : 'unbekannt' %></small></td>
+                                        <td><small><%= log.user ? (log.user.name + ', ' + log.user.firstname) : t('thesisDetail.unknown') %></small></td>
                                         <td><small><%= ACTION_LABELS[log.action] || log.action %></small></td>
                                         <td><small class="text-muted"><%= log.detail || '' %></small></td>
                                     </tr>
@@ -482,7 +482,7 @@ const assignmentAvailableForStudent = !!assignmentM1 && new Date(assignmentM1).g
     <div class="modal-dialog">
         <div class="modal-content">
             <div class="modal-header">
-                <h5 class="modal-title">Dokument hochladen — <span id="uploadModalLabel"></span></h5>
+                <h5 class="modal-title"><%= t('thesisDetail.uploadDocument') %> — <span id="uploadModalLabel"></span></h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
             </div>
             <form id="uploadForm" enctype="multipart/form-data">
@@ -490,18 +490,18 @@ const assignmentAvailableForStudent = !!assignmentM1 && new Date(assignmentM1).g
                     <input type="hidden" id="uploadMilestoneId">
                     <input type="hidden" id="uploadCategoryId" name="upload_category_id">
                     <div id="uploadCategoryRow" class="mb-3 d-none">
-                        <label class="form-label">Upload-Kategorie</label>
+                        <label class="form-label"><%= t('thesisDetail.uploadCategory') %></label>
                         <input type="text" class="form-control" id="uploadCategoryLabel" disabled>
                     </div>
                     <div class="mb-3">
-                        <label class="form-label">PDF-Datei</label>
+                        <label class="form-label"><%= t('thesisDetail.pdfFile') %></label>
                         <input type="file" class="form-control" name="document" accept=".pdf" required>
-                        <div class="form-text">Maximale Dateigrösse: 50 MB. Nur PDF-Dateien. Frühere Versionen bleiben erhalten.</div>
+                        <div class="form-text"><%= t('thesisDetail.uploadHint') %></div>
                     </div>
                 </div>
                 <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Abbrechen</button>
-                    <button type="submit" class="btn btn-primary">Hochladen</button>
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal"><%= t('common.cancel') %></button>
+                    <button type="submit" class="btn btn-primary"><%= t('common.upload') %></button>
                 </div>
             </form>
         </div>
@@ -513,21 +513,21 @@ const assignmentAvailableForStudent = !!assignmentM1 && new Date(assignmentM1).g
     <div class="modal-dialog modal-lg">
         <div class="modal-content">
             <div class="modal-header">
-                <h5 class="modal-title">Bewertung — <span id="evalModalLabel"></span></h5>
+                <h5 class="modal-title"><%= t('thesis.evaluation') %> — <span id="evalModalLabel"></span></h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
             </div>
             <form id="evalForm">
                 <div class="modal-body">
                     <input type="hidden" id="evalMilestoneId">
                     <div class="mb-3">
-                        <label class="form-label">Bewertung</label>
+                        <label class="form-label"><%= t('thesis.evaluation') %></label>
                         <textarea class="form-control" id="evalText" name="evaluation" rows="6"></textarea>
-                        <div class="form-text">Freitext-Bewertung.</div>
+                        <div class="form-text"><%= t('thesisDetail.freeTextEvaluation') %></div>
                     </div>
                 </div>
                 <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Abbrechen</button>
-                    <button type="submit" class="btn btn-primary">Speichern</button>
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal"><%= t('common.cancel') %></button>
+                    <button type="submit" class="btn btn-primary"><%= t('common.save') %></button>
                 </div>
             </form>
         </div>
@@ -552,16 +552,16 @@ const assignmentAvailableForStudent = !!assignmentM1 && new Date(assignmentM1).g
     <div class="modal-dialog modal-xl">
         <div class="modal-content">
             <div class="modal-header">
-                <h5 class="modal-title" id="evalFormTitle">Bewertung</h5>
+                <h5 class="modal-title" id="evalFormTitle"><%= t('thesis.evaluation') %></h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
             </div>
             <div class="modal-body">
-                <div id="evalFormBody"><p class="text-muted">Wird geladen…</p></div>
+                <div id="evalFormBody"><p class="text-muted"><%= t('common.loading') %></p></div>
             </div>
             <div class="modal-footer">
                 <div class="me-auto" id="evalFormOverall"></div>
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Schliessen</button>
-                <button type="button" class="btn btn-primary" id="evalFormSaveBtn" onclick="saveEvaluationForm()">Speichern</button>
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal"><%= t('common.close') %></button>
+                <button type="button" class="btn btn-primary" id="evalFormSaveBtn" onclick="saveEvaluationForm()"><%= t('common.save') %></button>
             </div>
         </div>
     </div>
@@ -572,26 +572,26 @@ const assignmentAvailableForStudent = !!assignmentM1 && new Date(assignmentM1).g
     <div class="modal-dialog modal-lg">
         <div class="modal-content">
             <div class="modal-header">
-                <h5 class="modal-title">Feedbackformular — <span id="feedbackModalLabel"></span></h5>
+                <h5 class="modal-title"><%= t('thesisDetail.feedbackForm') %> — <span id="feedbackModalLabel"></span></h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
             </div>
             <div class="modal-body">
                 <input type="hidden" id="feedbackMilestoneId">
                 <div id="feedbackInfo" class="mb-3"></div>
                 <div class="mb-3">
-                    <label class="form-label">Rückmeldung an Studierende</label>
-                    <textarea class="form-control" id="feedbackText" rows="14" placeholder="Hier den Feedback-Text erfassen oder per Vorschlag generieren lassen."></textarea>
-                    <div class="form-text">Wird beim PDF-Druck verwendet und als „Bewertung" für das Feedbackformular gespeichert.</div>
+                    <label class="form-label"><%= t('thesisDetail.feedbackToStudents') %></label>
+                    <textarea class="form-control" id="feedbackText" rows="14" placeholder="<%= t('thesisDetail.feedbackPlaceholder') %>"></textarea>
+                    <div class="form-text"><%= t('thesisDetail.feedbackSaveHint') %></div>
                 </div>
                 <div id="feedbackError" class="alert alert-danger d-none"></div>
             </div>
             <div class="modal-footer flex-wrap gap-2">
                 <button type="button" class="btn btn-outline-primary" id="feedbackGenBtn" onclick="generateFeedback()">
-                    <i class="bi bi-stars"></i> Vorschlag durch LLM
+                    <i class="bi bi-stars"></i> <%= t('thesisDetail.llmSuggestion') %>
                 </button>
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Schliessen</button>
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal"><%= t('common.close') %></button>
                 <button type="button" class="btn btn-primary" onclick="saveFeedback()">
-                    <i class="bi bi-save"></i> Speichern
+                    <i class="bi bi-save"></i> <%= t('common.save') %>
                 </button>
                 <a id="feedbackPdfLink" target="_blank" class="btn btn-outline-danger d-none">
                     <i class="bi bi-file-earmark-pdf"></i> PDF
@@ -606,25 +606,25 @@ const assignmentAvailableForStudent = !!assignmentM1 && new Date(assignmentM1).g
     <div class="modal-dialog modal-lg">
         <div class="modal-content">
             <div class="modal-header">
-                <h5 class="modal-title">Aufgabenstellung — <span id="assignmentModalLabel"></span></h5>
+                <h5 class="modal-title"><%= t('thesisDetail.assignment') %> — <span id="assignmentModalLabel"></span></h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
             </div>
             <div class="modal-body">
                 <input type="hidden" id="assignmentMilestoneId">
                 <div class="mb-3">
-                    <label class="form-label">Ergänzungsfeld — Korrekturen und Auflagen zum Pflichtenheft</label>
-                    <textarea class="form-control" id="assignmentText" rows="14" placeholder="Ergänzend zum Pflichtenheft geltende Korrekturen und Auflagen (Markdown)."></textarea>
-                    <div class="form-text">Wird auf der Seite «Aufgabenstellung» des generierten PDFs eingesetzt.</div>
+                    <label class="form-label"><%= t('thesisDetail.assignmentSupplementLabel') %></label>
+                    <textarea class="form-control" id="assignmentText" rows="14" placeholder="<%= t('thesisDetail.assignmentSupplementPlaceholder') %>"></textarea>
+                    <div class="form-text"><%= t('thesisDetail.assignmentSupplementHint') %></div>
                 </div>
                 <div id="assignmentError" class="alert alert-danger d-none"></div>
             </div>
             <div class="modal-footer flex-wrap gap-2">
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Schliessen</button>
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal"><%= t('common.close') %></button>
                 <button type="button" class="btn btn-primary" onclick="saveAssignment()">
-                    <i class="bi bi-save"></i> Speichern
+                    <i class="bi bi-save"></i> <%= t('common.save') %>
                 </button>
                 <a id="assignmentPdfLink" target="_blank" class="btn btn-outline-danger">
-                    <i class="bi bi-file-earmark-pdf"></i> PDF generieren
+                    <i class="bi bi-file-earmark-pdf"></i> <%= t('thesisDetail.generatePdf') %>
                 </a>
             </div>
         </div>
@@ -637,21 +637,21 @@ const assignmentAvailableForStudent = !!assignmentM1 && new Date(assignmentM1).g
     <div class="modal-dialog">
         <div class="modal-content">
             <div class="modal-header">
-                <h5 class="modal-title">Termin übersteuern — <span id="overrideLabel"></span></h5>
+                <h5 class="modal-title"><%= t('thesisDetail.overrideDueDate') %> — <span id="overrideLabel"></span></h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
             </div>
             <form id="overrideForm">
                 <div class="modal-body">
                     <input type="hidden" id="overrideMilestoneId">
                     <div class="mb-3">
-                        <label class="form-label">Neuer Termin (Datum & Zeit)</label>
+                        <label class="form-label"><%= t('thesisDetail.newDueDate') %></label>
                         <input type="datetime-local" class="form-control" id="overrideDueAt" required>
                     </div>
-                    <p class="text-muted small">Diese Änderung gilt nur für diese Diplomarbeit.</p>
+                    <p class="text-muted small"><%= t('thesisDetail.overrideScopeHint') %></p>
                 </div>
                 <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Abbrechen</button>
-                    <button type="submit" class="btn btn-primary">Speichern</button>
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal"><%= t('common.cancel') %></button>
+                    <button type="submit" class="btn btn-primary"><%= t('common.save') %></button>
                 </div>
             </form>
         </div>
@@ -660,6 +660,60 @@ const assignmentAvailableForStudent = !!assignmentM1 && new Date(assignmentM1).g
 <% } %>
 
 <script>
+const L = {
+    uploading: <%- JSON.stringify(t('thesisDetail.uploading')) %>,
+    errorPrefix: <%- JSON.stringify(t('templatesPage.errorPrefix')) %>,
+    unknown: <%- JSON.stringify(t('thesisDetail.unknown')) %>,
+    genericError: <%- JSON.stringify(t('templatesPage.genericError')) %>,
+    uploadError: <%- JSON.stringify(t('thesisDetail.uploadError')) %>,
+    saveEvaluationError: <%- JSON.stringify(t('thesisDetail.saveEvaluationError')) %>,
+    confirmReleaseMilestone: <%- JSON.stringify(t('thesisDetail.confirmReleaseMilestone')) %>,
+    confirmLockMilestone: <%- JSON.stringify(t('thesisDetail.confirmLockMilestone')) %>,
+    approvalError: <%- JSON.stringify(t('thesisDetail.approvalError')) %>,
+    confirmGrantApproval: <%- JSON.stringify(t('thesisDetail.confirmGrantApproval')) %>,
+    confirmRevokeApproval: <%- JSON.stringify(t('thesisDetail.confirmRevokeApproval')) %>,
+    noFormAssigned: <%- JSON.stringify(t('thesisDetail.noFormAssigned')) %>,
+    evalHiddenUntilFinal: <%- JSON.stringify(t('thesisDetail.evalHiddenUntilFinal')) %>,
+    evalNotStarted: <%- JSON.stringify(t('thesisDetail.evalNotStarted')) %>,
+    loadError: <%- JSON.stringify(t('thesisDetail.loadError')) %>,
+    evaluation1: <%- JSON.stringify(t('thesisDetail.evaluation1')) %>,
+    evaluation2: <%- JSON.stringify(t('thesisDetail.evaluation2')) %>,
+    finalEvaluation: <%- JSON.stringify(t('thesisDetail.finalEvaluation')) %>,
+    evaluation: <%- JSON.stringify(t('thesis.evaluation')) %>,
+    roleLabels: <%- JSON.stringify({ student: t('roles.student'), coach: t('roles.coach'), expert: t('roles.expert'), admin: t('roles.admin'), department_lead: t('roles.department_lead'), field_project_coach: t('roles.field_project_coach') }) %>,
+    evaluatorFallback: <%- JSON.stringify(t('thesisDetail.evaluatorFallback')) %>,
+    evaluator1: <%- JSON.stringify(t('thesisDetail.evaluator1')) %>,
+    evaluator2: <%- JSON.stringify(t('thesisDetail.evaluator2')) %>,
+    adopt: <%- JSON.stringify(t('thesisDetail.adopt')) %>,
+    noPoints: <%- JSON.stringify(t('thesisDetail.noPoints')) %>,
+    comment: <%- JSON.stringify(t('thesisDetail.comment')) %>,
+    weight: <%- JSON.stringify(t('thesisDetail.weight')) %>,
+    grade: <%- JSON.stringify(t('thesisDetail.grade')) %>,
+    level: <%- JSON.stringify(t('thesisDetail.level')) %>,
+    weightMaxPoints: <%- JSON.stringify(t('thesisDetail.weightMaxPoints')) %>,
+    pointsHint: <%- JSON.stringify(t('thesisDetail.pointsHint')) %>,
+    remark: <%- JSON.stringify(t('thesisDetail.remark')) %>,
+    remarkPlaceholder: <%- JSON.stringify(t('thesisDetail.remarkPlaceholder')) %>,
+    overallGradePreview: <%- JSON.stringify(t('thesisDetail.overallGradePreview')) %>,
+    remarkRequiredError: <%- JSON.stringify(t('thesisDetail.remarkRequiredError')) %>,
+    saveError: <%- JSON.stringify(t('thesisDetail.saveError')) %>,
+    confirmDeleteDocVersion: <%- JSON.stringify(t('thesisDetail.confirmDeleteDocVersion')) %>,
+    deleteError: <%- JSON.stringify(t('thesisDetail.deleteError')) %>,
+    confirmResetDueAt: <%- JSON.stringify(t('thesisDetail.confirmResetDueAt')) %>,
+    resetError: <%- JSON.stringify(t('thesisDetail.resetError')) %>,
+    loading: <%- JSON.stringify(t('common.loading')) %>,
+    moduleGrade: <%- JSON.stringify(t('thesisDetail.moduleGrade')) %>,
+    confidentialNoLlm: <%- JSON.stringify(t('thesisDetail.confidentialNoLlm')) %>,
+    confidentialManualFeedback: <%- JSON.stringify(t('thesisDetail.confidentialManualFeedback')) %>,
+    finalEvalPrereq: <%- JSON.stringify(t('thesisDetail.finalEvalPrereq')) %>,
+    networkError: <%- JSON.stringify(t('thesisDetail.networkError')) %>,
+    feedbackTextExists: <%- JSON.stringify(t('thesisDetail.feedbackTextExists')) %>,
+    preparing: <%- JSON.stringify(t('thesisDetail.preparing')) %>,
+    llmProcessingError: <%- JSON.stringify(t('thesisDetail.llmProcessingError')) %>,
+    llmNetworkError: <%- JSON.stringify(t('thesisDetail.llmNetworkError')) %>,
+    networkSaveError: <%- JSON.stringify(t('thesisDetail.networkSaveError')) %>,
+};
+
 function toLocalInput(iso) {
     const d = new Date(iso);
     const pad = n => String(n).padStart(2, '0');
@@ -693,15 +747,15 @@ document.getElementById('uploadForm').addEventListener('submit', function(e) {
     const btn = this.querySelector('button[type="submit"]');
     const orig = btn.innerHTML;
     btn.disabled = true;
-    btn.innerHTML = '<span class="spinner-border spinner-border-sm"></span> Wird hochgeladen...';
+    btn.innerHTML = '<span class="spinner-border spinner-border-sm"></span> ' + L.uploading;
 
     fetch(`/api/thesis-milestones/${id}/document`, { method: 'POST', body: formData })
         .then(r => r.json())
         .then(d => {
             if (d.success) location.reload();
-            else alert('Fehler: ' + (d.message || 'Unbekannt'));
+            else alert(L.errorPrefix + (d.message || L.unknown));
         })
-        .catch(err => { console.error(err); alert('Fehler beim Hochladen'); })
+        .catch(err => { console.error(err); alert(L.uploadError); })
         .finally(() => { btn.disabled = false; btn.innerHTML = orig; });
 });
 
@@ -725,35 +779,35 @@ document.getElementById('evalForm').addEventListener('submit', function(e) {
     .then(r => r.json())
     .then(d => {
         if (d.success) location.reload();
-        else alert('Fehler: ' + (d.message || 'Unbekannt'));
+        else alert(L.errorPrefix + (d.message || L.unknown));
     })
-    .catch(err => { console.error(err); alert('Fehler beim Speichern der Bewertung'); });
+    .catch(err => { console.error(err); alert(L.saveEvaluationError); });
 });
 
 // ---- Meilenstein-Freigabe (Start) ----
 function setMilestoneReleased(tmId, released) {
-    const msg = released ? 'Diesen Meilenstein freigeben (starten)?' : 'Freigabe dieses Meilensteins zurücknehmen (sperren)?';
+    const msg = released ? L.confirmReleaseMilestone : L.confirmLockMilestone;
     if (!confirm(msg)) return;
     fetch(`/api/thesis-milestones/${tmId}/release`, {
         method: 'PUT', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ released })
     })
     .then(r => r.json())
-    .then(d => { if (d.success) location.reload(); else alert('Fehler: ' + (d.message || 'Unbekannt')); })
-    .catch(e => { console.error(e); alert('Fehler bei der Freigabe'); });
+    .then(d => { if (d.success) location.reload(); else alert(L.errorPrefix + (d.message || L.unknown)); })
+    .catch(e => { console.error(e); alert(L.approvalError); });
 }
 
 // ---- Dokument-Freigabe (Sign-off) ----
 function setApproval(tmId, slot, approved) {
-    const msg = approved ? ('Freigabe ' + slot + ' erteilen?') : ('Freigabe ' + slot + ' wirklich zurückziehen?');
+    const msg = approved ? L.confirmGrantApproval.replace('{{n}}', slot) : L.confirmRevokeApproval.replace('{{n}}', slot);
     if (!confirm(msg)) return;
     fetch(`/api/thesis-milestones/${tmId}/approval`, {
         method: 'PUT', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ slot, approved })
     })
     .then(r => r.json())
-    .then(d => { if (d.success) location.reload(); else alert('Fehler: ' + (d.message || 'Unbekannt')); })
-    .catch(e => { console.error(e); alert('Fehler bei der Freigabe'); });
+    .then(d => { if (d.success) location.reload(); else alert(L.errorPrefix + (d.message || L.unknown)); })
+    .catch(e => { console.error(e); alert(L.approvalError); });
 }
 
 // ---- Strukturiertes Bewertungsformular ----
@@ -764,7 +818,7 @@ function roundTenth(x){ return Math.round(x*10)/10; }
 
 function openEvaluationForm(tmId, kind, editable) {
     evalFormState = { tmId, kind: kind || 'single', editable, evaluation: null };
-    document.getElementById('evalFormBody').innerHTML = '<p class="text-muted">Wird geladen…</p>';
+    document.getElementById('evalFormBody').innerHTML = '<p class="text-muted">' + L.loading + '</p>';
     document.getElementById('evalFormOverall').innerHTML = '';
     document.getElementById('evalFormSaveBtn').classList.add('d-none');
     new bootstrap.Modal(document.getElementById('evalFormModal')).show();
@@ -772,17 +826,17 @@ function openEvaluationForm(tmId, kind, editable) {
     fetch(`/api/thesis-milestones/${tmId}/evaluation-form?kind=${encodeURIComponent(evalFormState.kind)}`)
         .then(r => r.json())
         .then(d => {
-            if (!d.success) { document.getElementById('evalFormBody').innerHTML = '<div class="alert alert-danger">'+(d.message||'Fehler')+'</div>'; return; }
-            if (!d.hasForm) { document.getElementById('evalFormBody').innerHTML = '<div class="alert alert-info">Kein Formular zugewiesen.</div>'; return; }
-            if (d.hidden) { document.getElementById('evalFormBody').innerHTML = '<div class="alert alert-info">Diese Einzelbewertung ist verdeckt, bis die finale Bewertung erstellt wurde.</div>'; return; }
-            if (!d.started) { document.getElementById('evalFormBody').innerHTML = '<div class="alert alert-info">Die Bewertung wurde noch nicht gestartet (nur die bewertende Rolle kann sie starten).</div>'; return; }
+            if (!d.success) { document.getElementById('evalFormBody').innerHTML = '<div class="alert alert-danger">'+(d.message||L.genericError)+'</div>'; return; }
+            if (!d.hasForm) { document.getElementById('evalFormBody').innerHTML = '<div class="alert alert-info">' + L.noFormAssigned + '</div>'; return; }
+            if (d.hidden) { document.getElementById('evalFormBody').innerHTML = '<div class="alert alert-info">' + L.evalHiddenUntilFinal + '</div>'; return; }
+            if (!d.started) { document.getElementById('evalFormBody').innerHTML = '<div class="alert alert-info">' + L.evalNotStarted + '</div>'; return; }
             evalFormState.editable = !!d.editable;
             evalFormState.evaluation = d.evaluation;
             evalFormState.peers = d.peers || null;
             document.getElementById('evalFormSaveBtn').classList.toggle('d-none', !evalFormState.editable);
             renderEvaluationForm();
         })
-        .catch(e => { console.error(e); document.getElementById('evalFormBody').innerHTML = '<div class="alert alert-danger">Fehler beim Laden</div>'; });
+        .catch(e => { console.error(e); document.getElementById('evalFormBody').innerHTML = '<div class="alert alert-danger">' + L.loadError + '</div>'; });
 }
 
 function renderEvaluationForm() {
@@ -790,12 +844,12 @@ function renderEvaluationForm() {
     const editable = evalFormState.editable;
     const peers = evalFormState.peers || null;
     const groups = (ev.groups || []).slice().sort((a,b)=>a.position-b.position);
-    const phaseLabels = { first: 'Bewertung 1', second: 'Bewertung 2', final: 'Finale Bewertung' };
+    const phaseLabels = { first: L.evaluation1, second: L.evaluation2, final: L.finalEvaluation };
     const phasePrefix = phaseLabels[evalFormState.kind] ? (phaseLabels[evalFormState.kind] + ' — ') : '';
-    document.getElementById('evalFormTitle').textContent = phasePrefix + 'Bewertung — ' + ev.form_title;
+    document.getElementById('evalFormTitle').textContent = phasePrefix + L.evaluation + ' — ' + ev.form_title;
 
-    const ROLE_LABELS = { student: 'Student', coach: 'Dozent/in', expert: 'ExpertIn', admin: 'Administrator', department_lead: 'FachbereichsleiterIn', field_project_coach: 'Dozent Transferprojekt' };
-    function roleLabel(r) { return ROLE_LABELS[r] || r || 'Bewerter'; }
+    const ROLE_LABELS = L.roleLabels;
+    function roleLabel(r) { return ROLE_LABELS[r] || r || L.evaluatorFallback; }
     function buildPeerBlock(critId) {
         if (!peers || !peers[critId]) return '';
         const p = peers[critId];
@@ -809,19 +863,19 @@ function renderEvaluationForm() {
                 ? `<div class="d-flex align-items-center gap-2 mb-1">
                        <span class="text-muted small">${escapeHtml(label)}${role}:</span>
                        <strong>${peer.score}</strong>
-                       ${editable ? `<button type="button" class="btn btn-link btn-sm p-0 peer-take-score" data-target="${critId}" data-score="${peer.score}">Übernehmen</button>` : ''}
+                       ${editable ? `<button type="button" class="btn btn-link btn-sm p-0 peer-take-score" data-target="${critId}" data-score="${peer.score}">${L.adopt}</button>` : ''}
                    </div>`
-                : `<div class="text-muted small">${escapeHtml(label)}${role}: — keine Punkte —</div>`;
+                : `<div class="text-muted small">${escapeHtml(label)}${role}: ${L.noPoints}</div>`;
             const remarkLine = hasRemark
                 ? `<div class="d-flex align-items-start gap-2">
-                       <span class="text-muted small flex-shrink-0">Kommentar ${escapeHtml(label)}:</span>
+                       <span class="text-muted small flex-shrink-0">${L.comment} ${escapeHtml(label)}:</span>
                        <span class="small">${escapeHtml(peer.remark).replace(/\n/g, '<br>')}</span>
-                       ${editable ? `<button type="button" class="btn btn-link btn-sm p-0 ms-auto peer-take-remark flex-shrink-0" data-target="${critId}" data-remark="${escapeHtml(peer.remark)}">Übernehmen</button>` : ''}
+                       ${editable ? `<button type="button" class="btn btn-link btn-sm p-0 ms-auto peer-take-remark flex-shrink-0" data-target="${critId}" data-remark="${escapeHtml(peer.remark)}">${L.adopt}</button>` : ''}
                    </div>`
                 : '';
             return `<div class="border rounded p-2 mb-1" style="background-color: var(--surface-2);">${scoreLine}${remarkLine}</div>`;
         }
-        const html = row('Bewerter 1', p.first) + row('Bewerter 2', p.second);
+        const html = row(L.evaluator1, p.first) + row(L.evaluator2, p.second);
         return html ? `<div class="mt-2 mb-2">${html}</div>` : '';
     }
 
@@ -830,25 +884,25 @@ function renderEvaluationForm() {
         const crits = (g.criteria || []).slice().sort((a,b)=>a.position-b.position);
         html += `<div class="card mb-3"><div class="card-header d-flex justify-content-between">
             <strong>${escapeHtml(g.name)}</strong>
-            <span><span class="badge bg-secondary">Gewicht ${g.weight}</span> <span class="badge bg-info text-dark" id="grp-grade-${g.id}">Note —</span></span>
+            <span><span class="badge bg-secondary">${L.weight} ${g.weight}</span> <span class="badge bg-info text-dark" id="grp-grade-${g.id}">${L.grade} —</span></span>
         </div><div class="card-body">`;
         crits.forEach(c => {
             const levels = c.level_descriptions || [];
             let circles = '';
             for (let i=0;i<=5;i++){
-                const tip = (levels[i] && levels[i].trim()) ? levels[i] : ('Stufe ' + i);
+                const tip = (levels[i] && levels[i].trim()) ? levels[i] : (L.level + ' ' + i);
                 circles += `<button type="button" class="score-circle ${String(c.score)===String(i)?'active':''}" data-score="${i}"
                     data-bs-toggle="tooltip" data-bs-placement="top" title="${escapeHtml(tip)}" ${editable?'':'disabled'}>${i}</button>`;
             }
             const remarkBlock = editable
-                ? `<textarea class="form-control form-control-sm crit-remark" rows="3" placeholder="Bemerkung (Markdown, Leerzeile = neuer Absatz)">${escapeHtml(c.remark||'')}</textarea>`
+                ? `<textarea class="form-control form-control-sm crit-remark" rows="3" placeholder="${L.remarkPlaceholder}">${escapeHtml(c.remark||'')}</textarea>`
                 : (c.remark ? `<div class="border rounded p-2 bg-white">${renderMarkdownBlock(c.remark)}</div>` : '<span class="text-muted small">—</span>');
             html += `<div class="mb-3 border-bottom pb-3" data-crit="${c.id}" data-weight="${c.weight}" data-group="${g.id}">
                 <div class="fw-semibold">${renderMarkdownBlock(c.label)}</div>
-                <span class="text-muted small">Gewicht ${c.weight}, max. ${(5*Number(c.weight)).toFixed(1)} Pkt.</span>
+                <span class="text-muted small">${L.weightMaxPoints.replace('{{weight}}', c.weight).replace('{{max}}', (5*Number(c.weight)).toFixed(1))}</span>
                 ${buildPeerBlock(c.id)}
                 <div class="mt-2">
-                    <label class="form-label small mb-1">Punkte (0–5) — auf einen Kreis fahren für die Beschreibung</label>
+                    <label class="form-label small mb-1">${L.pointsHint}</label>
                     <div class="score-circles">
                         <input type="hidden" class="crit-score" value="${(c.score===null||c.score===undefined)?'':c.score}">
                         ${circles}
@@ -856,7 +910,7 @@ function renderEvaluationForm() {
                     <div class="small text-muted mt-1 crit-leveldesc"></div>
                 </div>
                 <div class="mt-2">
-                    <label class="form-label small mb-1">Bemerkung <span class="text-muted">(Markdown)</span></label>
+                    <label class="form-label small mb-1">${L.remark} <span class="text-muted">(Markdown)</span></label>
                     ${remarkBlock}
                 </div>
             </div>`;
@@ -921,7 +975,7 @@ function updateLevelDesc(row) {
     const v = row.querySelector('.crit-score').value;
     const desc = row.querySelector('.crit-leveldesc');
     if (!desc) return;
-    desc.textContent = (v === '') ? '' : ('Stufe ' + v + ': ' + ((crit.level_descriptions||[])[Number(v)] || ''));
+    desc.textContent = (v === '') ? '' : (L.level + ' ' + v + ': ' + ((crit.level_descriptions||[])[Number(v)] || ''));
 }
 
 function findCriterion(critId) {
@@ -945,13 +999,13 @@ function recomputeGrades() {
             achieved += Number(val)*w; max += 5*w; scored++;
         });
         const badge = document.getElementById('grp-grade-'+g.id);
-        if (scored === 0 || max === 0) { if (badge) badge.textContent = 'Note —'; return; }
+        if (scored === 0 || max === 0) { if (badge) badge.textContent = L.grade + ' —'; return; }
         const grade = roundTenth(achieved/max*5+1);
-        if (badge) badge.textContent = 'Note ' + grade.toFixed(1);
+        if (badge) badge.textContent = L.grade + ' ' + grade.toFixed(1);
         weightedSum += grade*(Number(g.weight)||0); weightTotal += (Number(g.weight)||0);
     });
     const overallEl = document.getElementById('evalFormOverall');
-    if (weightTotal > 0) overallEl.innerHTML = '<strong>Gesamtnote (Vorschau): ' + roundTenth(weightedSum/weightTotal).toFixed(1) + '</strong>';
+    if (weightTotal > 0) overallEl.innerHTML = '<strong>' + L.overallGradePreview + ' ' + roundTenth(weightedSum/weightTotal).toFixed(1) + '</strong>';
     else overallEl.innerHTML = '';
 }
 
@@ -968,7 +1022,7 @@ function saveEvaluationForm() {
         if (score !== null && score < 3 && remark.trim().length < 10) {
             const crit = findCriterion(id);
             const label = crit ? crit.label.replace(/[#*_`>\-]/g, '').trim() : '';
-            validationError = 'Bei "' + label + '" ist bei einer Bewertung unter 3 eine Bemerkung von mindestens 10 Zeichen erforderlich.';
+            validationError = L.remarkRequiredError.replace('{{label}}', label);
         }
         criteria.push({ id, score, remark });
     });
@@ -983,21 +1037,21 @@ function saveEvaluationForm() {
     .then(r => r.json())
     .then(d => {
         if (d.success) location.reload();
-        else { alert('Fehler: ' + (d.message || 'Unbekannt')); btn.disabled = false; }
+        else { alert(L.errorPrefix + (d.message || L.unknown)); btn.disabled = false; }
     })
-    .catch(e => { console.error(e); alert('Fehler beim Speichern'); btn.disabled = false; });
+    .catch(e => { console.error(e); alert(L.saveError); btn.disabled = false; });
 }
 
 <% if (isAdmin) { %>
 function deleteDocument(docId) {
-    if (!confirm('Diese Dokumentversion endgültig löschen? (Nur Admin)')) return;
+    if (!confirm(L.confirmDeleteDocVersion)) return;
     fetch(`/api/thesis-milestone-documents/${docId}`, { method: 'DELETE' })
         .then(r => r.json())
         .then(d => {
             if (d.success) location.reload();
-            else alert('Fehler: ' + (d.message || 'Unbekannt'));
+            else alert(L.errorPrefix + (d.message || L.unknown));
         })
-        .catch(err => { console.error(err); alert('Fehler beim Löschen'); });
+        .catch(err => { console.error(err); alert(L.deleteError); });
 }
 
 function openOverrideDueAt(m) {
@@ -1022,20 +1076,20 @@ document.getElementById('overrideForm').addEventListener('submit', function(e) {
     .then(r => r.json())
     .then(d => {
         if (d.success) location.reload();
-        else alert('Fehler: ' + (d.message || 'Unbekannt'));
+        else alert(L.errorPrefix + (d.message || L.unknown));
     })
-    .catch(err => { console.error(err); alert('Fehler beim Speichern'); });
+    .catch(err => { console.error(err); alert(L.saveError); });
 });
 
 function resetDueAt(id, label) {
-    if (!confirm(`Termin für „${label}" auf den Vorlagen-Termin zurücksetzen?`)) return;
+    if (!confirm(L.confirmResetDueAt.replace('{{label}}', label))) return;
     fetch(`/api/thesis-milestones/${id}/due-at`, { method: 'DELETE' })
         .then(r => r.json())
         .then(d => {
             if (d.success) location.reload();
-            else alert('Fehler: ' + (d.message || 'Unbekannt'));
+            else alert(L.errorPrefix + (d.message || L.unknown));
         })
-        .catch(err => { console.error(err); alert('Fehler beim Zurücksetzen'); });
+        .catch(err => { console.error(err); alert(L.resetError); });
 }
 <% } %>
 
@@ -1068,7 +1122,7 @@ function setFeedbackError(msg) {
 function openFeedbackModal(m) {
     document.getElementById('feedbackMilestoneId').value = m.id;
     document.getElementById('feedbackModalLabel').textContent = m.label || '';
-    document.getElementById('feedbackInfo').innerHTML = '<small class="text-muted">Wird geladen…</small>';
+    document.getElementById('feedbackInfo').innerHTML = '<small class="text-muted">' + L.loading + '</small>';
     document.getElementById('feedbackPdfLink').classList.add('d-none');
     setFeedbackError('');
 
@@ -1087,7 +1141,7 @@ function openFeedbackModal(m) {
     fetch(`/api/thesis-milestones/${m.id}/feedback`)
         .then(r => r.json())
         .then(d => {
-            if (!d.success) { setFeedbackError(d.message || 'Fehler beim Laden'); return; }
+            if (!d.success) { setFeedbackError(d.message || L.loadError); return; }
             // Wenn Editor schon vorhanden, direkt setzen; sonst auf shown.bs.modal warten.
             if (feedbackEditor) setFeedbackText(d.feedback_text || '');
             else modalEl.dataset.pendingFeedback = d.feedback_text || '';
@@ -1097,12 +1151,12 @@ function openFeedbackModal(m) {
             ).join('');
             const modN = d.module_grade != null ? d.module_grade.toFixed(1) : '—';
             document.getElementById('feedbackInfo').innerHTML =
-                `${groups}<span class="badge bg-success">Modulnote ${modN}</span>` +
-                (d.is_confidential ? ' <span class="badge bg-danger ms-2">Geheimhaltung – kein LLM</span>' : '');
+                `${groups}<span class="badge bg-success">${L.moduleGrade} ${modN}</span>` +
+                (d.is_confidential ? ` <span class="badge bg-danger ms-2">${L.confidentialNoLlm}</span>` : '');
             const genBtn = document.getElementById('feedbackGenBtn');
             genBtn.disabled = !d.has_final_evaluation || d.is_confidential;
-            if (d.is_confidential) genBtn.title = 'Bei Geheimhaltung muss die Rückmeldung manuell verfasst werden';
-            else if (!d.has_final_evaluation) genBtn.title = 'Voraussetzung: finale Bewertung';
+            if (d.is_confidential) genBtn.title = L.confidentialManualFeedback;
+            else if (!d.has_final_evaluation) genBtn.title = L.finalEvalPrereq;
             else genBtn.title = '';
             const link = document.getElementById('feedbackPdfLink');
             if (d.has_final_evaluation) {
@@ -1110,7 +1164,7 @@ function openFeedbackModal(m) {
                 link.classList.remove('d-none');
             }
         })
-        .catch(err => { console.error(err); setFeedbackError('Netzwerkfehler'); });
+        .catch(err => { console.error(err); setFeedbackError(L.networkError); });
     new bootstrap.Modal(modalEl).show();
 }
 
@@ -1119,20 +1173,20 @@ function generateFeedback() {
     const id = document.getElementById('feedbackMilestoneId').value;
     const current = getFeedbackText();
     if (current && current.trim().length > 0) {
-        alert('Es ist bereits ein Text erfasst. Der bestehende Text wird beibehalten — keine erneute LLM-Aufbereitung.');
+        alert(L.feedbackTextExists);
         return;
     }
     const btn = document.getElementById('feedbackGenBtn');
     const orig = btn.innerHTML;
     btn.disabled = true;
-    btn.innerHTML = '<span class="spinner-border spinner-border-sm"></span> wird vorbereitet…';
+    btn.innerHTML = '<span class="spinner-border spinner-border-sm"></span> ' + L.preparing;
     fetch(`/api/thesis-milestones/${id}/feedback/generate`, { method: 'POST' })
         .then(r => r.json())
         .then(d => {
-            if (!d.success) { setFeedbackError(d.message || 'Fehler bei der LLM-Aufbereitung'); return; }
+            if (!d.success) { setFeedbackError(d.message || L.llmProcessingError); return; }
             setFeedbackText(d.feedback_text || '');
         })
-        .catch(err => { console.error(err); setFeedbackError('Netzwerkfehler bei der LLM-Anfrage'); })
+        .catch(err => { console.error(err); setFeedbackError(L.llmNetworkError); })
         .finally(() => { btn.disabled = false; btn.innerHTML = orig; });
 }
 
@@ -1180,11 +1234,11 @@ function openAssignmentModal(m) {
     fetch(`/api/thesis-milestones/${m.id}/assignment`)
         .then(r => r.json())
         .then(d => {
-            if (!d.success) { setAssignmentError(d.message || 'Fehler beim Laden'); return; }
+            if (!d.success) { setAssignmentError(d.message || L.loadError); return; }
             if (assignmentEditor) setAssignmentText(d.assignment_text || '');
             else modalEl.dataset.pendingText = d.assignment_text || '';
         })
-        .catch(err => { console.error(err); setAssignmentError('Netzwerkfehler'); });
+        .catch(err => { console.error(err); setAssignmentError(L.networkError); });
     new bootstrap.Modal(modalEl).show();
 }
 function saveAssignment() {
@@ -1197,10 +1251,10 @@ function saveAssignment() {
     })
     .then(r => r.json())
     .then(d => {
-        if (!d.success) { setAssignmentError(d.message || 'Fehler beim Speichern'); return; }
+        if (!d.success) { setAssignmentError(d.message || L.saveError); return; }
         bootstrap.Modal.getInstance(document.getElementById('assignmentModal')).hide();
     })
-    .catch(err => { console.error(err); setAssignmentError('Netzwerkfehler beim Speichern'); });
+    .catch(err => { console.error(err); setAssignmentError(L.networkSaveError); });
 }
 
 function saveFeedback() {
@@ -1214,9 +1268,9 @@ function saveFeedback() {
     })
     .then(r => r.json())
     .then(d => {
-        if (!d.success) { setFeedbackError(d.message || 'Fehler beim Speichern'); return; }
+        if (!d.success) { setFeedbackError(d.message || L.saveError); return; }
     })
-    .catch(err => { console.error(err); setFeedbackError('Netzwerkfehler beim Speichern'); });
+    .catch(err => { console.error(err); setFeedbackError(L.networkSaveError); });
 }
 </script>
 

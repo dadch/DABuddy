@@ -3,19 +3,19 @@
     <div class="modal-dialog modal-xl">
         <div class="modal-content">
             <div class="modal-header">
-                <h5 class="modal-title">Studierende verwalten</h5>
+                <h5 class="modal-title"><%= t('studentMgmt.title') %></h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
             </div>
             <div class="modal-body">
                 <div class="d-flex gap-2 mb-3">
                     <button type="button" class="btn btn-success" onclick="openAddStudent()">
-                        <i class="bi bi-person-plus"></i> Studierende/n hinzufügen
+                        <i class="bi bi-person-plus"></i> <%= t('studentMgmt.addStudent') %>
                     </button>
                     <button type="button" class="btn btn-outline-primary" onclick="openImportStudents()">
-                        <i class="bi bi-upload"></i> CSV-Import
+                        <i class="bi bi-upload"></i> <%= t('studentMgmt.csvImport') %>
                     </button>
                 </div>
-                <div id="studentsList"><p class="text-muted">Wird geladen…</p></div>
+                <div id="studentsList"><p class="text-muted"><%= t('common.loading') %></p></div>
             </div>
         </div>
     </div>
@@ -26,51 +26,51 @@
     <div class="modal-dialog">
         <div class="modal-content">
             <div class="modal-header">
-                <h5 class="modal-title" id="studentFormTitle">Studierende/n hinzufügen</h5>
+                <h5 class="modal-title" id="studentFormTitle"><%= t('studentMgmt.addStudent') %></h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
             </div>
             <form id="studentForm">
                 <div class="modal-body">
                     <input type="hidden" id="studentId">
                     <div class="mb-3">
-                        <label class="form-label">Name</label>
+                        <label class="form-label"><%= t('studentMgmt.name') %></label>
                         <input type="text" class="form-control" id="studentName" required>
                     </div>
                     <div class="mb-3">
-                        <label class="form-label">Vorname</label>
+                        <label class="form-label"><%= t('studentMgmt.firstname') %></label>
                         <input type="text" class="form-control" id="studentFirstname" required>
                     </div>
                     <div class="mb-3">
-                        <label class="form-label">E-Mail</label>
+                        <label class="form-label"><%= t('studentMgmt.email') %></label>
                         <input type="email" class="form-control" id="studentEmail" required>
                     </div>
                     <div class="mb-3">
-                        <label class="form-label">Telefonnummer (optional)</label>
+                        <label class="form-label"><%= t('studentMgmt.phone') %></label>
                         <input type="tel" class="form-control" id="studentPhone">
                     </div>
                     <div class="mb-3">
-                        <label class="form-label">Geschlecht</label>
+                        <label class="form-label"><%= t('studentMgmt.gender') %></label>
                         <select class="form-select" id="studentGender" required>
-                            <option value="">Auswählen...</option>
-                            <option value="m">männlich (m)</option>
-                            <option value="w">weiblich (w)</option>
-                            <option value="d">divers (d)</option>
+                            <option value=""><%= t('studentMgmt.selectPlaceholder') %></option>
+                            <option value="m"><%= t('studentMgmt.genderMale') %> (m)</option>
+                            <option value="w"><%= t('studentMgmt.genderFemale') %> (w)</option>
+                            <option value="d"><%= t('studentMgmt.genderDiverse') %> (d)</option>
                         </select>
                     </div>
                     <div class="mb-3">
-                        <label class="form-label">Fachbereich</label>
+                        <label class="form-label"><%= t('dashboard.department') %></label>
                         <select class="form-select" id="studentDepartment" required>
-                            <option value="">Auswählen...</option>
+                            <option value=""><%= t('studentMgmt.selectPlaceholder') %></option>
                             <% (departments || []).forEach(function(dept) { %>
                                 <option value="<%= dept.id %>"><%= dept.name %></option>
                             <% }); %>
                         </select>
                     </div>
-                    <div class="form-text" id="studentFormHint">Die Anmeldung erfolgt mit der E-Mail-Adresse und dem Standardpasswort <code>password123</code>.</div>
+                    <div class="form-text" id="studentFormHint"><%- t('studentMgmt.loginHint') %></div>
                 </div>
                 <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Abbrechen</button>
-                    <button type="submit" class="btn btn-primary">Speichern</button>
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal"><%= t('common.cancel') %></button>
+                    <button type="submit" class="btn btn-primary"><%= t('common.save') %></button>
                 </div>
             </form>
         </div>
@@ -82,21 +82,21 @@
     <div class="modal-dialog modal-lg">
         <div class="modal-content">
             <div class="modal-header">
-                <h5 class="modal-title">Studierende importieren (CSV)</h5>
+                <h5 class="modal-title"><%= t('studentMgmt.importTitle') %></h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
             </div>
             <form id="importStudentForm">
                 <div class="modal-body">
-                    <p class="small mb-1">Pro Zeile eine/n Studierende/n. Spalten (Trenner <code>;</code> oder <code>,</code>):</p>
-                    <p class="small"><strong>Name; Vorname; E-Mail; Geschlecht (m/w/d); Fachbereich</strong></p>
-                    <p class="small text-muted">Gültige Fachbereiche: <%= (departments || []).map(function(d){ return d.name; }).join(', ') %></p>
-                    <p class="small text-muted">Anmeldung der Studierenden mit E-Mail-Adresse und Standardpasswort <code>password123</code>.</p>
-                    <textarea class="form-control" id="importCsv" rows="10" placeholder="Muster; Max; max.muster@hftm.ch; m; Informatik"></textarea>
+                    <p class="small mb-1"><%- t('studentMgmt.importInstructions1') %></p>
+                    <p class="small"><%- t('studentMgmt.importColumns') %></p>
+                    <p class="small text-muted"><%= t('studentMgmt.validDepartments') %> <%= (departments || []).map(function(d){ return d.name; }).join(', ') %></p>
+                    <p class="small text-muted"><%- t('studentMgmt.importLoginHint') %></p>
+                    <textarea class="form-control" id="importCsv" rows="10" placeholder="<%= t('studentMgmt.importPlaceholder') %>"></textarea>
                     <div id="importResult" class="mt-3"></div>
                 </div>
                 <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Schliessen</button>
-                    <button type="submit" class="btn btn-primary">Importieren</button>
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal"><%= t('common.close') %></button>
+                    <button type="submit" class="btn btn-primary"><%= t('studentMgmt.import') %></button>
                 </div>
             </form>
         </div>
@@ -104,7 +104,33 @@
 </div>
 
 <script>
-const GENDER_LABELS = { m: 'männlich', w: 'weiblich', d: 'divers' };
+const L = {
+    name: <%- JSON.stringify(t('studentMgmt.name')) %>,
+    firstname: <%- JSON.stringify(t('studentMgmt.firstname')) %>,
+    email: <%- JSON.stringify(t('studentMgmt.email')) %>,
+    gender: <%- JSON.stringify(t('studentMgmt.gender')) %>,
+    department: <%- JSON.stringify(t('dashboard.department')) %>,
+    actions: <%- JSON.stringify(t('common.actions')) %>,
+    genderMale: <%- JSON.stringify(t('studentMgmt.genderMale')) %>,
+    genderFemale: <%- JSON.stringify(t('studentMgmt.genderFemale')) %>,
+    genderDiverse: <%- JSON.stringify(t('studentMgmt.genderDiverse')) %>,
+    addStudent: <%- JSON.stringify(t('studentMgmt.addStudent')) %>,
+    editStudent: <%- JSON.stringify(t('studentMgmt.editStudent')) %>,
+    noStudents: <%- JSON.stringify(t('studentMgmt.noStudents')) %>,
+    loadError: <%- JSON.stringify(t('studentMgmt.loadError')) %>,
+    username: <%- JSON.stringify(t('studentMgmt.username')) %>,
+    deleteConfirm: <%- JSON.stringify(t('studentMgmt.deleteConfirm')) %>,
+    saveError: <%- JSON.stringify(t('studentMgmt.saveError')) %>,
+    deleteError: <%- JSON.stringify(t('studentMgmt.deleteError')) %>,
+    importedCount: <%- JSON.stringify(t('studentMgmt.importedCount')) %>,
+    linesSkipped: <%- JSON.stringify(t('studentMgmt.linesSkipped')) %>,
+    lineError: <%- JSON.stringify(t('studentMgmt.lineError')) %>,
+    importError: <%- JSON.stringify(t('studentMgmt.importError')) %>,
+    errorPrefix: <%- JSON.stringify(t('templatesPage.errorPrefix')) %>,
+    genericError: <%- JSON.stringify(t('templatesPage.genericError')) %>,
+    unknown: <%- JSON.stringify(t('misc.unknown')) %>,
+};
+const GENDER_LABELS = { m: L.genderMale, w: L.genderFemale, d: L.genderDiverse };
 function stuEscape(s){ return (s||'').replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
 
 function openStudentManagement() {
@@ -117,10 +143,10 @@ function loadStudentList() {
         .then(r => r.json())
         .then(students => {
             const el = document.getElementById('studentsList');
-            if (!students.length) { el.innerHTML = '<p class="text-muted mb-0">Noch keine Studierenden erfasst.</p>'; return; }
+            if (!students.length) { el.innerHTML = `<p class="text-muted mb-0">${stuEscape(L.noStudents)}</p>`; return; }
             el.innerHTML = `
                 <div class="table-responsive"><table class="table table-striped">
-                    <thead><tr><th>Name</th><th>Vorname</th><th>E-Mail</th><th>Geschlecht</th><th>Fachbereich</th><th>Benutzername</th><th>Aktionen</th></tr></thead>
+                    <thead><tr><th>${stuEscape(L.name)}</th><th>${stuEscape(L.firstname)}</th><th>${stuEscape(L.email)}</th><th>${stuEscape(L.gender)}</th><th>${stuEscape(L.department)}</th><th>${stuEscape(L.username)}</th><th>${stuEscape(L.actions)}</th></tr></thead>
                     <tbody>
                         ${students.map(s => `
                             <tr>
@@ -138,13 +164,13 @@ function loadStudentList() {
                     </tbody>
                 </table></div>`;
         })
-        .catch(e => { console.error(e); document.getElementById('studentsList').innerHTML = '<div class="alert alert-danger">Fehler beim Laden</div>'; });
+        .catch(e => { console.error(e); document.getElementById('studentsList').innerHTML = `<div class="alert alert-danger">${stuEscape(L.loadError)}</div>`; });
 }
 
 function openAddStudent() {
     document.getElementById('studentForm').reset();
     document.getElementById('studentId').value = '';
-    document.getElementById('studentFormTitle').textContent = 'Studierende/n hinzufügen';
+    document.getElementById('studentFormTitle').textContent = L.addStudent;
     document.getElementById('studentFormHint').classList.remove('d-none');
     new bootstrap.Modal(document.getElementById('studentFormModal')).show();
 }
@@ -152,7 +178,7 @@ function openAddStudent() {
 function editStudentOpen(s) {
     document.getElementById('studentForm').reset();
     document.getElementById('studentId').value = s.id;
-    document.getElementById('studentFormTitle').textContent = 'Studierende/n bearbeiten';
+    document.getElementById('studentFormTitle').textContent = L.editStudent;
     document.getElementById('studentName').value = s.name || '';
     document.getElementById('studentFirstname').value = s.firstname || '';
     document.getElementById('studentEmail').value = s.email || '';
@@ -181,17 +207,17 @@ document.getElementById('studentForm').addEventListener('submit', function(e) {
             if (d.success) {
                 bootstrap.Modal.getInstance(document.getElementById('studentFormModal')).hide();
                 loadStudentList();
-            } else alert('Fehler: ' + (d.message || 'Unbekannt'));
+            } else alert(L.errorPrefix + (d.message || L.unknown));
         })
-        .catch(e => { console.error(e); alert('Fehler beim Speichern'); });
+        .catch(e => { console.error(e); alert(L.saveError); });
 });
 
 function deleteStudentRow(id, label) {
-    if (!confirm(`Studierende/n "${label}" wirklich löschen?`)) return;
+    if (!confirm(L.deleteConfirm.replace('{{name}}', label))) return;
     fetch('/api/students/' + id, { method: 'DELETE' })
         .then(r => r.json())
-        .then(d => { if (d.success) loadStudentList(); else alert('Fehler: ' + (d.message || 'Unbekannt')); })
-        .catch(e => { console.error(e); alert('Fehler beim Löschen'); });
+        .then(d => { if (d.success) loadStudentList(); else alert(L.errorPrefix + (d.message || L.unknown)); })
+        .catch(e => { console.error(e); alert(L.deleteError); });
 }
 
 function openImportStudents() {
@@ -209,15 +235,15 @@ document.getElementById('importStudentForm').addEventListener('submit', function
         .then(r => r.json())
         .then(d => {
             btn.disabled = false;
-            if (!d.success) { document.getElementById('importResult').innerHTML = '<div class="alert alert-danger">' + (d.message || 'Fehler') + '</div>'; return; }
-            let html = `<div class="alert alert-success">${d.created} Studierende importiert.</div>`;
+            if (!d.success) { document.getElementById('importResult').innerHTML = '<div class="alert alert-danger">' + (d.message || L.genericError) + '</div>'; return; }
+            let html = `<div class="alert alert-success">${L.importedCount.replace('{{n}}', d.created)}</div>`;
             if (d.errors && d.errors.length) {
-                html += '<div class="alert alert-warning"><strong>' + d.errors.length + ' Zeile(n) übersprungen:</strong><ul class="mb-0">' +
-                    d.errors.map(er => `<li>Zeile ${er.line}: ${stuEscape(er.message)}</li>`).join('') + '</ul></div>';
+                html += '<div class="alert alert-warning"><strong>' + L.linesSkipped.replace('{{n}}', d.errors.length) + '</strong><ul class="mb-0">' +
+                    d.errors.map(er => `<li>${stuEscape(L.lineError.replace('{{n}}', er.line))} ${stuEscape(er.message)}</li>`).join('') + '</ul></div>';
             }
             document.getElementById('importResult').innerHTML = html;
             loadStudentList();
         })
-        .catch(e => { btn.disabled = false; console.error(e); alert('Fehler beim Import'); });
+        .catch(e => { btn.disabled = false; console.error(e); alert(L.importError); });
 });
 </script>

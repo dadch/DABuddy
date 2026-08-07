@@ -1,55 +1,55 @@
-<%- include('../partials/header', { title: 'Meilenstein-Verwaltung - ThesisBuddy', user: user }) %>
+<%- include('../partials/header', { title: `${t('milestonesAdmin.title')} - ThesisBuddy`, user: user }) %>
 
 <%
-const ROLE_LABELS = { student: 'Student', coach: 'Dozent/in', expert: 'ExpertIn', admin: 'Administrator', department_lead: 'FachbereichsleiterIn', field_project_coach: 'Dozent Transferprojekt' };
+const ROLE_LABELS = { student: t('roles.student'), coach: t('roles.coach'), expert: t('roles.expert'), admin: t('roles.admin'), department_lead: t('roles.department_lead'), field_project_coach: t('roles.field_project_coach') };
 %>
 
 <div class="d-flex justify-content-between align-items-center mb-4">
     <div>
         <nav aria-label="breadcrumb">
             <ol class="breadcrumb">
-                <li class="breadcrumb-item"><a href="/dashboard">Dashboard</a></li>
-                <li class="breadcrumb-item active" aria-current="page">Meilenstein-Verwaltung</li>
+                <li class="breadcrumb-item"><a href="/dashboard"><%= t('nav.dashboard') %></a></li>
+                <li class="breadcrumb-item active" aria-current="page"><%= t('milestonesAdmin.title') %></li>
             </ol>
         </nav>
-        <h1>Meilenstein-Verwaltung</h1>
+        <h1><%= t('milestonesAdmin.title') %></h1>
     </div>
     <div class="text-muted">
-        <i class="bi bi-calendar"></i> Diplomjahr: <%= selectedYear.year %>
+        <i class="bi bi-calendar"></i> <%= t('dashboard.year') %>: <%= selectedYear.year %>
     </div>
 </div>
 
 <div class="card mb-4">
     <div class="card-header d-flex justify-content-between align-items-center">
         <h5 class="mb-0">
-            <i class="bi bi-flag"></i> Meilensteine für <%= selectedYear.year %>
+            <i class="bi bi-flag"></i> <%= t('milestonesAdmin.cardTitle', { year: selectedYear.year }) %>
         </h5>
         <button class="btn btn-success" onclick="openAddMilestoneModal()">
-            <i class="bi bi-plus"></i> Meilenstein hinzufügen
+            <i class="bi bi-plus"></i> <%= t('milestonesAdmin.add') %>
         </button>
     </div>
     <div class="card-body">
         <div class="alert alert-info">
             <i class="bi bi-info-circle"></i>
-            Diese Meilensteine werden als Vorlage für alle neuen Diplomarbeiten in <%= selectedYear.year %> verwendet.
-            Aktuell existieren <strong><%= thesesCount %></strong> Diplomarbeiten in diesem Diplomjahr.
+            <%= t('milestonesAdmin.templateInfo', { year: selectedYear.year }) %>
+            <%= t('milestonesAdmin.existingCountPrefix') %> <strong><%= thesesCount %></strong> <%= t('milestonesAdmin.existingCountSuffix') %>
         </div>
 
         <% if (milestones.length === 0) { %>
             <div class="text-center py-4">
                 <i class="bi bi-flag text-muted" style="font-size: 48px;"></i>
-                <p class="text-muted mt-2">Noch keine Meilensteine erfasst.</p>
+                <p class="text-muted mt-2"><%= t('milestonesAdmin.empty') %></p>
             </div>
         <% } else { %>
             <div class="table-responsive">
                 <table class="table table-striped">
                     <thead>
                         <tr>
-                            <th>Bezeichnung</th>
-                            <th>Termin</th>
-                            <th>Verantwortliche Rolle</th>
-                            <th>Konfiguration</th>
-                            <th>Aktionen</th>
+                            <th><%= t('milestonesAdmin.table.label') %></th>
+                            <th><%= t('milestonesAdmin.table.dueDate') %></th>
+                            <th><%= t('milestonesAdmin.table.responsibleRole') %></th>
+                            <th><%= t('milestonesAdmin.table.config') %></th>
+                            <th><%= t('common.actions') %></th>
                         </tr>
                     </thead>
                     <tbody>
@@ -73,62 +73,62 @@ const ROLE_LABELS = { student: 'Student', coach: 'Dozent/in', expert: 'ExpertIn'
                                 </td>
                                 <td>
                                     <% if (m.allow_upload) { %>
-                                        <span class="badge bg-success" title="Upload erlaubt"><i class="bi bi-upload"></i> Upload</span>
+                                        <span class="badge bg-success" title="<%= t('milestonesAdmin.badge.uploadAllowedTitle') %>"><i class="bi bi-upload"></i> <%= t('milestonesAdmin.badge.upload') %></span>
                                     <% } else { %>
-                                        <span class="badge bg-light text-muted" title="Kein Upload"><i class="bi bi-upload"></i> kein Upload</span>
+                                        <span class="badge bg-light text-muted" title="<%= t('milestonesAdmin.badge.noUploadTitle') %>"><i class="bi bi-upload"></i> <%= t('milestonesAdmin.badge.noUpload') %></span>
                                     <% } %>
                                     <% if (m.allow_update) { %>
-                                        <span class="badge bg-info text-dark" title="Aktualisierung erlaubt"><i class="bi bi-arrow-repeat"></i> Update</span>
+                                        <span class="badge bg-info text-dark" title="<%= t('milestonesAdmin.badge.updateAllowedTitle') %>"><i class="bi bi-arrow-repeat"></i> <%= t('milestonesAdmin.badge.update') %></span>
                                     <% } %>
                                     <% if (m.requires_evaluation) { %>
-                                        <span class="badge bg-warning text-dark" title="Bewertung durch <%= ROLE_LABELS[m.evaluator_role] || m.evaluator_role %>">
-                                            <i class="bi bi-star"></i> Bewertung: <%= ROLE_LABELS[m.evaluator_role] || m.evaluator_role %>
+                                        <span class="badge bg-warning text-dark" title="<%= t('milestonesAdmin.badge.evaluationByTitle', { role: ROLE_LABELS[m.evaluator_role] || m.evaluator_role }) %>">
+                                            <i class="bi bi-star"></i> <%= t('milestonesAdmin.badge.evaluationLabel', { role: ROLE_LABELS[m.evaluator_role] || m.evaluator_role }) %>
                                         </span>
                                         <% if (m.evaluationForm) { %>
-                                            <span class="badge bg-primary" title="Bewertungsformular">
+                                            <span class="badge bg-primary" title="<%= t('milestonesAdmin.badge.evaluationFormTitle') %>">
                                                 <i class="bi bi-clipboard-check"></i> <%= m.evaluationForm.title_de %>
                                             </span>
                                         <% } else { %>
-                                            <span class="badge bg-light text-muted">Freitext</span>
+                                            <span class="badge bg-light text-muted"><%= t('milestonesAdmin.badge.freetext') %></span>
                                         <% } %>
                                         <% if (m.double_evaluation) { %>
-                                            <span class="badge bg-primary" title="Doppelbewertung durch <%= ROLE_LABELS[m.evaluator_role] || m.evaluator_role %> und <%= ROLE_LABELS[m.evaluator_role_2] || m.evaluator_role_2 %>">
-                                                <i class="bi bi-people"></i> Doppelbewertung: <%= ROLE_LABELS[m.evaluator_role] || m.evaluator_role %> + <%= ROLE_LABELS[m.evaluator_role_2] || m.evaluator_role_2 %>
+                                            <span class="badge bg-primary" title="<%= t('milestonesAdmin.badge.doubleEvalTitle', { role1: ROLE_LABELS[m.evaluator_role] || m.evaluator_role, role2: ROLE_LABELS[m.evaluator_role_2] || m.evaluator_role_2 }) %>">
+                                                <i class="bi bi-people"></i> <%= t('milestonesAdmin.badge.doubleEvalLabel', { role1: ROLE_LABELS[m.evaluator_role] || m.evaluator_role, role2: ROLE_LABELS[m.evaluator_role_2] || m.evaluator_role_2 }) %>
                                             </span>
                                         <% } %>
                                     <% } %>
                                     <% if (m.requires_approval) { %>
-                                        <span class="badge bg-dark" title="Freigabe 1 durch <%= ROLE_LABELS[m.approver_role] || m.approver_role %>">
-                                            <i class="bi bi-unlock"></i> Freigabe 1: <%= ROLE_LABELS[m.approver_role] || m.approver_role %>
+                                        <span class="badge bg-dark" title="<%= t('milestonesAdmin.badge.approval1Title', { role: ROLE_LABELS[m.approver_role] || m.approver_role }) %>">
+                                            <i class="bi bi-unlock"></i> <%= t('milestonesAdmin.badge.approval1Label', { role: ROLE_LABELS[m.approver_role] || m.approver_role }) %>
                                         </span>
                                     <% } %>
                                     <% if (m.requires_approval_2) { %>
-                                        <span class="badge bg-dark" title="Freigabe 2 durch <%= ROLE_LABELS[m.approver_role_2] || m.approver_role_2 %>">
-                                            <i class="bi bi-unlock"></i> Freigabe 2: <%= ROLE_LABELS[m.approver_role_2] || m.approver_role_2 %>
+                                        <span class="badge bg-dark" title="<%= t('milestonesAdmin.badge.approval2Title', { role: ROLE_LABELS[m.approver_role_2] || m.approver_role_2 }) %>">
+                                            <i class="bi bi-unlock"></i> <%= t('milestonesAdmin.badge.approval2Label', { role: ROLE_LABELS[m.approver_role_2] || m.approver_role_2 }) %>
                                         </span>
                                     <% } %>
                                     <% if (m.applies_to && m.applies_to !== 'all') { %>
-                                        <span class="badge bg-primary" title="Gilt nur für <%= m.applies_to === 'fulltime' ? 'Vollzeitstudien' : 'Berufsbegleitende Studien' %>">
-                                            <i class="bi <%= m.applies_to === 'fulltime' ? 'bi-book' : 'bi-briefcase' %>"></i> <%= m.applies_to === 'fulltime' ? 'Vollzeit' : 'Berufsbegleitend' %>
+                                        <span class="badge bg-primary" title="<%= t('milestonesAdmin.badge.appliesOnlyTitle', { mode: m.applies_to === 'fulltime' ? t('milestonesAdmin.fulltimeStudies') : t('milestonesAdmin.parttimeStudies') }) %>">
+                                            <i class="bi <%= m.applies_to === 'fulltime' ? 'bi-book' : 'bi-briefcase' %>"></i> <%= m.applies_to === 'fulltime' ? t('department.fulltime') : t('department.parttime') %>
                                         </span>
                                     <% } %>
                                     <% if (m.is_transfer_project) { %>
-                                        <span class="badge bg-info" title="Transferprojekt">
-                                            <i class="bi bi-arrow-left-right"></i> Transferprojekt
+                                        <span class="badge bg-info" title="<%= t('thesis.transferProject') %>">
+                                            <i class="bi bi-arrow-left-right"></i> <%= t('thesis.transferProject') %>
                                         </span>
                                     <% } %>
                                     <% if (m.is_assignment) { %>
-                                        <span class="badge bg-dark" title="Aufgabenstellungs-Meilenstein">
-                                            <i class="bi bi-file-earmark-text"></i> Aufgabenstellung
+                                        <span class="badge bg-dark" title="<%= t('milestonesAdmin.badge.assignmentTitle') %>">
+                                            <i class="bi bi-file-earmark-text"></i> <%= t('milestonesAdmin.badge.assignment') %>
                                         </span>
                                     <% } %>
                                     <% if (m.feedback_form_enabled) { %>
-                                        <span class="badge bg-success" title="Feedbackformular aktiviert">
-                                            <i class="bi bi-chat-square-text"></i> Feedbackformular
+                                        <span class="badge bg-success" title="<%= t('milestonesAdmin.badge.feedbackFormTitle') %>">
+                                            <i class="bi bi-chat-square-text"></i> <%= t('milestonesAdmin.badge.feedbackForm') %>
                                         </span>
                                     <% } %>
                                     <% (m.uploadCategories || []).forEach(function(uc) { %>
-                                        <span class="badge bg-secondary" title="Upload-Kategorie">
+                                        <span class="badge bg-secondary" title="<%= t('milestonesAdmin.badge.uploadCategoryTitle') %>">
                                             <i class="bi bi-tag"></i> <%= categoryLabel(uc) %>
                                         </span>
                                     <% }); %>
@@ -138,7 +138,7 @@ const ROLE_LABELS = { student: 'Student', coach: 'Dozent/in', expert: 'ExpertIn'
                                         <button class="btn btn-outline-primary btn-sm" data-milestone="<%= JSON.stringify(m) %>" onclick="editMilestone(JSON.parse(this.dataset.milestone))">
                                             <i class="bi bi-pencil"></i>
                                         </button>
-                                        <button class="btn btn-outline-secondary btn-sm" data-milestone="<%= JSON.stringify(m) %>" onclick="copyMilestone(JSON.parse(this.dataset.milestone))" title="Meilenstein kopieren">
+                                        <button class="btn btn-outline-secondary btn-sm" data-milestone="<%= JSON.stringify(m) %>" onclick="copyMilestone(JSON.parse(this.dataset.milestone))" title="<%= t('milestonesAdmin.copy') %>">
                                             <i class="bi bi-files"></i>
                                         </button>
                                         <button class="btn btn-outline-danger btn-sm" onclick="deleteMilestone(<%= m.id %>, '<%= m.label.replace(/'/g, "\\'") %>')">
@@ -160,197 +160,197 @@ const ROLE_LABELS = { student: 'Student', coach: 'Dozent/in', expert: 'ExpertIn'
     <div class="modal-dialog">
         <div class="modal-content">
             <div class="modal-header">
-                <h5 class="modal-title">Meilenstein hinzufügen</h5>
+                <h5 class="modal-title"><%= t('milestonesAdmin.add') %></h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
             </div>
             <form id="addMilestoneForm">
                 <div class="modal-body">
                     <div class="mb-3">
-                        <label class="form-label">Bezeichnung (Deutsch)</label>
+                        <label class="form-label"><%= t('milestonesAdmin.form.labelDe') %></label>
                         <input type="text" class="form-control" name="label" required>
                     </div>
                     <div class="mb-3">
-                        <label class="form-label">Bezeichnung (Französisch)</label>
-                        <input type="text" class="form-control" name="label_fr" placeholder="optional – Fallback auf DE">
+                        <label class="form-label"><%= t('milestonesAdmin.form.labelFr') %></label>
+                        <input type="text" class="form-control" name="label_fr" placeholder="<%= t('milestonesAdmin.form.labelFrPlaceholder') %>">
                     </div>
                     <div class="mb-3">
-                        <label class="form-label">Termin (Datum & Zeit)</label>
+                        <label class="form-label"><%= t('milestonesAdmin.form.dueAt') %></label>
                         <input type="datetime-local" class="form-control" name="due_at" required>
                     </div>
                     <div class="mb-3">
-                        <label class="form-label">Verantwortliche Rolle</label>
+                        <label class="form-label"><%= t('milestonesAdmin.table.responsibleRole') %></label>
                         <select class="form-select" name="responsible_role" required>
-                            <option value="">Rolle auswählen...</option>
-                            <option value="student">Student</option>
-                            <option value="coach">Dozent/in</option>
-                            <option value="expert">ExpertIn</option>
-                            <option value="department_lead">FachbereichsleiterIn</option>
-                            <option value="field_project_coach">Dozent Transferprojekt</option>
-                            <option value="admin">Administrator</option>
+                            <option value=""><%= t('milestonesAdmin.selectRole') %></option>
+                            <option value="student"><%= t('roles.student') %></option>
+                            <option value="coach"><%= t('roles.coach') %></option>
+                            <option value="expert"><%= t('roles.expert') %></option>
+                            <option value="department_lead"><%= t('roles.department_lead') %></option>
+                            <option value="field_project_coach"><%= t('roles.field_project_coach') %></option>
+                            <option value="admin"><%= t('roles.admin') %></option>
                         </select>
                     </div>
                     <div class="mb-3">
-                        <label class="form-label">Gilt für (Studienform)</label>
+                        <label class="form-label"><%= t('milestonesAdmin.form.appliesTo') %></label>
                         <select class="form-select" name="applies_to" id="addAppliesTo">
-                            <option value="all" selected>Vollzeit &amp; Berufsbegleitend</option>
-                            <option value="fulltime">Nur Vollzeit</option>
-                            <option value="parttime">Nur Berufsbegleitend</option>
+                            <option value="all" selected><%= t('milestonesAdmin.appliesToAll') %></option>
+                            <option value="fulltime"><%= t('milestonesAdmin.onlyFulltime') %></option>
+                            <option value="parttime"><%= t('milestonesAdmin.onlyParttime') %></option>
                         </select>
-                        <div class="form-text">Beim Anlegen einer Diplomarbeit werden nur Meilensteine übernommen, die zur Studienform ihres Fachbereichs passen.</div>
+                        <div class="form-text"><%= t('milestonesAdmin.form.appliesToHint') %></div>
                     </div>
                     <hr>
                     <div class="form-check mb-2">
                         <input type="checkbox" class="form-check-input" name="allow_upload" id="addAllowUpload" checked>
-                        <label class="form-check-label" for="addAllowUpload">Dokument-Upload durch Verantwortliche erlaubt</label>
+                        <label class="form-check-label" for="addAllowUpload"><%= t('milestonesAdmin.form.allowUpload') %></label>
                     </div>
                     <div class="form-check mb-2">
                         <input type="checkbox" class="form-check-input" name="allow_update" id="addAllowUpdate">
-                        <label class="form-check-label" for="addAllowUpdate">Aktualisierung (neue Version) erlaubt</label>
+                        <label class="form-check-label" for="addAllowUpdate"><%= t('milestonesAdmin.form.allowUpdate') %></label>
                     </div>
                     <div class="form-check mb-2">
                         <input type="checkbox" class="form-check-input" name="requires_evaluation" id="addRequiresEval" onchange="toggleEvalRole('add')">
-                        <label class="form-check-label" for="addRequiresEval">Dokument wird bewertet</label>
+                        <label class="form-check-label" for="addRequiresEval"><%= t('milestonesAdmin.form.requiresEvaluation') %></label>
                     </div>
                     <div class="mb-3 d-none" id="addEvalRoleWrap">
-                        <label class="form-label">Bewertende Rolle</label>
+                        <label class="form-label"><%= t('milestonesAdmin.form.evaluatorRole') %></label>
                         <select class="form-select" name="evaluator_role" id="addEvalRole">
-                            <option value="">Rolle auswählen...</option>
-                            <option value="coach">Dozent/in</option>
-                            <option value="expert">ExpertIn</option>
-                            <option value="department_lead">FachbereichsleiterIn</option>
-                            <option value="field_project_coach">Dozent Transferprojekt</option>
-                            <option value="admin">Administrator</option>
+                            <option value=""><%= t('milestonesAdmin.selectRole') %></option>
+                            <option value="coach"><%= t('roles.coach') %></option>
+                            <option value="expert"><%= t('roles.expert') %></option>
+                            <option value="department_lead"><%= t('roles.department_lead') %></option>
+                            <option value="field_project_coach"><%= t('roles.field_project_coach') %></option>
+                            <option value="admin"><%= t('roles.admin') %></option>
                         </select>
                     </div>
                     <div class="mb-3 d-none" id="addEvalFormWrap">
-                        <label class="form-label">Bewertungsformular (optional)</label>
+                        <label class="form-label"><%= t('milestonesAdmin.form.evaluationForm') %></label>
                         <select class="form-select" name="evaluation_form_id" id="addEvalForm">
-                            <option value="">Freitext-Bewertung (kein Formular)</option>
+                            <option value=""><%= t('milestonesAdmin.freetextOption') %></option>
                         </select>
                     </div>
                     <div class="form-check mb-2 d-none" id="addDoubleEvalWrap">
                         <input type="checkbox" class="form-check-input" name="double_evaluation" id="addDoubleEval" onchange="toggleDoubleEval('add')">
-                        <label class="form-check-label" for="addDoubleEval">Doppelbewertung (zwei Rollen + finale Bewertung)</label>
+                        <label class="form-check-label" for="addDoubleEval"><%= t('milestonesAdmin.form.doubleEvaluation') %></label>
                     </div>
                     <div class="mb-3 d-none" id="addEvalRole2Wrap">
-                        <label class="form-label">Zweite bewertende Rolle</label>
+                        <label class="form-label"><%= t('milestonesAdmin.form.evaluatorRole2') %></label>
                         <select class="form-select" name="evaluator_role_2" id="addEvalRole2">
-                            <option value="">Rolle auswählen...</option>
-                            <option value="coach">Dozent/in</option>
-                            <option value="expert">ExpertIn</option>
-                            <option value="department_lead">FachbereichsleiterIn</option>
-                            <option value="field_project_coach">Dozent Transferprojekt</option>
-                            <option value="admin">Administrator</option>
+                            <option value=""><%= t('milestonesAdmin.selectRole') %></option>
+                            <option value="coach"><%= t('roles.coach') %></option>
+                            <option value="expert"><%= t('roles.expert') %></option>
+                            <option value="department_lead"><%= t('roles.department_lead') %></option>
+                            <option value="field_project_coach"><%= t('roles.field_project_coach') %></option>
+                            <option value="admin"><%= t('roles.admin') %></option>
                         </select>
-                        <div class="form-text">Die erste bewertende Rolle ist oben gewählt. Beide Rollen müssen unterschiedlich sein.</div>
+                        <div class="form-text"><%= t('milestonesAdmin.form.evaluatorRole2Hint') %></div>
                     </div>
                     <hr>
                     <div class="form-check mb-2">
                         <input type="checkbox" class="form-check-input" name="requires_approval" id="addRequiresApproval" onchange="toggleApprover('add')">
-                        <label class="form-check-label" for="addRequiresApproval">Freigabe 1 erforderlich</label>
+                        <label class="form-check-label" for="addRequiresApproval"><%= t('milestonesAdmin.form.requiresApproval1') %></label>
                     </div>
                     <div class="mb-3 d-none" id="addApproverWrap">
-                        <label class="form-label">Freigebende Rolle (Freigabe 1)</label>
+                        <label class="form-label"><%= t('milestonesAdmin.form.approverRole1') %></label>
                         <select class="form-select" name="approver_role" id="addApproverRole">
-                            <option value="">Rolle auswählen...</option>
-                            <option value="student">Student</option>
-                            <option value="coach">Dozent/in</option>
-                            <option value="expert">ExpertIn</option>
-                            <option value="department_lead">FachbereichsleiterIn</option>
-                            <option value="field_project_coach">Dozent Transferprojekt</option>
-                            <option value="admin">Administrator</option>
+                            <option value=""><%= t('milestonesAdmin.selectRole') %></option>
+                            <option value="student"><%= t('roles.student') %></option>
+                            <option value="coach"><%= t('roles.coach') %></option>
+                            <option value="expert"><%= t('roles.expert') %></option>
+                            <option value="department_lead"><%= t('roles.department_lead') %></option>
+                            <option value="field_project_coach"><%= t('roles.field_project_coach') %></option>
+                            <option value="admin"><%= t('roles.admin') %></option>
                         </select>
                     </div>
                     <div class="form-check mb-2">
                         <input type="checkbox" class="form-check-input" name="requires_approval_2" id="addRequiresApproval2" onchange="toggleApprover2('add')">
-                        <label class="form-check-label" for="addRequiresApproval2">Freigabe 2 erforderlich</label>
+                        <label class="form-check-label" for="addRequiresApproval2"><%= t('milestonesAdmin.form.requiresApproval2') %></label>
                     </div>
                     <div class="mb-3 d-none" id="addApprover2Wrap">
-                        <label class="form-label">Freigebende Rolle (Freigabe 2)</label>
+                        <label class="form-label"><%= t('milestonesAdmin.form.approverRole2') %></label>
                         <select class="form-select" name="approver_role_2" id="addApproverRole2">
-                            <option value="">Rolle auswählen...</option>
-                            <option value="student">Student</option>
-                            <option value="coach">Dozent/in</option>
-                            <option value="expert">ExpertIn</option>
-                            <option value="department_lead">FachbereichsleiterIn</option>
-                            <option value="field_project_coach">Dozent Transferprojekt</option>
-                            <option value="admin">Administrator</option>
+                            <option value=""><%= t('milestonesAdmin.selectRole') %></option>
+                            <option value="student"><%= t('roles.student') %></option>
+                            <option value="coach"><%= t('roles.coach') %></option>
+                            <option value="expert"><%= t('roles.expert') %></option>
+                            <option value="department_lead"><%= t('roles.department_lead') %></option>
+                            <option value="field_project_coach"><%= t('roles.field_project_coach') %></option>
+                            <option value="admin"><%= t('roles.admin') %></option>
                         </select>
                     </div>
                     <div class="form-check mb-2">
                         <input type="checkbox" class="form-check-input" name="is_transfer_project" id="addIsTransferProject">
-                        <label class="form-check-label" for="addIsTransferProject">Transferprojekt</label>
+                        <label class="form-check-label" for="addIsTransferProject"><%= t('thesis.transferProject') %></label>
                     </div>
                     <div class="form-check mb-2">
                         <input type="checkbox" class="form-check-input" name="is_assignment" id="addIsAssignment" onchange="toggleAssignmentUpload('add')">
-                        <label class="form-check-label" for="addIsAssignment">Aufgabenstellung (Verantwortlicher füllt Ergänzungsfeld aus und generiert das Aufgabenstellungs-PDF)</label>
-                        <div class="form-text">Bei Aufgabenstellungs-Meilensteinen ist kein Dokument-Upload möglich.</div>
+                        <label class="form-check-label" for="addIsAssignment"><%= t('milestonesAdmin.form.isAssignment') %></label>
+                        <div class="form-text"><%= t('milestonesAdmin.form.isAssignmentHint') %></div>
                     </div>
                     <div class="form-check mb-2">
                         <input type="checkbox" class="form-check-input" name="feedback_form_enabled" id="addFeedbackFormEnabled">
-                        <label class="form-check-label" for="addFeedbackFormEnabled">Feedbackformular aktivieren (Voraussetzung: finale Bewertung)</label>
+                        <label class="form-check-label" for="addFeedbackFormEnabled"><%= t('milestonesAdmin.form.feedbackFormEnabled') %></label>
                     </div>
                     <div class="mb-3">
-                        <label for="addUploadCategories" class="form-label">Upload-Kategorien</label>
+                        <label for="addUploadCategories" class="form-label"><%= t('milestonesAdmin.form.uploadCategories') %></label>
                         <select class="form-select" id="addUploadCategories" name="upload_categories" multiple size="4">
                             <% (uploadCategories || []).forEach(function(c) { %>
-                                <option value="<%= c.id %>" <%= c.is_active ? '' : 'data-inactive="1"' %>><%= categoryLabel(c) %><%= c.is_active ? '' : ' (deaktiviert)' %></option>
+                                <option value="<%= c.id %>" <%= c.is_active ? '' : 'data-inactive="1"' %>><%= categoryLabel(c) %><%= c.is_active ? '' : t('milestonesAdmin.deactivatedSuffix') %></option>
                             <% }); %>
                         </select>
-                        <div class="form-text">Mehrere wählbar (Strg/Cmd). Leer lassen = ein einzelner Upload-Slot ohne Kategorie (wie bisher).</div>
+                        <div class="form-text"><%= t('milestonesAdmin.form.uploadCategoriesHint') %></div>
                     </div>
                     <hr>
-                    <h6 class="mb-2"><i class="bi bi-envelope-paper"></i> Mail-Erinnerungen</h6>
+                    <h6 class="mb-2"><i class="bi bi-envelope-paper"></i> <%= t('milestonesAdmin.mailReminders') %></h6>
                     <div class="row g-2 mb-2">
                         <div class="col-md-6">
-                            <label class="form-label small">Beginn Erinnerungen ab</label>
+                            <label class="form-label small"><%= t('milestonesAdmin.form.reminderStartAt') %></label>
                             <input type="datetime-local" class="form-control" name="reminder_start_at" id="addReminderStartAt">
-                            <div class="form-text">Leer = keine Erinnerungen</div>
+                            <div class="form-text"><%= t('milestonesAdmin.form.reminderStartAtHint') %></div>
                         </div>
                         <div class="col-md-6">
-                            <label class="form-label small">Periodizität (Tage)</label>
+                            <label class="form-label small"><%= t('milestonesAdmin.form.reminderPeriodDays') %></label>
                             <input type="number" class="form-control" name="reminder_period_days" id="addReminderPeriodDays" min="1" step="1" value="7">
-                            <div class="form-text">Ab 3 Tagen vor Termin täglich (fix).</div>
+                            <div class="form-text"><%= t('milestonesAdmin.form.reminderPeriodDaysHint') %></div>
                         </div>
                     </div>
                     <div class="row g-2 mb-2">
                         <div class="col-md-6">
-                            <label class="form-label small">Termin Bewertung (Einzel)</label>
+                            <label class="form-label small"><%= t('milestonesAdmin.form.singleDueAt') %></label>
                             <input type="datetime-local" class="form-control" name="single_due_at" id="addSingleDueAt">
                         </div>
                         <div class="col-md-6">
-                            <label class="form-label small">Termin Bewertung 1</label>
+                            <label class="form-label small"><%= t('milestonesAdmin.form.firstDueAt') %></label>
                             <input type="datetime-local" class="form-control" name="first_due_at" id="addFirstDueAt">
                         </div>
                         <div class="col-md-6">
-                            <label class="form-label small">Termin Bewertung 2</label>
+                            <label class="form-label small"><%= t('milestonesAdmin.form.secondDueAt') %></label>
                             <input type="datetime-local" class="form-control" name="second_due_at" id="addSecondDueAt">
                         </div>
                         <div class="col-md-6">
-                            <label class="form-label small">Termin finale Bewertung</label>
+                            <label class="form-label small"><%= t('milestonesAdmin.form.finalDueAt') %></label>
                             <input type="datetime-local" class="form-control" name="final_due_at" id="addFinalDueAt">
                         </div>
                         <div class="col-md-6">
-                            <label class="form-label small">Termin Feedbackformular</label>
+                            <label class="form-label small"><%= t('milestonesAdmin.form.feedbackDueAt') %></label>
                             <input type="datetime-local" class="form-control" name="feedback_due_at" id="addFeedbackDueAt">
                         </div>
                     </div>
                     <div class="form-text mb-3">
-                        Alle Bewertungs- und Feedbacktermine müssen nach dem Meilenstein-Termin liegen. Nicht relevante Felder können leer bleiben.
+                        <%= t('milestonesAdmin.form.dateHintAdd') %>
                     </div>
                     <hr>
                     <% if (thesesCount > 0) { %>
                     <div class="form-check">
                         <input type="checkbox" class="form-check-input" name="applyToExisting" id="addApplyToExisting" checked>
                         <label class="form-check-label" for="addApplyToExisting">
-                            Auf bereits existierende Diplomarbeiten anwenden (<%= thesesCount %>)
+                            <%= t('milestonesAdmin.form.applyToExistingAdd', { count: thesesCount }) %>
                         </label>
                     </div>
                     <% } %>
                 </div>
                 <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Abbrechen</button>
-                    <button type="submit" class="btn btn-primary">Hinzufügen</button>
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal"><%= t('common.cancel') %></button>
+                    <button type="submit" class="btn btn-primary"><%= t('milestonesAdmin.submitAdd') %></button>
                 </div>
             </form>
         </div>
@@ -362,203 +362,203 @@ const ROLE_LABELS = { student: 'Student', coach: 'Dozent/in', expert: 'ExpertIn'
     <div class="modal-dialog">
         <div class="modal-content">
             <div class="modal-header">
-                <h5 class="modal-title">Meilenstein bearbeiten</h5>
+                <h5 class="modal-title"><%= t('milestonesAdmin.edit') %></h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
             </div>
             <form id="editMilestoneForm">
                 <div class="modal-body">
                     <input type="hidden" name="id" id="editMilestoneId">
                     <div class="mb-3">
-                        <label class="form-label">Bezeichnung (Deutsch)</label>
+                        <label class="form-label"><%= t('milestonesAdmin.form.labelDe') %></label>
                         <input type="text" class="form-control" name="label" id="editMilestoneLabel" required>
                     </div>
                     <div class="mb-3">
-                        <label class="form-label">Bezeichnung (Französisch)</label>
-                        <input type="text" class="form-control" name="label_fr" id="editMilestoneLabelFr" placeholder="optional – Fallback auf DE">
+                        <label class="form-label"><%= t('milestonesAdmin.form.labelFr') %></label>
+                        <input type="text" class="form-control" name="label_fr" id="editMilestoneLabelFr" placeholder="<%= t('milestonesAdmin.form.labelFrPlaceholder') %>">
                     </div>
                     <div class="mb-3">
-                        <label class="form-label">Termin (Datum & Zeit)</label>
+                        <label class="form-label"><%= t('milestonesAdmin.form.dueAt') %></label>
                         <input type="datetime-local" class="form-control" name="due_at" id="editMilestoneDueAt" required>
                     </div>
                     <div class="mb-3">
-                        <label class="form-label">Verantwortliche Rolle</label>
+                        <label class="form-label"><%= t('milestonesAdmin.table.responsibleRole') %></label>
                         <select class="form-select" name="responsible_role" id="editMilestoneRole" required>
-                            <option value="student">Student</option>
-                            <option value="coach">Dozent/in</option>
-                            <option value="expert">ExpertIn</option>
-                            <option value="department_lead">FachbereichsleiterIn</option>
-                            <option value="field_project_coach">Dozent Transferprojekt</option>
-                            <option value="admin">Administrator</option>
+                            <option value="student"><%= t('roles.student') %></option>
+                            <option value="coach"><%= t('roles.coach') %></option>
+                            <option value="expert"><%= t('roles.expert') %></option>
+                            <option value="department_lead"><%= t('roles.department_lead') %></option>
+                            <option value="field_project_coach"><%= t('roles.field_project_coach') %></option>
+                            <option value="admin"><%= t('roles.admin') %></option>
                         </select>
                     </div>
                     <div class="mb-3">
-                        <label class="form-label">Gilt für (Studienform)</label>
+                        <label class="form-label"><%= t('milestonesAdmin.form.appliesTo') %></label>
                         <select class="form-select" name="applies_to" id="editAppliesTo">
-                            <option value="all">Vollzeit &amp; Berufsbegleitend</option>
-                            <option value="fulltime">Nur Vollzeit</option>
-                            <option value="parttime">Nur Berufsbegleitend</option>
+                            <option value="all"><%= t('milestonesAdmin.appliesToAll') %></option>
+                            <option value="fulltime"><%= t('milestonesAdmin.onlyFulltime') %></option>
+                            <option value="parttime"><%= t('milestonesAdmin.onlyParttime') %></option>
                         </select>
-                        <div class="form-text">Eine Änderung wirkt nur auf künftig angelegte Diplomarbeiten — bestehende Meilenstein-Snapshots bleiben unverändert.</div>
+                        <div class="form-text"><%= t('milestonesAdmin.form.appliesToHintEdit') %></div>
                     </div>
                     <hr>
                     <div class="form-check mb-2">
                         <input type="checkbox" class="form-check-input" name="allow_upload" id="editAllowUpload">
-                        <label class="form-check-label" for="editAllowUpload">Dokument-Upload durch Verantwortliche erlaubt</label>
+                        <label class="form-check-label" for="editAllowUpload"><%= t('milestonesAdmin.form.allowUpload') %></label>
                     </div>
                     <div class="form-check mb-2">
                         <input type="checkbox" class="form-check-input" name="allow_update" id="editAllowUpdate">
-                        <label class="form-check-label" for="editAllowUpdate">Aktualisierung (neue Version) erlaubt</label>
+                        <label class="form-check-label" for="editAllowUpdate"><%= t('milestonesAdmin.form.allowUpdate') %></label>
                     </div>
                     <div class="form-check mb-2">
                         <input type="checkbox" class="form-check-input" name="requires_evaluation" id="editRequiresEval" onchange="toggleEvalRole('edit')">
-                        <label class="form-check-label" for="editRequiresEval">Dokument wird bewertet</label>
+                        <label class="form-check-label" for="editRequiresEval"><%= t('milestonesAdmin.form.requiresEvaluation') %></label>
                     </div>
                     <div class="mb-3 d-none" id="editEvalRoleWrap">
-                        <label class="form-label">Bewertende Rolle</label>
+                        <label class="form-label"><%= t('milestonesAdmin.form.evaluatorRole') %></label>
                         <select class="form-select" name="evaluator_role" id="editEvalRole">
-                            <option value="">Rolle auswählen...</option>
-                            <option value="coach">Dozent/in</option>
-                            <option value="expert">ExpertIn</option>
-                            <option value="department_lead">FachbereichsleiterIn</option>
-                            <option value="field_project_coach">Dozent Transferprojekt</option>
-                            <option value="admin">Administrator</option>
+                            <option value=""><%= t('milestonesAdmin.selectRole') %></option>
+                            <option value="coach"><%= t('roles.coach') %></option>
+                            <option value="expert"><%= t('roles.expert') %></option>
+                            <option value="department_lead"><%= t('roles.department_lead') %></option>
+                            <option value="field_project_coach"><%= t('roles.field_project_coach') %></option>
+                            <option value="admin"><%= t('roles.admin') %></option>
                         </select>
                     </div>
                     <div class="mb-3 d-none" id="editEvalFormWrap">
-                        <label class="form-label">Bewertungsformular (optional)</label>
+                        <label class="form-label"><%= t('milestonesAdmin.form.evaluationForm') %></label>
                         <select class="form-select" name="evaluation_form_id" id="editEvalForm">
-                            <option value="">Freitext-Bewertung (kein Formular)</option>
+                            <option value=""><%= t('milestonesAdmin.freetextOption') %></option>
                         </select>
                     </div>
                     <div class="form-check mb-2 d-none" id="editDoubleEvalWrap">
                         <input type="checkbox" class="form-check-input" name="double_evaluation" id="editDoubleEval" onchange="toggleDoubleEval('edit')">
-                        <label class="form-check-label" for="editDoubleEval">Doppelbewertung (zwei Rollen + finale Bewertung)</label>
+                        <label class="form-check-label" for="editDoubleEval"><%= t('milestonesAdmin.form.doubleEvaluation') %></label>
                     </div>
                     <div class="mb-3 d-none" id="editEvalRole2Wrap">
-                        <label class="form-label">Zweite bewertende Rolle</label>
+                        <label class="form-label"><%= t('milestonesAdmin.form.evaluatorRole2') %></label>
                         <select class="form-select" name="evaluator_role_2" id="editEvalRole2">
-                            <option value="">Rolle auswählen...</option>
-                            <option value="coach">Dozent/in</option>
-                            <option value="expert">ExpertIn</option>
-                            <option value="department_lead">FachbereichsleiterIn</option>
-                            <option value="field_project_coach">Dozent Transferprojekt</option>
-                            <option value="admin">Administrator</option>
+                            <option value=""><%= t('milestonesAdmin.selectRole') %></option>
+                            <option value="coach"><%= t('roles.coach') %></option>
+                            <option value="expert"><%= t('roles.expert') %></option>
+                            <option value="department_lead"><%= t('roles.department_lead') %></option>
+                            <option value="field_project_coach"><%= t('roles.field_project_coach') %></option>
+                            <option value="admin"><%= t('roles.admin') %></option>
                         </select>
-                        <div class="form-text">Die erste bewertende Rolle ist oben gewählt. Beide Rollen müssen unterschiedlich sein.</div>
+                        <div class="form-text"><%= t('milestonesAdmin.form.evaluatorRole2Hint') %></div>
                     </div>
                     <hr>
                     <div class="form-check mb-2">
                         <input type="checkbox" class="form-check-input" name="requires_approval" id="editRequiresApproval" onchange="toggleApprover('edit')">
-                        <label class="form-check-label" for="editRequiresApproval">Freigabe 1 erforderlich</label>
+                        <label class="form-check-label" for="editRequiresApproval"><%= t('milestonesAdmin.form.requiresApproval1') %></label>
                     </div>
                     <div class="mb-3 d-none" id="editApproverWrap">
-                        <label class="form-label">Freigebende Rolle (Freigabe 1)</label>
+                        <label class="form-label"><%= t('milestonesAdmin.form.approverRole1') %></label>
                         <select class="form-select" name="approver_role" id="editApproverRole">
-                            <option value="">Rolle auswählen...</option>
-                            <option value="student">Student</option>
-                            <option value="coach">Dozent/in</option>
-                            <option value="expert">ExpertIn</option>
-                            <option value="department_lead">FachbereichsleiterIn</option>
-                            <option value="field_project_coach">Dozent Transferprojekt</option>
-                            <option value="admin">Administrator</option>
+                            <option value=""><%= t('milestonesAdmin.selectRole') %></option>
+                            <option value="student"><%= t('roles.student') %></option>
+                            <option value="coach"><%= t('roles.coach') %></option>
+                            <option value="expert"><%= t('roles.expert') %></option>
+                            <option value="department_lead"><%= t('roles.department_lead') %></option>
+                            <option value="field_project_coach"><%= t('roles.field_project_coach') %></option>
+                            <option value="admin"><%= t('roles.admin') %></option>
                         </select>
                     </div>
                     <div class="form-check mb-2">
                         <input type="checkbox" class="form-check-input" name="requires_approval_2" id="editRequiresApproval2" onchange="toggleApprover2('edit')">
-                        <label class="form-check-label" for="editRequiresApproval2">Freigabe 2 erforderlich</label>
+                        <label class="form-check-label" for="editRequiresApproval2"><%= t('milestonesAdmin.form.requiresApproval2') %></label>
                     </div>
                     <div class="mb-3 d-none" id="editApprover2Wrap">
-                        <label class="form-label">Freigebende Rolle (Freigabe 2)</label>
+                        <label class="form-label"><%= t('milestonesAdmin.form.approverRole2') %></label>
                         <select class="form-select" name="approver_role_2" id="editApproverRole2">
-                            <option value="">Rolle auswählen...</option>
-                            <option value="student">Student</option>
-                            <option value="coach">Dozent/in</option>
-                            <option value="expert">ExpertIn</option>
-                            <option value="department_lead">FachbereichsleiterIn</option>
-                            <option value="field_project_coach">Dozent Transferprojekt</option>
-                            <option value="admin">Administrator</option>
+                            <option value=""><%= t('milestonesAdmin.selectRole') %></option>
+                            <option value="student"><%= t('roles.student') %></option>
+                            <option value="coach"><%= t('roles.coach') %></option>
+                            <option value="expert"><%= t('roles.expert') %></option>
+                            <option value="department_lead"><%= t('roles.department_lead') %></option>
+                            <option value="field_project_coach"><%= t('roles.field_project_coach') %></option>
+                            <option value="admin"><%= t('roles.admin') %></option>
                         </select>
                     </div>
                     <div class="form-check mb-2">
                         <input type="checkbox" class="form-check-input" name="is_transfer_project" id="editIsTransferProject">
-                        <label class="form-check-label" for="editIsTransferProject">Transferprojekt</label>
+                        <label class="form-check-label" for="editIsTransferProject"><%= t('thesis.transferProject') %></label>
                     </div>
                     <div class="form-check mb-2">
                         <input type="checkbox" class="form-check-input" name="is_assignment" id="editIsAssignment" onchange="toggleAssignmentUpload('edit')">
-                        <label class="form-check-label" for="editIsAssignment">Aufgabenstellung (Verantwortlicher füllt Ergänzungsfeld aus und generiert das Aufgabenstellungs-PDF)</label>
-                        <div class="form-text">Bei Aufgabenstellungs-Meilensteinen ist kein Dokument-Upload möglich.</div>
+                        <label class="form-check-label" for="editIsAssignment"><%= t('milestonesAdmin.form.isAssignment') %></label>
+                        <div class="form-text"><%= t('milestonesAdmin.form.isAssignmentHint') %></div>
                     </div>
                     <div class="form-check mb-2">
                         <input type="checkbox" class="form-check-input" name="feedback_form_enabled" id="editFeedbackFormEnabled">
-                        <label class="form-check-label" for="editFeedbackFormEnabled">Feedbackformular aktivieren (Voraussetzung: finale Bewertung)</label>
+                        <label class="form-check-label" for="editFeedbackFormEnabled"><%= t('milestonesAdmin.form.feedbackFormEnabled') %></label>
                     </div>
                     <div class="mb-3">
-                        <label for="editUploadCategories" class="form-label">Upload-Kategorien</label>
+                        <label for="editUploadCategories" class="form-label"><%= t('milestonesAdmin.form.uploadCategories') %></label>
                         <select class="form-select" id="editUploadCategories" name="upload_categories" multiple size="4">
                             <% (uploadCategories || []).forEach(function(c) { %>
-                                <option value="<%= c.id %>"><%= categoryLabel(c) %><%= c.is_active ? '' : ' (deaktiviert)' %></option>
+                                <option value="<%= c.id %>"><%= categoryLabel(c) %><%= c.is_active ? '' : t('milestonesAdmin.deactivatedSuffix') %></option>
                             <% }); %>
                         </select>
-                        <div class="form-text">Snapshots existierender DAs werden beim „Anwenden auf existierende" nur ergänzt, nie reduziert.</div>
+                        <div class="form-text"><%= t('milestonesAdmin.form.uploadCategoriesHintEdit') %></div>
                     </div>
                     <hr>
-                    <h6 class="mb-2"><i class="bi bi-envelope-paper"></i> Mail-Erinnerungen</h6>
+                    <h6 class="mb-2"><i class="bi bi-envelope-paper"></i> <%= t('milestonesAdmin.mailReminders') %></h6>
                     <div class="row g-2 mb-2">
                         <div class="col-md-6">
-                            <label class="form-label small">Beginn Erinnerungen ab</label>
+                            <label class="form-label small"><%= t('milestonesAdmin.form.reminderStartAt') %></label>
                             <input type="datetime-local" class="form-control" name="reminder_start_at" id="editReminderStartAt">
                         </div>
                         <div class="col-md-6">
-                            <label class="form-label small">Periodizität (Tage)</label>
+                            <label class="form-label small"><%= t('milestonesAdmin.form.reminderPeriodDays') %></label>
                             <input type="number" class="form-control" name="reminder_period_days" id="editReminderPeriodDays" min="1" step="1">
-                            <div class="form-text">Ab 3 Tagen vor Termin täglich (fix).</div>
+                            <div class="form-text"><%= t('milestonesAdmin.form.reminderPeriodDaysHint') %></div>
                         </div>
                     </div>
                     <div class="row g-2 mb-2">
                         <div class="col-md-6">
-                            <label class="form-label small">Termin Bewertung (Einzel)</label>
+                            <label class="form-label small"><%= t('milestonesAdmin.form.singleDueAt') %></label>
                             <input type="datetime-local" class="form-control" name="single_due_at" id="editSingleDueAt">
                         </div>
                         <div class="col-md-6">
-                            <label class="form-label small">Termin Bewertung 1</label>
+                            <label class="form-label small"><%= t('milestonesAdmin.form.firstDueAt') %></label>
                             <input type="datetime-local" class="form-control" name="first_due_at" id="editFirstDueAt">
                         </div>
                         <div class="col-md-6">
-                            <label class="form-label small">Termin Bewertung 2</label>
+                            <label class="form-label small"><%= t('milestonesAdmin.form.secondDueAt') %></label>
                             <input type="datetime-local" class="form-control" name="second_due_at" id="editSecondDueAt">
                         </div>
                         <div class="col-md-6">
-                            <label class="form-label small">Termin finale Bewertung</label>
+                            <label class="form-label small"><%= t('milestonesAdmin.form.finalDueAt') %></label>
                             <input type="datetime-local" class="form-control" name="final_due_at" id="editFinalDueAt">
                         </div>
                         <div class="col-md-6">
-                            <label class="form-label small">Termin Feedbackformular</label>
+                            <label class="form-label small"><%= t('milestonesAdmin.form.feedbackDueAt') %></label>
                             <input type="datetime-local" class="form-control" name="feedback_due_at" id="editFeedbackDueAt">
                         </div>
                     </div>
                     <div class="form-text mb-3">
-                        Alle Bewertungs- und Feedbacktermine müssen nach dem Meilenstein-Termin liegen.
+                        <%= t('milestonesAdmin.form.dateHintEdit') %>
                     </div>
                     <hr>
                     <% if (thesesCount > 0) { %>
                     <div class="form-check">
                         <input type="checkbox" class="form-check-input" name="applyToExisting" id="editApplyToExisting">
                         <label class="form-check-label" for="editApplyToExisting">
-                            Änderung auf bereits existierende Diplomarbeiten anwenden (<%= thesesCount %>)
+                            <%= t('milestonesAdmin.form.applyToExistingEdit', { count: thesesCount }) %>
                         </label>
                     </div>
                     <div class="form-check ms-4">
                         <input type="checkbox" class="form-check-input" name="overrideAll" id="editOverrideAll">
                         <label class="form-check-label" for="editOverrideAll">
-                            Auch individuell überschriebene Termine ersetzen
-                            <span class="text-muted small">(sonst bleiben Overrides erhalten)</span>
+                            <%= t('milestonesAdmin.form.overrideAll') %>
+                            <span class="text-muted small"><%= t('milestonesAdmin.form.overrideAllHint') %></span>
                         </label>
                     </div>
                     <% } %>
                 </div>
                 <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Abbrechen</button>
-                    <button type="submit" class="btn btn-primary">Speichern</button>
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal"><%= t('common.cancel') %></button>
+                    <button type="submit" class="btn btn-primary"><%= t('common.save') %></button>
                 </div>
             </form>
         </div>
@@ -570,34 +570,34 @@ const ROLE_LABELS = { student: 'Student', coach: 'Dozent/in', expert: 'ExpertIn'
     <div class="modal-dialog">
         <div class="modal-content">
             <div class="modal-header">
-                <h5 class="modal-title">Meilenstein löschen</h5>
+                <h5 class="modal-title"><%= t('milestonesAdmin.delete') %></h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
             </div>
             <form id="deleteMilestoneForm">
                 <div class="modal-body">
                     <input type="hidden" id="deleteMilestoneId">
-                    <p>Möchten Sie den Meilenstein <strong id="deleteMilestoneLabel"></strong> wirklich löschen?</p>
+                    <p><%= t('milestonesAdmin.deleteConfirmPrefix') %> <strong id="deleteMilestoneLabel"></strong> <%= t('milestonesAdmin.deleteConfirmSuffix') %></p>
                     <p class="text-muted">
-                        Diese Aktion entfernt den Meilenstein aus der Vorlage. Bereits zugewiesene Instanzen pro Diplomarbeit werden je nach Auswahl behandelt.
+                        <%= t('milestonesAdmin.deleteInfo') %>
                     </p>
                     <div class="form-check">
                         <input type="radio" class="form-check-input" name="keepUploaded" id="keepUploadedYes" value="true" checked>
                         <label class="form-check-label" for="keepUploadedYes">
-                            Bereits hochgeladene Dokumente behalten<br>
-                            <small class="text-muted">Diplomarbeiten mit hochgeladenem Dokument für diesen Meilenstein bleiben unverändert. Andere werden gelöscht.</small>
+                            <%= t('milestonesAdmin.deleteKeepLabel') %><br>
+                            <small class="text-muted"><%= t('milestonesAdmin.deleteKeepHint') %></small>
                         </label>
                     </div>
                     <div class="form-check mt-2">
                         <input type="radio" class="form-check-input" name="keepUploaded" id="keepUploadedNo" value="false">
                         <label class="form-check-label" for="keepUploadedNo">
-                            Alle löschen<br>
-                            <small class="text-muted">Auch bereits hochgeladene Dokumente werden entfernt.</small>
+                            <%= t('milestonesAdmin.deleteAllLabel') %><br>
+                            <small class="text-muted"><%= t('milestonesAdmin.deleteAllHint') %></small>
                         </label>
                     </div>
                 </div>
                 <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Abbrechen</button>
-                    <button type="submit" class="btn btn-danger">Löschen</button>
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal"><%= t('common.cancel') %></button>
+                    <button type="submit" class="btn btn-danger"><%= t('common.delete') %></button>
                 </div>
             </form>
         </div>
@@ -607,9 +607,21 @@ const ROLE_LABELS = { student: 'Student', coach: 'Dozent/in', expert: 'ExpertIn'
 <script>
 const selectedYearId = <%= selectedYear.id %>;
 
+const L = {
+    add: <%- JSON.stringify(t('milestonesAdmin.add')) %>,
+    copy: <%- JSON.stringify(t('milestonesAdmin.copy')) %>,
+    freetextOption: <%- JSON.stringify(t('milestonesAdmin.freetextOption')) %>,
+    errorPrefix: <%- JSON.stringify(t('templatesPage.errorPrefix')) %>,
+    errorUnknown: <%- JSON.stringify(t('milestonesAdmin.errorUnknown')) %>,
+    addFailed: <%- JSON.stringify(t('milestonesAdmin.addFailed')) %>,
+    saveFailed: <%- JSON.stringify(t('milestonesAdmin.saveFailed')) %>,
+    deleteFailed: <%- JSON.stringify(t('milestonesAdmin.deleteFailedAlert')) %>,
+    overrideConfirm: <%- JSON.stringify(t('milestonesAdmin.overrideConfirm')) %>
+};
+
+const ROLE_LABEL_MAP = <%- JSON.stringify({ student: t('roles.student'), coach: t('roles.coach'), expert: t('roles.expert'), admin: t('roles.admin'), department_lead: t('roles.department_lead') }) %>;
 function roleLabel(role) {
-    const m = { student: 'Student', coach: 'Dozent/in', expert: 'ExpertIn', admin: 'Administrator', department_lead: 'FachbereichsleiterIn' };
-    return m[role] || role;
+    return ROLE_LABEL_MAP[role] || role;
 }
 
 function toLocalInput(iso) {
@@ -638,7 +650,7 @@ function loadEvaluationForms() {
         ['addEvalForm', 'editEvalForm'].forEach(selId => {
             const sel = document.getElementById(selId);
             const current = sel.value;
-            sel.innerHTML = '<option value="">Freitext-Bewertung (kein Formular)</option>' +
+            sel.innerHTML = `<option value="">${L.freetextOption}</option>` +
                 forms.map(f => `<option value="${f.id}">${(f.title_de||'').replace(/</g,'&lt;')}</option>`).join('');
             sel.value = current;
         });
@@ -684,7 +696,7 @@ function toggleAssignmentUpload(prefix) {
 function openAddMilestoneModal() {
     document.getElementById('addMilestoneForm').reset();
     document.getElementById('addAllowUpload').checked = true;
-    document.querySelector('#addMilestoneModal .modal-title').textContent = 'Meilenstein hinzufügen';
+    document.querySelector('#addMilestoneModal .modal-title').textContent = L.add;
     toggleEvalRole('add');
     toggleApprover('add');
     toggleApprover2('add');
@@ -697,7 +709,7 @@ function openAddMilestoneModal() {
 function copyMilestone(m) {
     const form = document.getElementById('addMilestoneForm');
     form.reset();
-    document.querySelector('#addMilestoneModal .modal-title').textContent = 'Meilenstein kopieren';
+    document.querySelector('#addMilestoneModal .modal-title').textContent = L.copy;
     form.querySelector('[name="label"]').value = m.label + ' (Kopie)';
     form.querySelector('[name="label_fr"]').value = m.label_fr ? m.label_fr + ' (copie)' : '';
     form.querySelector('[name="due_at"]').value = toLocalInput(m.due_at);
@@ -831,9 +843,9 @@ document.getElementById('addMilestoneForm').addEventListener('submit', function(
     .then(r => r.json())
     .then(d => {
         if (d.success) location.reload();
-        else alert('Fehler: ' + (d.message || 'Unbekannt'));
+        else alert(L.errorPrefix + (d.message || L.errorUnknown));
     })
-    .catch(err => { console.error(err); alert('Fehler beim Hinzufügen'); });
+    .catch(err => { console.error(err); alert(L.addFailed); });
 });
 
 document.getElementById('editMilestoneForm').addEventListener('submit', function(e) {
@@ -856,12 +868,7 @@ document.getElementById('editMilestoneForm').addEventListener('submit', function
         (data.feedback_due_at || '') !== (window.__editOriginal?.feedback_due_at || '')
     );
     if (data.applyToExisting && dateChanged && !data.overrideAll) {
-        const proceed = confirm(
-            'Es gibt möglicherweise Diplomarbeiten mit individuell überschriebenen Terminen.\n\n' +
-            '- „OK" behält die individuellen Überschreibungen bei (nur nicht-überschriebene Termine werden aktualisiert).\n' +
-            '- „Abbrechen" bricht das Speichern ab.\n\n' +
-            'Wenn du ALLE Overrides ersetzen möchtest, aktiviere „Auch individuell überschriebene Termine ersetzen".'
-        );
+        const proceed = confirm(L.overrideConfirm);
         if (!proceed) return;
     }
 
@@ -875,9 +882,9 @@ document.getElementById('editMilestoneForm').addEventListener('submit', function
     .then(r => r.json())
     .then(d => {
         if (d.success) location.reload();
-        else alert('Fehler: ' + (d.message || 'Unbekannt'));
+        else alert(L.errorPrefix + (d.message || L.errorUnknown));
     })
-    .catch(err => { console.error(err); alert('Fehler beim Speichern'); });
+    .catch(err => { console.error(err); alert(L.saveFailed); });
 });
 
 document.getElementById('deleteMilestoneForm').addEventListener('submit', function(e) {
@@ -891,9 +898,9 @@ document.getElementById('deleteMilestoneForm').addEventListener('submit', functi
     .then(r => r.json())
     .then(d => {
         if (d.success) location.reload();
-        else alert('Fehler: ' + (d.message || 'Unbekannt'));
+        else alert(L.errorPrefix + (d.message || L.errorUnknown));
     })
-    .catch(err => { console.error(err); alert('Fehler beim Löschen'); });
+    .catch(err => { console.error(err); alert(L.deleteFailed); });
 });
 
 loadEvaluationForms();

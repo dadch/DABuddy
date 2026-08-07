@@ -1,4 +1,4 @@
-<%- include('../partials/header', { title: 'Studenten-Dashboard - ThesisBuddy', user: user }) %>
+<%- include('../partials/header', { title: t('misc.studentDashboardTitle') + ' - ThesisBuddy', user: user }) %>
 
 <div class="d-flex justify-content-between align-items-center mb-4">
     <h1><%= t('dashboard.titleStudent') %></h1>
@@ -18,48 +18,48 @@
         <div class="card mb-4<% if (thesis.is_locked) { %> border-danger<% } %>">
             <div class="card-header<% if (thesis.is_locked) { %> bg-warning-subtle<% } %>">
                 <h5 class="mb-0">
-                    <% if (thesis.is_locked) { %><i class="bi bi-slash-circle-fill text-danger me-1" title="Diplomarbeit gesperrt"></i><% } %>
+                    <% if (thesis.is_locked) { %><i class="bi bi-slash-circle-fill text-danger me-1" title="<%= t('dashboard.thesisLocked') %>"></i><% } %>
                     <i class="bi bi-file-text"></i> <%= thesis.title %>
                 </h5>
             </div>
             <div class="card-body">
                 <div class="row">
                     <div class="col-md-6">
-                        <p><strong>Fachbereich:</strong> <%= thesis.department.name %></p>
+                        <p><strong><%= t('dashboard.department') %>:</strong> <%= thesis.department.name %></p>
                         <% if (thesis.sponsor) { %>
-                            <p><strong>Auftraggeber:</strong> <%= thesis.sponsor %></p>
+                            <p><strong><%= t('dashboard.headers.sponsor') %>:</strong> <%= thesis.sponsor %></p>
                         <% } %>
-                        <p><strong>Diplomjahr:</strong> <%= thesis.year.year %></p>
+                        <p><strong><%= t('dashboard.year') %>:</strong> <%= thesis.year.year %></p>
                     </div>
                     <div class="col-md-6 text-md-end">
                         <a href="/dashboard/thesis/<%= thesis.id %>" class="btn btn-primary">
-                            <i class="bi bi-eye"></i> Details & Meilensteine
+                            <i class="bi bi-eye"></i> <%= t('misc.viewDetails') %>
                         </a>
                     </div>
                 </div>
 
                 <div class="row mt-4">
                     <div class="col-md-4">
-                        <h6><i class="bi bi-people"></i> Studenten:</h6>
+                        <h6><i class="bi bi-people"></i> <%= t('dashboard.headers.students') %>:</h6>
                         <% thesis.students.forEach(function(s) { %>
-                            <div class="mb-2"><i class="bi bi-person-fill"></i> <%= s.name %>, <%= s.firstname %><% if (s.id === user.id) { %> <span class="badge bg-info ms-1">Sie</span><% } %><% if (thesis.is_repetent) { %> <span class="badge bg-warning text-dark ms-1"><i class="bi bi-arrow-repeat"></i> <%= t('dashboard.repetent') %></span><% } %></div>
+                            <div class="mb-2"><i class="bi bi-person-fill"></i> <%= s.name %>, <%= s.firstname %><% if (s.id === user.id) { %> <span class="badge bg-info ms-1"><%= t('misc.you') %></span><% } %><% if (thesis.is_repetent) { %> <span class="badge bg-warning text-dark ms-1"><i class="bi bi-arrow-repeat"></i> <%= t('dashboard.repetent') %></span><% } %></div>
                         <% }); %>
                     </div>
                     <div class="col-md-4">
-                        <h6><i class="bi bi-person-badge"></i> Dozent/innen:</h6>
+                        <h6><i class="bi bi-person-badge"></i> <%= t('dashboard.headers.coaches') %>:</h6>
                         <% thesis.coaches.forEach(function(c) { %>
                             <div class="mb-2"><i class="bi bi-person-fill"></i> <%= c.name %>, <%= c.firstname %></div>
                         <% }); %>
                     </div>
                     <div class="col-md-4">
-                        <h6><i class="bi bi-award"></i> ExpertInnen:</h6>
+                        <h6><i class="bi bi-award"></i> <%= t('dashboard.headers.experts') %>:</h6>
                         <% thesis.experts.forEach(function(e) { %>
                             <div class="mb-2"><i class="bi bi-person-fill"></i> <%= e.name %>, <%= e.firstname %></div>
                         <% }); %>
                     </div>
                     <% if (thesis.fieldProjectCoaches && thesis.fieldProjectCoaches.length > 0) { %>
                     <div class="col-md-4 mt-3">
-                        <h6><i class="bi bi-person-workspace"></i> Dozenten Transferprojekt:</h6>
+                        <h6><i class="bi bi-person-workspace"></i> <%= t('dashboard.headers.fieldProjectCoaches') %>:</h6>
                         <% thesis.fieldProjectCoaches.forEach(function(f) { %>
                             <div class="mb-2"><i class="bi bi-person-fill"></i> <%= f.name %>, <%= f.firstname %></div>
                         <% }); %>

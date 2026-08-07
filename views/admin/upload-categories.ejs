@@ -1,27 +1,27 @@
-<%- include('../partials/header', { title: 'Upload-Kategorien - ThesisBuddy', user: user }) %>
+<%- include('../partials/header', { title: t('uploadCatAdmin.pageTitle') + ' - ThesisBuddy', user: user }) %>
 
 <div class="page-breadcrumb mb-2">
-    <a href="/dashboard">Dashboard</a>
+    <a href="/dashboard"><%= t('nav.dashboard') %></a>
     <span class="sep"></span>
-    <span>Upload-Kategorien</span>
+    <span><%= t('uploadCatAdmin.breadcrumb') %></span>
 </div>
 <div class="page-header">
-    <h1 class="page-title">Upload-Kategorien</h1>
+    <h1 class="page-title"><%= t('uploadCatAdmin.pageTitle') %></h1>
 </div>
 
 <div class="card mb-4">
     <div class="card-header d-flex justify-content-between align-items-center">
-        <h5 class="mb-0"><i class="bi bi-tag"></i> Kategorien</h5>
+        <h5 class="mb-0"><i class="bi bi-tag"></i> <%= t('uploadCatAdmin.cardTitle') %></h5>
         <button class="btn btn-primary" onclick="openAddCategoryModal()">
-            <i class="bi bi-plus"></i> Kategorie hinzufügen
+            <i class="bi bi-plus"></i> <%= t('uploadCatAdmin.addCategory') %>
         </button>
     </div>
     <div class="card-body">
         <div class="alert alert-info mb-3">
             <i class="bi bi-info-circle"></i>
-            Deaktivierte Kategorien bleiben in der Datenbank erhalten, werden aber bei Uploads nicht mehr zur Auswahl angeboten.
+            <%= t('uploadCatAdmin.infoBanner') %>
         </div>
-        <div id="categoriesList"><p class="text-muted">Wird geladen…</p></div>
+        <div id="categoriesList"><p class="text-muted"><%= t('common.loading') %></p></div>
     </div>
 </div>
 
@@ -30,24 +30,24 @@
     <div class="modal-dialog">
         <div class="modal-content">
             <div class="modal-header">
-                <h5 class="modal-title" id="categoryFormTitle">Kategorie hinzufügen</h5>
+                <h5 class="modal-title" id="categoryFormTitle"><%= t('uploadCatAdmin.modal.addTitle') %></h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
             </div>
             <form id="categoryForm">
                 <div class="modal-body">
                     <input type="hidden" id="categoryId">
                     <div class="mb-3">
-                        <label class="form-label">Bezeichnung (Deutsch)</label>
+                        <label class="form-label"><%= t('uploadCatAdmin.modal.labelDe') %></label>
                         <input type="text" class="form-control" id="categoryLabel" maxlength="120" required autofocus>
                     </div>
                     <div class="mb-3">
-                        <label class="form-label">Bezeichnung (Französisch)</label>
-                        <input type="text" class="form-control" id="categoryLabelFr" maxlength="120" placeholder="optional – Fallback auf DE">
+                        <label class="form-label"><%= t('uploadCatAdmin.modal.labelFr') %></label>
+                        <input type="text" class="form-control" id="categoryLabelFr" maxlength="120" placeholder="<%= t('uploadCatAdmin.modal.labelFrPlaceholder') %>">
                     </div>
                 </div>
                 <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Abbrechen</button>
-                    <button type="submit" class="btn btn-primary">Speichern</button>
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal"><%= t('common.cancel') %></button>
+                    <button type="submit" class="btn btn-primary"><%= t('common.save') %></button>
                 </div>
             </form>
         </div>
@@ -55,6 +55,29 @@
 </div>
 
 <script>
+const L = {
+    noCategories: <%- JSON.stringify(t('uploadCatAdmin.noCategories')) %>,
+    loadError: <%- JSON.stringify(t('uploadCatAdmin.loadError')) %>,
+    table: {
+        labelDe: <%- JSON.stringify(t('uploadCatAdmin.table.labelDe')) %>,
+        labelFr: <%- JSON.stringify(t('uploadCatAdmin.table.labelFr')) %>,
+        status: <%- JSON.stringify(t('uploadCatAdmin.table.status')) %>,
+        actions: <%- JSON.stringify(t('uploadCatAdmin.table.actions')) %>
+    },
+    active: <%- JSON.stringify(t('uploadCatAdmin.active')) %>,
+    deactivated: <%- JSON.stringify(t('uploadCatAdmin.deactivated')) %>,
+    deactivate: <%- JSON.stringify(t('uploadCatAdmin.deactivate')) %>,
+    activate: <%- JSON.stringify(t('uploadCatAdmin.activate')) %>,
+    addTitle: <%- JSON.stringify(t('uploadCatAdmin.modal.addTitle')) %>,
+    editTitle: <%- JSON.stringify(t('uploadCatAdmin.modal.editTitle')) %>,
+    errorPrefix: <%- JSON.stringify(t('templatesPage.errorPrefix')) %>,
+    unknown: <%- JSON.stringify(t('uploadCatAdmin.errors.unknown')) %>,
+    saveError: <%- JSON.stringify(t('uploadCatAdmin.errors.save')) %>,
+    toggleError: <%- JSON.stringify(t('uploadCatAdmin.errors.toggle')) %>,
+    deleteError: <%- JSON.stringify(t('uploadCatAdmin.errors.delete')) %>,
+    deleteConfirm: <%- JSON.stringify(t('uploadCatAdmin.deleteConfirm')) %>
+};
+
 function esc(s){ return (s||'').replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
 
 function loadCategories() {
@@ -63,16 +86,16 @@ function loadCategories() {
         .then(cats => {
             const el = document.getElementById('categoriesList');
             if (!Array.isArray(cats) || cats.length === 0) {
-                el.innerHTML = '<p class="text-muted mb-0">Noch keine Kategorien erfasst.</p>';
+                el.innerHTML = `<p class="text-muted mb-0">${L.noCategories}</p>`;
                 return;
             }
             el.innerHTML = `
                 <div class="table-responsive"><table class="table">
                     <thead><tr>
-                        <th>Bezeichnung DE</th>
-                        <th>Bezeichnung FR</th>
-                        <th>Status</th>
-                        <th class="text-end">Aktionen</th>
+                        <th>${L.table.labelDe}</th>
+                        <th>${L.table.labelFr}</th>
+                        <th>${L.table.status}</th>
+                        <th class="text-end">${L.table.actions}</th>
                     </tr></thead>
                     <tbody>
                         ${cats.map(c => `
@@ -80,11 +103,11 @@ function loadCategories() {
                                 <td><strong>${esc(c.label)}</strong></td>
                                 <td>${esc(c.label_fr || '')}</td>
                                 <td>${c.is_active
-                                    ? '<span class="status-pill success">Aktiv</span>'
-                                    : '<span class="status-pill">Deaktiviert</span>'}</td>
+                                    ? `<span class="status-pill success">${L.active}</span>`
+                                    : `<span class="status-pill">${L.deactivated}</span>`}</td>
                                 <td class="text-end">
                                     <button class="btn btn-outline-secondary btn-sm" onclick="toggleCategory(${c.id}, ${!c.is_active})">
-                                        ${c.is_active ? '<i class="bi bi-toggle-off"></i> Deaktivieren' : '<i class="bi bi-toggle-on"></i> Aktivieren'}
+                                        ${c.is_active ? `<i class="bi bi-toggle-off"></i> ${L.deactivate}` : `<i class="bi bi-toggle-on"></i> ${L.activate}`}
                                     </button>
                                     <button class="btn btn-outline-primary btn-sm" onclick='openEditCategoryModal(${JSON.stringify(c).replace(/'/g, "&#39;")})'>
                                         <i class="bi bi-pencil"></i>
@@ -98,14 +121,14 @@ function loadCategories() {
         })
         .catch(err => {
             console.error(err);
-            document.getElementById('categoriesList').innerHTML = '<div class="alert alert-danger">Fehler beim Laden</div>';
+            document.getElementById('categoriesList').innerHTML = `<div class="alert alert-danger">${L.loadError}</div>`;
         });
 }
 
 function openAddCategoryModal() {
     document.getElementById('categoryForm').reset();
     document.getElementById('categoryId').value = '';
-    document.getElementById('categoryFormTitle').textContent = 'Kategorie hinzufügen';
+    document.getElementById('categoryFormTitle').textContent = L.addTitle;
     new bootstrap.Modal(document.getElementById('categoryFormModal')).show();
 }
 
@@ -114,7 +137,7 @@ function openEditCategoryModal(c) {
     document.getElementById('categoryId').value = c.id;
     document.getElementById('categoryLabel').value = c.label;
     document.getElementById('categoryLabelFr').value = c.label_fr || '';
-    document.getElementById('categoryFormTitle').textContent = 'Kategorie bearbeiten';
+    document.getElementById('categoryFormTitle').textContent = L.editTitle;
     new bootstrap.Modal(document.getElementById('categoryFormModal')).show();
 }
 
@@ -134,9 +157,9 @@ document.getElementById('categoryForm').addEventListener('submit', (e) => {
         if (d.success) {
             bootstrap.Modal.getInstance(document.getElementById('categoryFormModal')).hide();
             loadCategories();
-        } else alert('Fehler: ' + (d.message || 'Unbekannt'));
+        } else alert(L.errorPrefix + (d.message || L.unknown));
     })
-    .catch(err => { console.error(err); alert('Fehler beim Speichern'); });
+    .catch(err => { console.error(err); alert(L.saveError); });
 });
 
 function toggleCategory(id, makeActive) {
@@ -146,16 +169,16 @@ function toggleCategory(id, makeActive) {
         body: JSON.stringify({ is_active: makeActive })
     })
     .then(r => r.json())
-    .then(d => { if (d.success) loadCategories(); else alert('Fehler: ' + (d.message || 'Unbekannt')); })
-    .catch(err => { console.error(err); alert('Fehler beim Wechseln des Status'); });
+    .then(d => { if (d.success) loadCategories(); else alert(L.errorPrefix + (d.message || L.unknown)); })
+    .catch(err => { console.error(err); alert(L.toggleError); });
 }
 
 function deleteCategory(id, label) {
-    if (!confirm(`Kategorie „${label}" wirklich löschen?`)) return;
+    if (!confirm(L.deleteConfirm.replace('{{label}}', label))) return;
     fetch('/api/upload-categories/' + id, { method: 'DELETE' })
         .then(r => r.json())
-        .then(d => { if (d.success) loadCategories(); else alert('Fehler: ' + (d.message || 'Unbekannt')); })
-        .catch(err => { console.error(err); alert('Fehler beim Löschen'); });
+        .then(d => { if (d.success) loadCategories(); else alert(L.errorPrefix + (d.message || L.unknown)); })
+        .catch(err => { console.error(err); alert(L.deleteError); });
 }
 
 loadCategories();
