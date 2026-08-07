@@ -182,6 +182,23 @@
     "department_lead": "Direction de filière",
     "field_project_coach": "Enseignant·e projet de transfert"
   },
+  "templatesPage": {
+    "subtitle": "Modèles et documents à télécharger",
+    "thesisFallback": "Travail de diplôme",
+    "backToThesis": "Retour au travail de diplôme",
+    "uploadTemplate": "Téléverser un modèle",
+    "loading": "Chargement des modèles…",
+    "none": "Aucun modèle disponible pour l'instant.",
+    "description": "Description",
+    "descriptionHelp": "Affiché dans la liste alphabétique.",
+    "file": "Fichier",
+    "fileHelp": "Word, Excel, PowerPoint ou PDF, 50 Mo max.",
+    "deleteConfirm": "Supprimer vraiment le modèle « {{name}} » ?",
+    "deleteFailed": "Échec de la suppression",
+    "uploadFailed": "Échec du téléversement",
+    "errorPrefix": "Erreur : ",
+    "genericError": "Erreur"
+  },
   "department": {
     "studyMode": "Forme d'études",
     "studyModeSelect": "Sélectionner la forme d'études…",

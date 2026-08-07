@@ -182,6 +182,23 @@
     "department_lead": "FachbereichsleiterIn",
     "field_project_coach": "Dozent Transferprojekt"
   },
+  "templatesPage": {
+    "subtitle": "Vorlagen und Dokumente zum Herunterladen",
+    "thesisFallback": "Diplomarbeit",
+    "backToThesis": "Zurück zur Diplomarbeit",
+    "uploadTemplate": "Vorlage hochladen",
+    "loading": "Lade Vorlagen…",
+    "none": "Noch keine Vorlagen vorhanden.",
+    "description": "Beschreibung",
+    "descriptionHelp": "Wird in der alphabetischen Liste angezeigt.",
+    "file": "Datei",
+    "fileHelp": "Word, Excel, PowerPoint oder PDF, max. 50 MB.",
+    "deleteConfirm": "Vorlage „{{name}}\" wirklich löschen?",
+    "deleteFailed": "Löschen fehlgeschlagen",
+    "uploadFailed": "Upload fehlgeschlagen",
+    "errorPrefix": "Fehler: ",
+    "genericError": "Fehler"
+  },
   "department": {
     "studyMode": "Studienform",
     "studyModeSelect": "Studienform auswählen…",

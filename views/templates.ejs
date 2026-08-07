@@ -1,32 +1,32 @@
-<%- include('partials/header', { title: 'Informationen - ThesisBuddy', user: user }) %>
+<%- include('partials/header', { title: t('nav.documentTemplates') + ' - ThesisBuddy', user: user }) %>
 
 <%
 const canManage = ['admin', 'department_lead'].includes(user.role);
 %>
 
 <div class="page-breadcrumb mb-2">
-    <a href="/dashboard">Dashboard</a>
+    <a href="/dashboard"><%= t('nav.dashboard') %></a>
     <% if (fromThesisId) { %>
         <span class="sep"></span>
-        <a href="/dashboard/thesis/<%= fromThesisId %>"><%= fromThesisTitle || 'Diplomarbeit' %></a>
+        <a href="/dashboard/thesis/<%= fromThesisId %>"><%= fromThesisTitle || t('templatesPage.thesisFallback') %></a>
     <% } %>
     <span class="sep"></span>
-    <span>Informationen</span>
+    <span><%= t('nav.documentTemplates') %></span>
 </div>
 <div class="page-header">
     <div>
-        <h1 class="page-title">Informationen</h1>
-        <div class="page-subtitle">Vorlagen und Dokumente zum Herunterladen</div>
+        <h1 class="page-title"><%= t('nav.documentTemplates') %></h1>
+        <div class="page-subtitle"><%= t('templatesPage.subtitle') %></div>
     </div>
     <div class="page-actions">
         <% if (fromThesisId) { %>
             <a href="/dashboard/thesis/<%= fromThesisId %>" class="btn btn-outline-secondary">
-                <i class="bi bi-arrow-left"></i> Zurück zur Diplomarbeit
+                <i class="bi bi-arrow-left"></i> <%= t('templatesPage.backToThesis') %>
             </a>
         <% } %>
         <% if (canManage) { %>
             <button class="btn btn-primary" type="button" onclick="openUploadTemplateModal()">
-                <i class="bi bi-upload"></i> Vorlage hochladen
+                <i class="bi bi-upload"></i> <%= t('templatesPage.uploadTemplate') %>
             </button>
         <% } %>
     </div>
@@ -36,7 +36,7 @@ const canManage = ['admin', 'department_lead'].includes(user.role);
     <div class="card-body">
         <div id="templatesList">
             <div class="text-center py-4 text-muted">
-                <i class="bi bi-hourglass-split"></i> Lade Vorlagen…
+                <i class="bi bi-hourglass-split"></i> <%= t('templatesPage.loading') %>
             </div>
         </div>
     </div>
@@ -48,27 +48,27 @@ const canManage = ['admin', 'department_lead'].includes(user.role);
     <div class="modal-dialog">
         <div class="modal-content">
             <div class="modal-header">
-                <h5 class="modal-title">Vorlage hochladen</h5>
+                <h5 class="modal-title"><%= t('templatesPage.uploadTemplate') %></h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
             </div>
             <form id="uploadTemplateForm" enctype="multipart/form-data">
                 <div class="modal-body">
                     <div class="mb-3">
-                        <label for="tplDescription" class="form-label">Beschreibung</label>
+                        <label for="tplDescription" class="form-label"><%= t('templatesPage.description') %></label>
                         <input type="text" class="form-control" id="tplDescription" name="description" maxlength="255" required>
-                        <div class="form-text">Wird in der alphabetischen Liste angezeigt.</div>
+                        <div class="form-text"><%= t('templatesPage.descriptionHelp') %></div>
                     </div>
                     <div class="mb-3">
-                        <label for="tplFile" class="form-label">Datei</label>
+                        <label for="tplFile" class="form-label"><%= t('templatesPage.file') %></label>
                         <input type="file" class="form-control" id="tplFile" name="file" required
                                accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-powerpoint,application/vnd.openxmlformats-officedocument.presentationml.presentation">
-                        <div class="form-text">Word, Excel, PowerPoint oder PDF, max. 50 MB.</div>
+                        <div class="form-text"><%= t('templatesPage.fileHelp') %></div>
                     </div>
                     <div id="uploadTemplateError" class="alert alert-danger d-none" role="alert"></div>
                 </div>
                 <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Abbrechen</button>
-                    <button type="submit" class="btn btn-primary"><i class="bi bi-upload"></i> Hochladen</button>
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal"><%= t('common.cancel') %></button>
+                    <button type="submit" class="btn btn-primary"><i class="bi bi-upload"></i> <%= t('common.upload') %></button>
                 </div>
             </form>
         </div>
@@ -78,6 +78,16 @@ const canManage = ['admin', 'department_lead'].includes(user.role);
 
 <script>
 const CAN_MANAGE = <%= canManage ? 'true' : 'false' %>;
+// Übersetzte Texte für die clientseitige Logik (Apostroph-sicher via JSON.stringify)
+const L = {
+    none: <%- JSON.stringify(t('templatesPage.none')) %>,
+    download: <%- JSON.stringify(t('common.download')) %>,
+    deleteConfirm: <%- JSON.stringify(t('templatesPage.deleteConfirm')) %>,
+    deleteFailed: <%- JSON.stringify(t('templatesPage.deleteFailed')) %>,
+    uploadFailed: <%- JSON.stringify(t('templatesPage.uploadFailed')) %>,
+    errorPrefix: <%- JSON.stringify(t('templatesPage.errorPrefix')) %>,
+    genericError: <%- JSON.stringify(t('templatesPage.genericError')) %>,
+};
 
 const ICON_BY_MIME = {
     'application/pdf': 'bi-file-earmark-pdf',
@@ -104,10 +114,10 @@ async function loadTemplates() {
     try {
         const res = await fetch('/api/document-templates');
         const data = await res.json();
-        if (!data.success) throw new Error(data.message || 'Fehler');
+        if (!data.success) throw new Error(data.message || L.genericError);
         const rows = data.templates || [];
         if (rows.length === 0) {
-            container.innerHTML = '<div class="text-center py-4 text-muted">Noch keine Vorlagen vorhanden.</div>';
+            container.innerHTML = '<div class="text-center py-4 text-muted">' + escapeHtml(L.none) + '</div>';
             return;
         }
         const html = rows.map(r => `
@@ -118,7 +128,7 @@ async function loadTemplates() {
                     <div class="small text-muted">${escapeHtml(r.original_filename)} · ${fmtSize(r.size_bytes)}</div>
                 </div>
                 <a href="/api/document-templates/${r.id}/download" class="btn btn-sm btn-outline-primary me-2">
-                    <i class="bi bi-download"></i> Download
+                    <i class="bi bi-download"></i> ${escapeHtml(L.download)}
                 </a>
                 ${CAN_MANAGE ? `<button class="btn btn-sm btn-outline-danger" onclick="deleteTemplate(${r.id}, '${escapeAttr(r.description)}')">
                     <i class="bi bi-trash"></i>
@@ -141,11 +151,11 @@ function escapeAttr(s) {
 }
 
 async function deleteTemplate(id, description) {
-    if (!confirm(`Vorlage „${description}" wirklich löschen?`)) return;
+    if (!confirm(L.deleteConfirm.replace('{{name}}', description))) return;
     const res = await fetch(`/api/document-templates/${id}`, { method: 'DELETE' });
     const d = await res.json().catch(() => ({}));
     if (d.success) loadTemplates();
-    else alert('Fehler: ' + (d.message || 'Löschen fehlgeschlagen'));
+    else alert(L.errorPrefix + (d.message || L.deleteFailed));
 }
 
 function openUploadTemplateModal() {
@@ -167,7 +177,7 @@ if (uploadForm) {
             bootstrap.Modal.getInstance(document.getElementById('uploadTemplateModal')).hide();
             loadTemplates();
         } else {
-            errBox.textContent = d.message || 'Upload fehlgeschlagen';
+            errBox.textContent = d.message || L.uploadFailed;
             errBox.classList.remove('d-none');
         }
     });
