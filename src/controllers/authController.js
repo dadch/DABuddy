@@ -2,6 +2,15 @@ const { User, UserRole, Year, Thesis } = require('../models');
 const { Op, fn, col, where } = require('sequelize');
 const crypto = require('crypto');
 
+// Nach dem Login zur ursprünglich angeforderten Seite zurückkehren (von
+// requireAuth in der Session hinterlegt). Nur interne Pfade zulassen.
+const consumeReturnTo = (req) => {
+  const target = req.session.returnTo;
+  delete req.session.returnTo;
+  return (typeof target === 'string' && target.startsWith('/') && !target.startsWith('//'))
+    ? target : '/dashboard';
+};
+
 // ---------- M365 / Microsoft Entra ID Login (Single-Tenant @hftm.ch) ----------
 
 let _msalClient = null;
@@ -129,7 +138,7 @@ const microsoftCallback = async (req, res) => {
     req.session.language = user.language || 'de';
 
     req.flash('success', `Willkommen zurück, ${user.firstname}!`);
-    return res.redirect('/dashboard');
+    return res.redirect(consumeReturnTo(req));
   } catch (e) {
     console.error('microsoftCallback error:', e);
     req.flash('error', 'M365-Login fehlgeschlagen.');
@@ -238,7 +247,7 @@ const processLogin = async (req, res) => {
     req.session.language = user.language || 'de';
 
     req.flash('success', `Willkommen zurück, ${user.firstname}!`);
-    res.redirect('/dashboard');
+    res.redirect(consumeReturnTo(req));
 
   } catch (error) {
     console.error('Login error:', error);

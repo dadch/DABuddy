@@ -1,5 +1,11 @@
 const requireAuth = async (req, res, next) => {
   if (!req.session || !req.session.userId) {
+    // Ziel-URL merken (nur interne GET-Ziele), damit z.B. Mail-Links nach dem
+    // Login direkt zur gewünschten Seite führen statt aufs Dashboard.
+    if (req.session && req.method === 'GET' && typeof req.originalUrl === 'string'
+        && req.originalUrl.startsWith('/') && !req.originalUrl.startsWith('//')) {
+      req.session.returnTo = req.originalUrl;
+    }
     req.flash('error', 'Bitte melden Sie sich an, um auf diese Seite zuzugreifen.');
     return res.redirect('/login');
   }

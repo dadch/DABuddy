@@ -129,6 +129,13 @@ async function startServer() {
     } catch (e) {
       console.warn('[reminderJob] konnte nicht gestartet werden:', e.message);
     }
+
+    // Chat-Benachrichtigungen (Cron, minütlich; Versand 5 Min. verzögert).
+    try {
+      require('./src/jobs/chatNotifyJob').start();
+    } catch (e) {
+      console.warn('[chatNotify] konnte nicht gestartet werden:', e.message);
+    }
   } catch (error) {
     console.error('Unable to start server:', error);
     process.exit(1);

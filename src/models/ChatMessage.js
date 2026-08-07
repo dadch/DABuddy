@@ -12,6 +12,8 @@ const ChatMessage = sequelize.define('ChatMessage', {
   document_filename: { type: DataTypes.STRING, allowNull: true },
   document_mimetype: { type: DataTypes.STRING, allowNull: true },
   document_size: { type: DataTypes.INTEGER, allowNull: true },
+  // Zeitpunkt der Mail-Benachrichtigung an die Beteiligten (NULL = ausstehend).
+  notified_at: { type: DataTypes.DATE, allowNull: true },
 }, {
   tableName: 'chat_messages',
 });
