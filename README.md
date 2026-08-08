@@ -158,6 +158,58 @@ der Reminder-Job manuell angestossen werden.
 - Mail-Erinnerungen für Bewerter/Approver mit Cron-Scheduler, Per-Kind-Fälligkeiten,
   Prod-Override und Admin-Test-UI.
 
+## Sicherheit — offene Punkte (Backlog)
+
+Ergebnis eines internen Security-Audits (Stand 2026-08-07). **Bereits umgesetzt**
+(Commit „Sicherheitshärtung …"): XSS-Sanitizing der Markdown-Ausgabe via DOMPurify,
+Rate-Limiting + Dummy-bcrypt am Login, `trust proxy`, Passwort-Login nur für Admins
+inkl. Zufallspasswörter für Nicht-Admins und Admin-Passwort-Policy (≥12 Zeichen).
+
+Die folgenden Befunde sind **noch offen** und später anzugehen (nach Schweregrad):
+
+### Mittel
+
+- [ ] **CSRF-Schutz fehlt.** Alle zustandsändernden Routen (`src/routes/api.js`) sind
+  rein cookie-session-basiert; kein Token/Origin-Check. Aktuell nur durch den
+  Browser-Default gemildert. Umsetzen: CSRF-Token oder Origin-Header-Prüfung,
+  `cookie.sameSite='lax'` **explizit** setzen, `GET /logout` auf POST umstellen
+  (`src/routes/auth.js`).
+- [ ] **Session-Fixation:** keine Session-Rotation. Vor dem Setzen der Auth-Felder
+  `req.session.regenerate()` aufrufen — in `processLogin` und `microsoftCallback`
+  (`src/controllers/authController.js`) sowie beim Rollenwechsel `switchActiveRole`
+  (`src/controllers/apiController.js`).
+- [ ] **Cookie-Härtung:** `cookie.secure` in Produktion auf `true`
+  (`app.js`, Session-Config ~Z. 30–40). `trust proxy` ist bereits gesetzt.
+- [ ] **`SESSION_SECRET`-Fallback** `'your-secret-key'` entfernen — bei fehlender
+  Env-Variable Fail-Fast (Startabbruch) statt öffentlich bekanntem Default
+  (`app.js:31`).
+- [ ] **Security-Header (helmet):** CSP, `X-Frame-Options: DENY` (Clickjacking),
+  HSTS, `X-Content-Type-Options: nosniff` ergänzen (`app.js`). CSP muss die
+  genutzten jsDelivr-CDNs (Bootstrap, marked, DOMPurify, EasyMDE) erlauben.
+- [ ] **Rate-Limiting auf teuren Endpunkten:** LLM-Feedback
+  (`POST /api/thesis-milestones/:id/feedback/generate` → Anthropic-Kosten),
+  PDF-Generierung und Bulk-ZIP (`src/routes/api.js`) pro Benutzer drosseln.
+
+### Niedrig
+
+- [ ] **FPC-Überzugriff:** „Dozent Transferprojekt" kann Meilenstein-Metadaten
+  *aller* Meilensteine sowie den kompletten Chat einer zugewiesenen DA lesen —
+  das `isFpcBlocked`-Muster fehlt in `getThesisMilestones` (~Z. 1717) und den
+  Chat-Handlern `getChatMessages`/`postChatMessage`/`downloadChatAttachment`
+  (~Z. 2625–2744, `src/controllers/apiController.js`). Policy festlegen und filtern.
+- [ ] **Content-Disposition-Dateiname ungefiltert** bei vier Direkt-Downloads
+  (`apiController.js` ~Z. 2093, 2213, 2363, 2738) — RFC-6266-konform kodieren
+  (die ZIP-Downloads machen es via `sanitizeFilenamePart` bereits korrekt).
+- [ ] **500 statt 4xx bei fehlendem Request-Body** (Express 5: `req.body` kann
+  `undefined` sein), z. B. `switchActiveRole`. `req.body`-Zugriffe absichern
+  (globaler Guard oder `req.body || {}`).
+- [ ] **Temporärer Datei-Write vor Access-Check** bei Uploads
+  (`uploadThesisMilestoneDocument`, `postChatMessage`): Multer schreibt vor der
+  Berechtigungsprüfung; Access-Check nach Möglichkeit vorziehen.
+- [ ] **PKCE fehlt** im M365-Flow (`startMicrosoftLogin`). Da Confidential Client
+  mit Client-Secret, geringes Risiko; bei Gelegenheit ergänzen. `state` wird
+  bereits geprüft.
+
 ## Contributing
 
 This is an academic project. Please follow standard coding practices and ensure all tests pass before submitting changes.
