@@ -5,6 +5,7 @@ const fs = require('fs');
 const path = require('path');
 const { PDFDocument } = require('pdf-lib');
 const archiver = require('archiver');
+const { randomPassword, adminPasswordError } = require('../utils/passwordPolicy');
 
 const CONFIDENTIALITY_TEMPLATE_PATH = path.join(__dirname, '../../beispiele/Geheimhaltungsvereinbarung.pdf');
 
@@ -617,7 +618,13 @@ const createUser = async (req, res) => {
     const existing = await User.findOne({ where: { [Op.or]: [{ username }, { email }] } });
     if (existing) return res.status(400).json({ success: false, message: 'Benutzername oder E-Mail existiert bereits' });
 
-    const user = await User.create({ username, password, firstname, name, email, role, phone: phone || null });
+    const pwErr = adminPasswordError(role, password);
+    if (pwErr) return res.status(400).json({ success: false, message: pwErr });
+
+    // Nur Administratoren nutzen den lokalen Passwort-Login; andere Rollen
+    // erhalten ein zufälliges, nicht verwendbares Passwort (Anmeldung via M365).
+    const effectivePassword = role === 'admin' ? password : randomPassword();
+    const user = await User.create({ username, password: effectivePassword, firstname, name, email, role, phone: phone || null });
 
     if (departments && departments.length > 0) {
       const deptObjs = await Department.findAll({ where: { id: departments } });
@@ -738,7 +745,15 @@ const updateUser = async (req, res) => {
 
     const updateData = { username, firstname, name, email, role };
     if (phone !== undefined) updateData.phone = phone || null;
-    if (password && password.trim() !== '') updateData.password = password;
+    if (password && password.trim() !== '') {
+      const pwErr = adminPasswordError(role, password);
+      if (pwErr) return res.status(400).json({ success: false, message: pwErr });
+      updateData.password = password;
+    } else if (role === 'admin' && user.role !== 'admin') {
+      // Beförderung zum Admin ohne gesetztes Passwort: bisheriges Passwort ist
+      // zufällig/unbrauchbar — ein Admin-Passwort muss explizit gesetzt werden.
+      return res.status(400).json({ success: false, message: 'Für ein Admin-Konto muss ein Passwort (mind. 12 Zeichen) gesetzt werden.' });
+    }
 
     await user.update(updateData);
 
@@ -927,7 +942,6 @@ const updateUserDepartments = async (req, res) => {
 
 // ---------- Student management (admin + department_lead) ----------
 
-const STUDENT_DEFAULT_PASSWORD = 'password123';
 const VALID_GENDERS = ['m', 'w', 'd'];
 
 const getLedDepartmentIds = async (userId) => {
@@ -980,7 +994,8 @@ const createStudentRecord = async ({ name, firstname, email, gender, department,
     username = await generateUsername(email);
   }
   const user = await User.create({
-    username, password: STUDENT_DEFAULT_PASSWORD, name, firstname, email, role: 'student', gender, phone,
+    // Studierende melden sich über M365 an — zufälliges, nicht verwendbares Passwort.
+    username, password: randomPassword(), name, firstname, email, role: 'student', gender, phone,
     year_id: yearId || null,
   });
   await user.setDepartments([dep.id]);
@@ -1217,7 +1232,9 @@ const createDepartmentLeadUser = async (req, res) => {
     const existing = await User.findOne({ where: { [Op.or]: [{ username }, { email }] } });
     if (existing) return res.status(400).json({ success: false, message: 'Benutzername oder E-Mail existiert bereits' });
 
-    const user = await User.create({ username, password, firstname, name, email, role, phone: phone || null });
+    // FachbereichsleiterInnen legen nur Dozent/Experte-Konten an (nie Admin);
+    // diese melden sich über M365 an → zufälliges, nicht verwendbares Passwort.
+    const user = await User.create({ username, password: randomPassword(), firstname, name, email, role, phone: phone || null });
     if (departments && departments.length > 0) {
       const deptObjs = await Department.findAll({ where: { id: departments } });
       await user.setDepartments(deptObjs);

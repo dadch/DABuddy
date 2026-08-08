@@ -15,6 +15,11 @@ const apiRoutes = require('./src/routes/api');
 const app = express();
 const PORT = process.env.PORT || 3000;
 
+// Hinter genau einem Reverse Proxy (TLS-Terminierung). Nötig, damit die echte
+// Client-IP (X-Forwarded-For) für das Login-Rate-Limiting verwendet wird und
+// damit später secure-Cookies korrekt funktionieren.
+app.set('trust proxy', 1);
+
 app.set('view engine', 'ejs');
 app.set('views', path.join(__dirname, 'views'));
 
