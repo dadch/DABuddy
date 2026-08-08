@@ -1,6 +1,11 @@
 const { User, UserRole, Year, Thesis } = require('../models');
 const { Op, fn, col, where } = require('sequelize');
 const crypto = require('crypto');
+const bcrypt = require('bcrypt');
+
+// Fixer Dummy-Hash für einen konstanten bcrypt-Vergleich, wenn kein Benutzer
+// gefunden wurde — verhindert Timing-basierte Benutzer-Enumeration am Login.
+const DUMMY_PASSWORD_HASH = bcrypt.hashSync('dummy-password-for-timing-equalisation', 10);
 
 // Nach dem Login zur ursprünglich angeforderten Seite zurückkehren (von
 // requireAuth in der Session hinterlegt). Nur interne Pfade zulassen.
@@ -206,6 +211,9 @@ const processLogin = async (req, res) => {
     });
 
     if (!user) {
+      // Konstanter bcrypt-Vergleich, damit die Antwortzeit nicht verrät, ob der
+      // Benutzer existiert.
+      await bcrypt.compare(password, DUMMY_PASSWORD_HASH);
       req.flash('error', 'Benutzername oder Passwort ungültig');
       return res.redirect('/login');
     }
@@ -217,9 +225,18 @@ const processLogin = async (req, res) => {
       return res.redirect('/login');
     }
 
+    const roles = await getUserRoles(user.id);
+
+    // Der lokale Passwort-Login ist ausschliesslich für Administratoren
+    // gedacht. Alle anderen Rollen melden sich über M365 an (ihre lokalen
+    // Passwörter sind zufällig und nicht verwendbar).
+    if (!roles.includes('admin')) {
+      req.flash('error', 'Für dieses Konto ist die Anmeldung nur über den M365-Login möglich.');
+      return res.redirect('/login');
+    }
+
     // Gesperrte Arbeit: Studierende, deren Diplomarbeit gesperrt wurde
     // (z.B. wegen Abbruch), dürfen sich nicht mehr einloggen.
-    const roles = await getUserRoles(user.id);
     if (roles.includes('student')) {
       const lockedThesis = await user.getStudentTheses({
         where: { is_locked: true },

@@ -28,6 +28,7 @@
     "ejs": "^3.1.10",
     "express": "^5.1.0",
     "express-flash": "^0.0.2",
+    "express-rate-limit": "^8.6.2",
     "express-session": "^1.18.1",
     "i18next": "^26.3.1",
     "i18next-fs-backend": "^2.6.6",
