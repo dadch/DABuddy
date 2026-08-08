@@ -80,7 +80,20 @@
       "Bash(/usr/bin/grep -n \"snapshotMilestonesForThesis\" src/controllers/apiController.js)",
       "Bash(/usr/bin/grep -E \"^[0-9]|Snapshots\")",
       "Bash(/usr/bin/grep -n \"createThesisMilestoneFromTemplate\" src/controllers/apiController.js)",
-      "Bash(/usr/bin/grep -n \"const createThesisMilestoneFromTemplate\" -A 30 src/controllers/apiController.js)"
+      "Bash(/usr/bin/grep -n \"const createThesisMilestoneFromTemplate\" -A 30 src/controllers/apiController.js)",
+      "Bash(/usr/bin/grep -rnE \"password\" src/routes/*.js)",
+      "Bash(/usr/bin/grep -rn \"reset-admin-password\\\\|changePassword\\\\|updateProfile\" src/ views/profile.ejs)",
+      "Bash(/usr/bin/grep -n \"STUDENT_DEFAULT_PASSWORD\\\\|password123\\\\|randomBytes\" src/controllers/apiController.js)",
+      "Bash(/usr/bin/grep -n \"STUDENT_DEFAULT_PASSWORD\" src/controllers/apiController.js)",
+      "Bash(/usr/bin/grep -n \"await User.create\\({ username, password, firstname, name, email, role\" src/controllers/apiController.js)",
+      "Bash(/usr/bin/grep -nE \"password:\" src/controllers/apiController.js)",
+      "Bash(/usr/bin/grep -n \"password\")",
+      "Bash(/usr/bin/grep -n \"const createStudent\\\\|const updateStudent\" src/controllers/apiController.js)",
+      "Bash(npm i *)",
+      "Bash(git restore *)",
+      "Bash(git checkout *)",
+      "Bash(git merge *)",
+      "Bash(git branch *)"
     ],
     "deny": []
   }
