@@ -11,6 +11,7 @@ const { i18next, middleware: i18nMiddleware, SUPPORTED_LANGUAGES, FALLBACK_LANGU
 const authRoutes = require('./src/routes/auth');
 const dashboardRoutes = require('./src/routes/dashboard');
 const apiRoutes = require('./src/routes/api');
+const rejectEncodedBodies = require('./src/middleware/rejectEncodedBodies');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -24,6 +25,8 @@ app.set('view engine', 'ejs');
 app.set('views', path.join(__dirname, 'views'));
 
 app.use(express.static(path.join(__dirname, 'public')));
+// Muss vor den Body-Parsern stehen (siehe src/middleware/rejectEncodedBodies.js).
+app.use(rejectEncodedBodies);
 app.use(express.urlencoded({ extended: true }));
 // 2 MB statt 100 kB Default: Import von Bewertungsformularen (.tbform) kann grösser sein
 app.use(express.json({ limit: '2mb' }));
