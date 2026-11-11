@@ -131,6 +131,9 @@ async function startServer() {
       console.log(`ThesisBuddy server running on http://localhost:${PORT}`);
     });
 
+    // Öffentliche Basis-URL für Mail-Links prüfen (fehlt sie, zeigen Links auf localhost).
+    require('./src/config/appUrl').warnIfUnconfigured();
+
     // Reminder-Scheduler starten (Cron, standardmässig täglich 07:00).
     try {
       require('./src/jobs/reminderJob').start();

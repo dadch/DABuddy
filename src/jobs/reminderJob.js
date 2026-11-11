@@ -22,6 +22,7 @@ const {
 const mailer = require('../config/mailer');
 const { getNow } = require('../config/simulatedToday');
 const appSettings = require('../config/appSettings');
+const { getAppUrl } = require('../config/appUrl');
 const { buildThesesCsv } = require('../utils/thesesCsv');
 const fs = require('fs');
 const path = require('path');
@@ -102,8 +103,6 @@ function pickLang(user) {
 
 // ---- Mail-Templates --------------------------------------------------------
 
-const APP_URL = () => process.env.APP_URL || 'http://localhost:3000';
-
 function evaluatorMail(recipient, thesis, dueAt, lang) {
   const student = (thesis.students || [])[0] || { firstname: '?', name: '?' };
   const dueStr = new Date(dueAt).toLocaleDateString(lang === 'fr' ? 'fr-CH' : 'de-CH');
@@ -115,7 +114,7 @@ function evaluatorMail(recipient, thesis, dueAt, lang) {
 
 Dans le travail de diplôme de ${student.firstname} ${student.name}, l'évaluation doit être saisie. Veuillez la terminer d'ici au ${dueStr}.
 
-Le lien suivant t'amène directement à la plateforme : ${APP_URL()}/login
+Le lien suivant t'amène directement à la plateforme : ${getAppUrl()}/login
 
 Cordialement,
 Ton ThesisBuddy`,
@@ -128,7 +127,7 @@ Ton ThesisBuddy`,
 
 In der Diplomarbeit von ${student.firstname} ${student.name} muss die Bewertung erfasst werden. Bitte erledige dies bis zum ${dueStr}.
 
-Der folgende Link führt dich direkt zur Plattform: ${APP_URL()}/login
+Der folgende Link führt dich direkt zur Plattform: ${getAppUrl()}/login
 
 Herzliche Grüsse
 Dein ThesisBuddy`,
@@ -146,7 +145,7 @@ function approverMail(recipient, thesis, dueAt, lang) {
 
 Dans le travail de diplôme de ${student.firstname} ${student.name}, une validation est en attente. Merci de la traiter d'ici au ${dueStr}.
 
-${APP_URL()}/login
+${getAppUrl()}/login
 
 Cordialement,
 Ton ThesisBuddy`,
@@ -159,7 +158,7 @@ Ton ThesisBuddy`,
 
 In der Diplomarbeit von ${student.firstname} ${student.name} ist eine Freigabe ausstehend. Bitte erledige dies bis zum ${dueStr}.
 
-${APP_URL()}/login
+${getAppUrl()}/login
 
 Herzliche Grüsse
 Dein ThesisBuddy`,
@@ -177,7 +176,7 @@ function feedbackMail(recipient, thesis, dueAt, lang) {
 
 Le formulaire de feedback pour le travail de diplôme de ${student.firstname} ${student.name} doit être complété. Merci de le finaliser d'ici au ${dueStr}.
 
-${APP_URL()}/login
+${getAppUrl()}/login
 
 Cordialement,
 Ton ThesisBuddy`,
@@ -190,7 +189,7 @@ Ton ThesisBuddy`,
 
 Das Feedbackformular für die Diplomarbeit von ${student.firstname} ${student.name} muss ausgefüllt werden. Bitte erledige dies bis zum ${dueStr}.
 
-${APP_URL()}/login
+${getAppUrl()}/login
 
 Herzliche Grüsse
 Dein ThesisBuddy`,

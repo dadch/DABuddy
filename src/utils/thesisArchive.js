@@ -50,6 +50,8 @@ const ACTION_LABELS = {
   thesis_unlocked: 'Diplomarbeit entsperrt',
   feedback_updated: 'Feedbackformular bearbeitet',
   reminder_sent: 'Erinnerung versendet',
+  notification_sent: 'Benachrichtigung versendet',
+  assignment_updated: 'Aufgabenstellung bearbeitet',
 };
 
 // ---------- Dateinamen-Helfer ----------------------------------------------

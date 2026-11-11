@@ -400,7 +400,9 @@
         "override": "Redirection (prod)",
         "notSet": "non défini",
         "overrideActive": "tous les e-mails sont redirigés",
-        "overrideInactive": "non actif"
+        "overrideInactive": "non actif",
+        "appUrl": "URL de base (APP_URL)",
+        "appUrlFallback": "Les liens dans les e-mails pointent vers {{url}}. En production, définir <code>APP_URL</code> dans <code>.env</code>."
       }
     },
     "secretariat": {
@@ -436,7 +438,9 @@
       "placeholder": "destinataire@example.com",
       "help": "Si <code>MAIL_OVERRIDE_TO</code> est défini dans <code>.env</code>, l'e-mail y est envoyé — l'adresse saisie apparaît dans l'objet.",
       "sending": "Envoi…",
-      "deliveredTo": "livré effectivement à {{email}}"
+      "deliveredTo": "livré effectivement à {{email}}",
+      "linkInMail": "Lien de connexion dans l'e-mail : {{link}}",
+      "appUrlWarning": "APP_URL n'est pas défini — les e-mails de rappel et de chat seraient envoyés avec ce lien de développement."
     }
   },
   "mgmt": {
@@ -789,7 +793,15 @@
       "milestoneApproved": "Validation du document accordée",
       "milestoneRevoked": "Validation du document retirée",
       "milestoneReleased": "Jalon libéré (démarré)",
-      "milestoneLocked": "Jalon bloqué"
+      "milestoneLocked": "Jalon bloqué",
+      "confidentialityUploaded": "Document de confidentialité téléversé",
+      "confidentialityDeleted": "Document de confidentialité supprimé",
+      "thesisLocked": "Travail de diplôme bloqué",
+      "thesisUnlocked": "Travail de diplôme débloqué",
+      "feedbackUpdated": "Formulaire de feedback modifié",
+      "reminderSent": "Rappel envoyé",
+      "notificationSent": "Notification envoyée",
+      "assignmentUpdated": "Énoncé modifié"
     },
     "adopt": "Reprendre",
     "approvalError": "Erreur lors de la validation",

@@ -2,8 +2,10 @@
 
 <%
 const ROLE_LABELS = { student: t('roles.student'), coach: t('roles.coach'), expert: t('roles.expert'), admin: t('roles.admin'), department_lead: t('roles.department_lead'), field_project_coach: t('roles.field_project_coach') };
-const ACTION_LABELS = { document_upload: t('thesisDetail.actionLabels.documentUpload'), document_update: t('thesisDetail.actionLabels.documentUpdate'), document_delete: t('thesisDetail.actionLabels.documentDelete'), evaluation_create: t('thesisDetail.actionLabels.evaluationCreate'), evaluation_update: t('thesisDetail.actionLabels.evaluationUpdate'), milestone_approved: t('thesisDetail.actionLabels.milestoneApproved'), milestone_revoked: t('thesisDetail.actionLabels.milestoneRevoked'), milestone_released: t('thesisDetail.actionLabels.milestoneReleased'), milestone_locked: t('thesisDetail.actionLabels.milestoneLocked') };
+const ACTION_LABELS = { document_upload: t('thesisDetail.actionLabels.documentUpload'), document_update: t('thesisDetail.actionLabels.documentUpdate'), document_delete: t('thesisDetail.actionLabels.documentDelete'), evaluation_create: t('thesisDetail.actionLabels.evaluationCreate'), evaluation_update: t('thesisDetail.actionLabels.evaluationUpdate'), milestone_approved: t('thesisDetail.actionLabels.milestoneApproved'), milestone_revoked: t('thesisDetail.actionLabels.milestoneRevoked'), milestone_released: t('thesisDetail.actionLabels.milestoneReleased'), milestone_locked: t('thesisDetail.actionLabels.milestoneLocked'), confidentiality_uploaded: t('thesisDetail.actionLabels.confidentialityUploaded'), confidentiality_deleted: t('thesisDetail.actionLabels.confidentialityDeleted'), thesis_locked: t('thesisDetail.actionLabels.thesisLocked'), thesis_unlocked: t('thesisDetail.actionLabels.thesisUnlocked'), feedback_updated: t('thesisDetail.actionLabels.feedbackUpdated'), reminder_sent: t('thesisDetail.actionLabels.reminderSent'), notification_sent: t('thesisDetail.actionLabels.notificationSent'), assignment_updated: t('thesisDetail.actionLabels.assignmentUpdated') };
 const isAdmin = user.role === 'admin';
+// Stellvertretung: FBL handelt wie Dozent (siehe src/utils/roles.js)
+const actsAs = (r) => !!r && (user.role === r || (user.role === 'department_lead' && r === 'coach'));
 const fmtDateTime = (d) => new Date(d).toLocaleDateString('de-CH') + ' ' + new Date(d).toLocaleTimeString('de-CH', { hour: '2-digit', minute: '2-digit' });
 %>
 
@@ -49,9 +51,9 @@ const assignmentAvailableForStudent = !!assignmentM1 && new Date(assignmentM1).g
                         const docs = (m.documents || []).slice().sort((a, b) => b.version - a.version);
                         const hasDocs = docs.length > 0;
                         const currentDoc = docs.find(d => d.is_current) || (hasDocs ? docs[0] : null);
-                        const isResponsible = (user.role === m.responsible_role) || isAdmin;
+                        const isResponsible = actsAs(m.responsible_role) || isAdmin;
                         const isCoachOfThesis = (thesis.coaches || []).some(c => c.id === user.id);
-                        const canRelease = isAdmin || (user.role === 'coach' && isCoachOfThesis);
+                        const canRelease = isAdmin || (user.role === 'coach' && isCoachOfThesis) || isThesisDeptLead;
                         const cats = (m.uploadCategories || []).slice().sort((a, b) => (a.label||'').localeCompare(b.label||''));
                         const hasCats = cats.length > 0;
                         // Studierenden-Sicht: gesperrt + nicht abgelaufen → Minimalkarte (nur
@@ -60,12 +62,12 @@ const assignmentAvailableForStudent = !!assignmentM1 && new Date(assignmentM1).g
                         const minimalCard = isStudentView && !m.released && !msExpired;
                         const studentReadOnly = isStudentView && msExpired;
                         const showUpload = !hasCats && m.allow_upload && isResponsible && (!hasDocs || m.allow_update) && (m.released || isAdmin) && !studentReadOnly;
-                        const canEvaluate = m.requires_evaluation && (user.role === m.evaluator_role || isAdmin) && !studentReadOnly;
+                        const canEvaluate = m.requires_evaluation && (actsAs(m.evaluator_role) || isAdmin) && !studentReadOnly;
                         const evalByKind = {};
                         (m.thesisEvaluations || []).forEach(e => { evalByKind[e.kind] = e; });
                         const finalExists = !!evalByKind['final'];
-                        const isEvaluator1 = ((user.role === m.evaluator_role) && !studentReadOnly) || isAdmin;
-                        const isEvaluator2 = ((user.role === m.evaluator_role_2) && !studentReadOnly) || isAdmin;
+                        const isEvaluator1 = (actsAs(m.evaluator_role) && !studentReadOnly) || isAdmin;
+                        const isEvaluator2 = (actsAs(m.evaluator_role_2) && !studentReadOnly) || isAdmin;
                         const canFeedback = m.feedback_form_enabled && (isAdmin || user.role === 'department_lead' || user.role === m.evaluator_role || (m.double_evaluation && user.role === m.evaluator_role_2));
                         const feedbackFinal = m.double_evaluation ? evalByKind['final'] : evalByKind['single'];
                         const approvalSlots = [];
@@ -152,7 +154,7 @@ const assignmentAvailableForStudent = !!assignmentM1 && new Date(assignmentM1).g
                                 </div>
                                 <div class="text-end">
                                     <% if (m.is_assignment) { %>
-                                        <% if (user.role === m.responsible_role || isAdmin) { %>
+                                        <% if (actsAs(m.responsible_role) || isAdmin) { %>
                                             <button class="btn btn-outline-dark btn-sm" data-milestone="<%= JSON.stringify({ id: m.id, label: milestoneLabel(m) }) %>" onclick="openAssignmentModal(JSON.parse(this.dataset.milestone))">
                                                 <i class="bi bi-file-earmark-text"></i> <%= t('thesisDetail.editAssignment') %>
                                             </button>
@@ -402,7 +404,7 @@ const assignmentAvailableForStudent = !!assignmentM1 && new Date(assignmentM1).g
                                         </div>
                                     <% } %>
                                     <% approvalSlots.forEach(function(s) { %>
-                                        <% const canApproveSlot = ((user.role === s.role) && !studentReadOnly) || isAdmin; %>
+                                        <% const canApproveSlot = (actsAs(s.role) && !studentReadOnly) || isAdmin; %>
                                         <div class="d-flex justify-content-between align-items-center py-1 small">
                                             <div>
                                                 <strong><%= t('thesisDetail.approvalNumber', { n: s.n }) %></strong>

@@ -73,6 +73,9 @@ const chatUpload = multer({
 });
 
 const VALID_ROLES = ['student', 'coach', 'expert', 'admin', 'department_lead', 'field_project_coach'];
+// Rollen-Stellvertretung (FBL darf als Dozent handeln), siehe src/utils/roles.js
+const { actsAs } = require('../utils/roles');
+const { notifyMilestoneReleaseChange } = require('../utils/milestoneReleaseNotifier');
 
 // FPC darf nur auf Meilensteine mit Transferprojekt-Kennzeichnung zugreifen.
 const isFpcBlocked = (tm, userRole) =>
@@ -1855,7 +1858,7 @@ const setThesisMilestoneApproval = async (req, res) => {
     const access = await userHasThesisAccess(userId, userRole, tm.thesis_id);
     if (!access) return res.status(403).json({ success: false, message: 'Keine Berechtigung' });
 
-    if (userRole !== 'admin' && userRole !== tm[roleField]) {
+    if (userRole !== 'admin' && !actsAs(userRole, tm[roleField])) {
       return res.status(403).json({ success: false, message: `Ihre Rolle ist nicht berechtigt, Freigabe ${slot} zu erteilen` });
     }
 
@@ -1892,7 +1895,9 @@ const setThesisMilestoneApproval = async (req, res) => {
   }
 };
 
-// Meilenstein freigeben (starten) oder sperren. Nur der/die Dozent/in der Diplomarbeit oder Admin.
+// Meilenstein freigeben (starten) oder sperren. Dozent/in der Diplomarbeit,
+// FBL des Fachbereichs (Stellvertretung) oder Admin. Die Beteiligten der Arbeit
+// werden anschliessend per Mail informiert (best effort, blockiert nicht).
 const setThesisMilestoneReleased = async (req, res) => {
   try {
     const { id } = req.params;
@@ -1906,18 +1911,28 @@ const setThesisMilestoneReleased = async (req, res) => {
     if (!tm) return res.status(404).json({ success: false, message: 'Meilenstein nicht gefunden' });
 
     const isCoachOfThesis = tm.thesis && tm.thesis.coaches.some(c => c.id === userId);
-    if (userRole !== 'admin' && !(userRole === 'coach' && isCoachOfThesis)) {
-      return res.status(403).json({ success: false, message: 'Nur der/die Dozent/in der Diplomarbeit (oder Admin) kann Meilensteine freigeben.' });
+    const isDeptLeadOfThesis = userRole === 'department_lead' && await userHasThesisAccess(userId, userRole, tm.thesis_id);
+    if (userRole !== 'admin' && !(userRole === 'coach' && isCoachOfThesis) && !isDeptLeadOfThesis) {
+      return res.status(403).json({ success: false, message: 'Nur der/die Dozent/in der Diplomarbeit, die Fachbereichsleitung oder Admin kann Meilensteine freigeben.' });
     }
 
-    await tm.update({ released: !!released });
+    const newReleased = !!released;
+    const changed = tm.released !== newReleased;
+    await tm.update({ released: newReleased });
     await writeThesisLog(
       tm.thesis_id, tm.id, userId,
-      released ? 'milestone_released' : 'milestone_locked',
-      `${tm.label}: ${released ? 'freigegeben (gestartet)' : 'gesperrt'}`
+      newReleased ? 'milestone_released' : 'milestone_locked',
+      `${tm.label}: ${newReleased ? 'freigegeben (gestartet)' : 'gesperrt'}`
     );
 
-    res.json({ success: true, message: released ? 'Meilenstein freigegeben' : 'Meilenstein gesperrt' });
+    res.json({ success: true, message: newReleased ? 'Meilenstein freigegeben' : 'Meilenstein gesperrt' });
+
+    // Beteiligte informieren — nur bei tatsächlicher Statusänderung, nach der
+    // Antwort und ohne die Aktion bei SMTP-Problemen scheitern zu lassen.
+    if (changed) {
+      notifyMilestoneReleaseChange(tm, newReleased, userId)
+        .catch(e => console.error('[milestoneNotify] Fehler:', e.message));
+    }
   } catch (error) {
     console.error('Error setting milestone released:', error);
     res.status(500).json({ success: false, message: 'Interner Serverfehler' });
@@ -1926,7 +1941,7 @@ const setThesisMilestoneReleased = async (req, res) => {
 
 // May the given user upload/add a document version to this thesis milestone?
 const canUploadForMilestone = (tm, userRole) =>
-  userRole === 'admin' || userRole === tm.responsible_role;
+  userRole === 'admin' || actsAs(userRole, tm.responsible_role);
 
 const uploadThesisMilestoneDocument = (req, res) => {
   upload.single('document')(req, res, async (err) => {
@@ -2461,12 +2476,17 @@ const archiveTheses = async (req, res) => {
 const testMailConnection = async (req, res) => {
   if (req.session.userRole !== 'admin') return res.status(403).json({ success: false, message: 'Keine Berechtigung' });
   const mailer = require('../config/mailer');
+  const appUrl = require('../config/appUrl');
   const cfg = mailer.getConfig();
+  const config = {
+    host: cfg.host, port: cfg.port, secure: cfg.secure, from: cfg.from, override: cfg.override,
+    appUrl: appUrl.getAppUrl(), appUrlConfigured: appUrl.isConfigured(),
+  };
   if (!mailer.isConfigured()) {
     return res.status(400).json({
       success: false,
       message: 'SMTP-Konfiguration unvollständig. Bitte MAIL_HOST und MAIL_PORT in .env setzen (MAIL_USER/MAIL_PASS nur bei authentifiziertem Relay).',
-      config: { host: cfg.host, port: cfg.port, secure: cfg.secure, from: cfg.from, override: cfg.override },
+      config,
     });
   }
   try {
@@ -2474,7 +2494,7 @@ const testMailConnection = async (req, res) => {
     res.json({
       success: true,
       message: 'SMTP-Verbindung erfolgreich verifiziert.',
-      config: { host: cfg.host, port: cfg.port, secure: cfg.secure, from: cfg.from, override: cfg.override },
+      config,
     });
   } catch (e) {
     console.error('testMailConnection error:', e);
@@ -2543,14 +2563,26 @@ const sendTestMail = async (req, res) => {
   if (!to || !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(to)) {
     return res.status(400).json({ success: false, message: 'Bitte eine gültige E-Mail-Adresse angeben.' });
   }
+  // Login-Link wie in den Erinnerungsmails mitschicken: so fällt ein falsch
+  // konfiguriertes APP_URL (z. B. localhost in der Produktion) sofort auf.
+  const appUrl = require('../config/appUrl');
+  const loginLink = `${appUrl.getAppUrl()}/login`;
+  const urlHint = appUrl.isConfigured()
+    ? ''
+    : '\n\nHinweis: APP_URL ist in .env nicht gesetzt — der Link oben ist der Entwicklungs-Fallback.';
   try {
     const info = await mailer.sendMail({
       to,
       subject: 'ThesisBuddy — Testmail',
-      text: 'Dies ist eine Testmail von ThesisBuddy.\nWenn du diese Nachricht liest, funktioniert der SMTP-Versand.',
-      html: '<p>Dies ist eine <strong>Testmail von ThesisBuddy</strong>.</p><p>Wenn du diese Nachricht liest, funktioniert der SMTP-Versand.</p>',
+      text: `Dies ist eine Testmail von ThesisBuddy.\nWenn du diese Nachricht liest, funktioniert der SMTP-Versand.\n\nDer folgende Link führt dich direkt zur Plattform: ${loginLink}${urlHint}`,
+      html: `<p>Dies ist eine <strong>Testmail von ThesisBuddy</strong>.</p><p>Wenn du diese Nachricht liest, funktioniert der SMTP-Versand.</p><p>Der folgende Link führt dich direkt zur Plattform: <a href="${loginLink}">${loginLink}</a></p>`
+        + (urlHint ? `<p><em>${urlHint.trim()}</em></p>` : ''),
     });
-    res.json({ success: true, message: 'Testmail versendet.', messageId: info.messageId, effectiveTo: mailer.getConfig().override || to });
+    res.json({
+      success: true, message: 'Testmail versendet.', messageId: info.messageId,
+      effectiveTo: mailer.getConfig().override || to,
+      loginLink, appUrlConfigured: appUrl.isConfigured(),
+    });
   } catch (e) {
     console.error('sendTestMail error:', e);
     res.status(500).json({ success: false, message: 'Versand fehlgeschlagen: ' + e.message });
@@ -2762,9 +2794,10 @@ const downloadChatAttachment = async (req, res) => {
 
 // ---------- Aufgabenstellung ----------
 
-// Bearbeiten darf der Verantwortliche des Meilensteins (i.d.R. Dozent) oder Admin.
+// Bearbeiten darf der Verantwortliche des Meilensteins (i.d.R. Dozent, FBL als
+// Stellvertretung) oder Admin.
 const canEditAssignment = (tm, userRole) =>
-  userRole === 'admin' || userRole === tm.responsible_role;
+  userRole === 'admin' || actsAs(userRole, tm.responsible_role);
 
 // Liefert die Aufgabenstellungs-Termine (M1/M2) für die DA gemäss der
 // Studienform ihres Fachbereichs. { m1, m2 } (Date|null).

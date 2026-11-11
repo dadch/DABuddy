@@ -4,6 +4,7 @@ const {
   EvaluationForm, EvaluationGroup, EvaluationCriterion,
   ThesisEvaluation, ThesisEvaluationGroup, ThesisEvaluationCriterion,
 } = require('../models');
+const { actsAs } = require('../utils/roles');
 const { computeGroupGrade, computeOverallGrade } = require('../utils/grading');
 const { userHasThesisAccess } = require('../utils/thesisAccess');
 const { streamEvaluationPdf, streamTransferProjectPdf, streamTransferProjectOverviewPdf, streamThesesListPdf, streamFeedbackFormPdf } = require('../utils/evaluationPdf');
@@ -537,11 +538,12 @@ const evaluationKinds = (tm) => {
   return { single: { role: tm.evaluator_role } };
 };
 
+// Rollenvergleich via actsAs: FBL darf als Dozent bewerten (Stellvertretung).
 const canEditKind = (tm, kind, userRole) => {
   if (userRole === 'admin') return true;
-  if (kind === 'final') return userRole === tm.evaluator_role || userRole === tm.evaluator_role_2;
-  if (kind === 'first') return userRole === tm.evaluator_role;
-  if (kind === 'second') return userRole === tm.evaluator_role_2;
+  if (kind === 'final') return actsAs(userRole, tm.evaluator_role) || actsAs(userRole, tm.evaluator_role_2);
+  if (kind === 'first') return actsAs(userRole, tm.evaluator_role);
+  if (kind === 'second') return actsAs(userRole, tm.evaluator_role_2);
   return userRole === tm.evaluator_role; // single
 };
 
@@ -550,8 +552,8 @@ const canViewKind = (tm, kind, userRole, finalExists) => {
   if (userRole === 'admin') return true;
   if (!tm.double_evaluation) return true; // single: all thesis participants may view
   if (kind === 'final') return true;
-  if (kind === 'first') return userRole === tm.evaluator_role || finalExists;
-  if (kind === 'second') return userRole === tm.evaluator_role_2 || finalExists;
+  if (kind === 'first') return actsAs(userRole, tm.evaluator_role) || finalExists;
+  if (kind === 'second') return actsAs(userRole, tm.evaluator_role_2) || finalExists;
   return true;
 };
 

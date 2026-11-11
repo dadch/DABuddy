@@ -16,8 +16,8 @@ const cron = require('node-cron');
 const { Op } = require('sequelize');
 const { ChatMessage, ChatReadReceipt, Thesis, User } = require('../models');
 const { sendMail, isConfigured } = require('../config/mailer');
+const { getAppUrl } = require('../config/appUrl');
 
-const APP_URL = () => process.env.APP_URL || 'http://localhost:3000';
 const DELAY_MIN = () => {
   const n = parseInt(process.env.CHAT_NOTIFY_DELAY_MIN || '5', 10);
   return Number.isFinite(n) && n >= 0 ? n : 5;
@@ -30,7 +30,7 @@ const greetingFr = (u) => (u.gender === 'w' ? 'Chère' : u.gender === 'm' ? 'Che
 function chatMail(recipient, thesis, lang) {
   const students = (thesis.students || []).map(s => `${s.firstname} ${s.name}`);
   const names = students.length ? students.join(lang === 'fr' ? ' et ' : ' und ') : '?';
-  const link = `${APP_URL()}/dashboard/thesis/${thesis.id}/chat`;
+  const link = `${getAppUrl()}/dashboard/thesis/${thesis.id}/chat`;
   if (lang === 'fr') {
     return {
       subject: `ThesisBuddy — Nouveau message de chat (${names})`,

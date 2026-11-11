@@ -54,6 +54,9 @@ openssl rand -hex 32   # SESSION_SECRET
 ```
 
 Wichtig:
+- `APP_URL=https://thesisbuddy.hftm.ch` **setzen** — die Basis-URL für Links in
+  Erinnerungs- und Chat-Mails. Fehlt sie, zeigen die Links auf `http://localhost:3000`;
+  der Server meldet das beim Start im Log, und die Mail-Einstellungsseite zeigt es rot an.
 - `MAIL_OVERRIDE_TO` **leer** lassen — sonst werden alle Mails umgeleitet (Test-Modus).
 - `MS_REDIRECT_URI=https://thesisbuddy.hftm.ch/auth/microsoft/callback` — dieselbe
   URI muss in der Azure-App-Registrierung als Redirect-URI hinterlegt sein.
@@ -213,6 +216,7 @@ genannten Skripte ausführen, z.B.:
 ```bash
 docker compose exec app node scripts/add-study-mode.js
 docker compose exec app node scripts/add-assignment-feature.js
+docker compose exec app node scripts/add-notification-log-action.js
 ```
 
 (Die Skripte sind idempotent — mehrfaches Ausführen ist unschädlich.)

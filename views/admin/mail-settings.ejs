@@ -121,6 +121,8 @@ const L = {
         notSet: <%- JSON.stringify(t('mailAdmin.smtp.row.notSet')) %>,
         overrideActive: <%- JSON.stringify(t('mailAdmin.smtp.row.overrideActive')) %>,
         overrideInactive: <%- JSON.stringify(t('mailAdmin.smtp.row.overrideInactive')) %>,
+        appUrl: <%- JSON.stringify(t('mailAdmin.smtp.row.appUrl')) %>,
+        appUrlFallback: <%- JSON.stringify(t('mailAdmin.smtp.row.appUrlFallback')) %>,
         checking: <%- JSON.stringify(t('mailAdmin.smtp.checking')) %>,
     },
     yes: <%- JSON.stringify(t('common.yes')) %>,
@@ -141,6 +143,8 @@ const L = {
     testMail: {
         sending: <%- JSON.stringify(t('mailAdmin.testMail.sending')) %>,
         deliveredTo: <%- JSON.stringify(t('mailAdmin.testMail.deliveredTo')) %>,
+        linkInMail: <%- JSON.stringify(t('mailAdmin.testMail.linkInMail')) %>,
+        appUrlWarning: <%- JSON.stringify(t('mailAdmin.testMail.appUrlWarning')) %>,
     },
 };
 
@@ -151,6 +155,9 @@ function renderConfig(cfg) {
         [L.smtp.secure, cfg.secure ? L.yes : L.no],
         [L.smtp.from, cfg.from || `<span class="text-danger">${L.smtp.notSet}</span>`],
         [L.smtp.override, cfg.override ? `<span class="badge bg-warning text-dark">${cfg.override}</span> — ${L.smtp.overrideActive}` : `<span class="text-muted">${L.smtp.overrideInactive}</span>`],
+        [L.smtp.appUrl, cfg.appUrlConfigured
+            ? `<code>${cfg.appUrl}</code>`
+            : `<span class="badge bg-danger">${L.smtp.notSet}</span> — ${L.smtp.appUrlFallback.replace('{{url}}', `<code>${cfg.appUrl || ''}</code>`)}`],
     ];
     return `<dl class="row mb-0">${rows.map(([k, v]) => `
         <dt class="col-sm-3 small text-muted">${k}</dt>
@@ -190,7 +197,9 @@ document.getElementById('testMailForm').addEventListener('submit', async (e) => 
         const d = await r.json();
         if (d.success) {
             const delivered = L.testMail.deliveredTo.replace('{{email}}', `<code>${d.effectiveTo}</code>`);
-            target.innerHTML = `<div class="alert alert-success"><i class="bi bi-check-circle"></i> ${d.message} — ${delivered}</div>`;
+            const link = d.loginLink ? `<br><small>${L.testMail.linkInMail.replace('{{link}}', `<code>${d.loginLink}</code>`)}</small>` : '';
+            const warn = d.loginLink && !d.appUrlConfigured ? `<div class="alert alert-warning mt-2 mb-0"><i class="bi bi-exclamation-triangle"></i> ${L.testMail.appUrlWarning}</div>` : '';
+            target.innerHTML = `<div class="alert alert-success"><i class="bi bi-check-circle"></i> ${d.message} — ${delivered}${link}</div>${warn}`;
         } else {
             target.innerHTML = `<div class="alert alert-danger"><i class="bi bi-x-circle"></i> ${d.message}</div>`;
         }

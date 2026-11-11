@@ -400,7 +400,9 @@
         "override": "Prod-Override",
         "notSet": "nicht gesetzt",
         "overrideActive": "alle Mails werden umgeleitet",
-        "overrideInactive": "nicht aktiv"
+        "overrideInactive": "nicht aktiv",
+        "appUrl": "Basis-URL (APP_URL)",
+        "appUrlFallback": "Links in Mails zeigen auf {{url}}. In der Produktion <code>APP_URL</code> in <code>.env</code> setzen."
       }
     },
     "secretariat": {
@@ -436,7 +438,9 @@
       "placeholder": "empfaenger@example.com",
       "help": "Falls in <code>.env</code> <code>MAIL_OVERRIDE_TO</code> gesetzt ist, geht die Mail dorthin — die eingegebene Adresse erscheint im Betreff.",
       "sending": "Sende…",
-      "deliveredTo": "tatsächlich zugestellt an {{email}}"
+      "deliveredTo": "tatsächlich zugestellt an {{email}}",
+      "linkInMail": "Login-Link in der Mail: {{link}}",
+      "appUrlWarning": "APP_URL ist nicht gesetzt — Erinnerungs- und Chat-Mails würden mit diesem Entwicklungs-Link versendet."
     }
   },
   "mgmt": {
@@ -789,7 +793,15 @@
       "milestoneApproved": "Dokument-Freigabe erteilt",
       "milestoneRevoked": "Dokument-Freigabe zurückgezogen",
       "milestoneReleased": "Meilenstein freigegeben (gestartet)",
-      "milestoneLocked": "Meilenstein gesperrt"
+      "milestoneLocked": "Meilenstein gesperrt",
+      "confidentialityUploaded": "Geheimhaltungs-Dokument hochgeladen",
+      "confidentialityDeleted": "Geheimhaltungs-Dokument gelöscht",
+      "thesisLocked": "Diplomarbeit gesperrt",
+      "thesisUnlocked": "Diplomarbeit entsperrt",
+      "feedbackUpdated": "Feedbackformular bearbeitet",
+      "reminderSent": "Erinnerung versendet",
+      "notificationSent": "Benachrichtigung versendet",
+      "assignmentUpdated": "Aufgabenstellung bearbeitet"
     },
     "adopt": "Übernehmen",
     "approvalError": "Fehler bei der Freigabe",

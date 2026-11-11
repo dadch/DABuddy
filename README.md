@@ -121,6 +121,25 @@ Prozess-Ablauf:
    Mail + CSV-Anhang (siehe `secretariat_email` in den Mail-Einstellungen).
    Gesperrte DAs werden dabei nicht berücksichtigt.
 
+## Stellvertretung durch Fachbereichsleitung
+
+Fachbereichsleiter/innen dürfen auf Diplomarbeiten ihres Fachbereichs alle
+Aktionen auslösen, die auch der Dozent/die Dozentin der Arbeit auslösen darf
+(Meilenstein starten/sperren, Dokumente hochladen, bewerten, Freigaben erteilen,
+Aufgabenstellung bearbeiten). Technisch läuft jeder Rollenvergleich über
+`actsAs()` in `src/utils/roles.js`; der Fachbereichsbezug wird weiterhin über
+`userHasThesisAccess` geprüft.
+
+## Benachrichtigung beim Starten/Sperren eines Meilensteins
+
+Wird ein Meilenstein gestartet (freigegeben) oder wieder gesperrt, erhalten
+die Beteiligten der Arbeit (Studierende, Dozent/in, Experte/in) eine E-Mail in
+ihrer Sprache; die auslösende Person selbst nicht. Der Versand ist best effort
+(SMTP-Fehler blockieren die Aktion nicht) und wird pro Empfänger im
+Änderungsprotokoll als «Benachrichtigung versendet» vermerkt
+(`src/utils/milestoneReleaseNotifier.js`). Bestehende Installationen brauchen
+einmalig `node scripts/add-notification-log-action.js` (neuer Log-Enum-Wert).
+
 ## Mail-Konfiguration (.env)
 
 Die Applikation versendet Mail-Erinnerungen an Bewerter und Approver. SMTP wird
@@ -141,7 +160,9 @@ MAIL_OVERRIDE_TO=
 # Optional: Cron-Ausdruck für den Reminder-Job (Default: täglich 07:00).
 MAIL_CRON=0 7 * * *
 
-# Optional: Basis-URL für Login-Links in den Mails (Default: http://localhost:3000).
+# Basis-URL für Links in Erinnerungs- und Chat-Mails. In der Produktion PFLICHT —
+# ohne Wert zeigen die Links auf http://localhost:3000 (Warnung im Server-Log,
+# rote Anzeige unter Mail-Einstellungen, Hinweis in der Testmail).
 APP_URL=https://thesisbuddy.hftm.ch
 ```
 

@@ -54,7 +54,8 @@ const ThesisLog = sequelize.define('ThesisLog', {
       'thesis_unlocked',
       'feedback_updated',
       'reminder_sent',
-      'assignment_updated'
+      'assignment_updated',
+      'notification_sent'
     ),
     allowNull: false,
   },
