@@ -3,6 +3,7 @@ const { requireAuth, requireRole } = require('../middleware/auth');
 const evalCtrl = require('../controllers/evaluationController');
 const {
   listSwarmFeedbacks,
+  downloadSwarmFeedbackPdf,
   getMySwarmFeedback,
   upsertMySwarmFeedback,
   adminUpdateSwarmFeedback,
@@ -190,6 +191,7 @@ router.get('/thesis-milestones/:id/assignment.pdf', printAssignment);
 router.get('/thesis-milestones/:id/swarm-feedbacks', listSwarmFeedbacks);
 router.get('/thesis-milestones/:id/swarm-feedbacks/mine', getMySwarmFeedback);
 router.put('/thesis-milestones/:id/swarm-feedbacks/mine', upsertMySwarmFeedback);
+router.get('/swarm-feedbacks/:id/pdf', downloadSwarmFeedbackPdf);
 router.put('/swarm-feedbacks/:id', requireRole(['admin']), adminUpdateSwarmFeedback);
 router.delete('/swarm-feedbacks/:id', requireRole(['admin']), adminDeleteSwarmFeedback);
 

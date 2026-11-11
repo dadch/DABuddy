@@ -6,6 +6,8 @@ const path = require('path');
 const { PDFDocument } = require('pdf-lib');
 const archiver = require('archiver');
 const { randomPassword, adminPasswordError } = require('../utils/passwordPolicy');
+const { streamSwarmFeedbackPdf } = require('../utils/swarmFeedbackPdf');
+const { sanitize: sanitizeFilename } = require('../utils/thesisArchive');
 
 const CONFIDENTIALITY_TEMPLATE_PATH = path.join(__dirname, '../../beispiele/Geheimhaltungsvereinbarung.pdf');
 
@@ -2699,6 +2701,45 @@ const listSwarmFeedbacks = async (req, res) => {
   }
 };
 
+// GET /api/swarm-feedbacks/:id/pdf
+const downloadSwarmFeedbackPdf = async (req, res) => {
+  try {
+    const { userId, userRole } = req.session;
+    const feedback = await SwarmFeedback.findByPk(req.params.id, {
+      include: [
+        SWARM_AUTHOR_INCLUDE,
+        { model: ThesisMilestone, as: 'thesisMilestone', attributes: ['id', 'thesis_id', 'label', 'label_fr', 'due_at', 'swarm_feedback_enabled'] },
+      ],
+    });
+    const milestone = feedback && feedback.thesisMilestone;
+    if (!feedback || !milestone) return res.status(404).json({ success: false, message: 'Rückmeldung nicht gefunden' });
+    const thesis = await Thesis.findByPk(milestone.thesis_id, {
+      attributes: ['id', 'department_id', 'year_id', 'is_locked'],
+      include: [
+        { model: Year, as: 'year', attributes: ['id', 'is_current'] },
+        { model: User, as: 'students', attributes: ['firstname', 'name'] },
+        { model: Department, as: 'department', attributes: ['name'] },
+      ],
+    });
+    if (!thesis) return res.status(404).json({ success: false, message: 'Rückmeldung nicht gefunden' });
+    if (!await canReadSwarmFeedbacks(userId, userRole, thesis)) {
+      return res.status(403).json({ success: false, message: 'Keine Berechtigung' });
+    }
+    const student = (thesis.students || [])[0];
+    const studentPart = student ? `${student.name}_${student.firstname}` : 'unbekannt';
+    const authorPart = feedback.author ? `${feedback.author.name}_${feedback.author.firstname}` : 'unbekannt';
+    const fileName = `Rueckmeldung_Projektskizze_${sanitizeFilename(studentPart)}_${sanitizeFilename(authorPart)}.pdf`;
+    const asciiName = fileName.replace(/[^\x20-\x7e]/g, '_');
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', `inline; filename="${asciiName}"; filename*=UTF-8''${encodeURIComponent(fileName)}`);
+    const language = (res.locals && res.locals.lang) === 'fr' ? 'fr' : 'de';
+    streamSwarmFeedbackPdf(res, { feedback, thesis, milestone, language, t: req.t || ((k) => k) });
+  } catch (error) {
+    console.error('Fehler beim Erzeugen der Rückmeldungs-PDF:', error);
+    if (!res.headersSent) res.status(500).json({ success: false, message: 'Interner Serverfehler' });
+  }
+};
+
 // GET /api/thesis-milestones/:id/swarm-feedbacks/mine
 const getMySwarmFeedback = async (req, res) => {
   try {
@@ -3680,6 +3721,7 @@ const deleteUploadCategory = async (req, res) => {
 
 module.exports = {
   listSwarmFeedbacks,
+  downloadSwarmFeedbackPdf,
   getMySwarmFeedback,
   upsertMySwarmFeedback,
   adminUpdateSwarmFeedback,

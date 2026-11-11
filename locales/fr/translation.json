@@ -984,6 +984,7 @@
         "criterionRequired": "Veuillez remplir au moins un critère.",
         "invalidDate": "Veuillez indiquer une date valide (AAAA-MM-JJ)."
       },
+      "milestone": "Jalon",
       "listTitle": "Retours esquisse de projet",
       "none": "Pas encore de retours.",
       "studentHidden": "Les retours seront disponibles après la présentation.",

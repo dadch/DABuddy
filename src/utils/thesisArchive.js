@@ -23,9 +23,11 @@ const {
   sequelize,
   Thesis, ThesisMilestone, ThesisMilestoneDocument,
   ThesisEvaluation, ThesisLog, ChatMessage, UploadCategory,
-  User, Year, Department,
+  User, Year, Department, SwarmFeedback,
 } = require('../models');
 const { streamEvaluationPdf, streamFeedbackFormPdf } = require('./evaluationPdf');
+const { streamSwarmFeedbackPdf } = require('./swarmFeedbackPdf');
+const { i18next } = require('../config/i18n');
 const { loadFullEvaluation, loadFeedbackContext } = require('../controllers/evaluationController');
 
 const ROLE_LABELS = {
@@ -178,6 +180,20 @@ async function feedbackPdfBuffer(tm) {
   });
 }
 
+// Erzeugt ein Buffer mit der Rückmeldung Projektskizze (Schwarm).
+async function swarmFeedbackPdfBuffer(thesis, tm, sf, language) {
+  return await new Promise((resolve, reject) => {
+    const chunks = [];
+    const sink = new PassThrough();
+    sink.on('data',  (c) => chunks.push(c));
+    sink.on('end',   () => resolve(Buffer.concat(chunks)));
+    sink.on('error', reject);
+    try {
+      streamSwarmFeedbackPdf(sink, { feedback: sf, thesis, milestone: tm, language, t: i18next.getFixedT(language) });
+    } catch (e) { reject(e); }
+  });
+}
+
 // Erzeugt ein Buffer mit einer Bewertungs-PDF (Struktur oder Freitext).
 // Wichtig: alle Listener werden VOR dem Anstoss des PDF-Generators registriert,
 // damit `end` nicht verpasst wird, falls pdfkit schnell fertig ist.
@@ -291,6 +307,28 @@ async function buildThesisArchiveBuffer(thesisId) {
         console.error('[archive] Feedback-PDF fehlgeschlagen:', tm.id, e.message);
       }
     }
+
+    // Rückmeldungen Projektskizze (Schwarm): eine PDF je Rückmeldung.
+    if (tm.swarm_feedback_enabled) {
+      try {
+        const language = thesis.language === 'fr' ? 'fr' : 'de';
+        const sfs = await SwarmFeedback.findAll({
+          where: { thesis_milestone_id: tm.id },
+          include: [{ model: User, as: 'author', attributes: ['id', 'firstname', 'name'] }],
+          order: [['createdAt', 'ASC']],
+        });
+        const seen = new Map();
+        for (const sf of sfs) {
+          const base = sanitize(sf.author ? `${sf.author.name}_${sf.author.firstname}` : 'unbekannt');
+          const n = (seen.get(base) || 0) + 1;
+          seen.set(base, n);
+          const buf = await swarmFeedbackPdfBuffer(thesis, tm, sf, language);
+          evalEntries.push({ name: `${msFolder}/Rueckmeldung_Projektskizze_${base}${n > 1 ? '_' + n : ''}.pdf`, buf });
+        }
+      } catch (e) {
+        console.error('[archive] Rückmeldung-PDF fehlgeschlagen:', tm.id, e.message);
+      }
+    }
   }
 
   // Inneres ZIP → PassThrough → Buffer. Listener werden VOR jedem append/pipe
@@ -392,4 +430,4 @@ async function streamArchive(res, thesisIds) {
   console.log('[archive] Outer finalize resolved');
 }
 
-module.exports = { streamArchive, buildThesisArchiveBuffer, feedbackPdfBuffer };
+module.exports = { streamArchive, buildThesisArchiveBuffer, feedbackPdfBuffer, sanitize };

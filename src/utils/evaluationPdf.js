@@ -1037,5 +1037,6 @@ module.exports = {
   streamTransferProjectOverviewPdf,
   streamThesesListPdf,
   streamFeedbackFormPdf,
+  drawLogo,
   ROLE_LABELS,
 };

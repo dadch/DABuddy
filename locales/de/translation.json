@@ -984,6 +984,7 @@
         "criterionRequired": "Bitte mindestens ein Kriterium ausfüllen.",
         "invalidDate": "Bitte ein gültiges Datum (JJJJ-MM-TT) angeben."
       },
+      "milestone": "Meilenstein",
       "listTitle": "Rückmeldungen Projektskizze",
       "none": "Noch keine Rückmeldungen.",
       "studentHidden": "Die Rückmeldungen werden nach der Präsentationsveranstaltung freigeschaltet.",
