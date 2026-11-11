@@ -1,4 +1,4 @@
-const { sequelize, User, UserRole, Thesis, Department, Year, Milestone, ThesisMilestone, ThesisMilestoneDocument, ThesisEvaluation, ThesisLog, ChatMessage, ChatReadReceipt, UploadCategory, DocumentTemplate } = require('../models');
+const { sequelize, User, UserRole, Thesis, Department, Year, Milestone, ThesisMilestone, ThesisMilestoneDocument, ThesisEvaluation, ThesisLog, ChatMessage, ChatReadReceipt, UploadCategory, DocumentTemplate, SwarmFeedback } = require('../models');
 const { Op, fn, col, where } = require('sequelize');
 const multer = require('multer');
 const fs = require('fs');
@@ -76,7 +76,7 @@ const VALID_ROLES = ['student', 'coach', 'expert', 'admin', 'department_lead', '
 // Rollen-Stellvertretung (FBL darf als Dozent handeln), siehe src/utils/roles.js
 const { actsAs } = require('../utils/roles');
 const { notifyMilestoneReleaseChange } = require('../utils/milestoneReleaseNotifier');
-const { swarmDocumentAccess } = require('../utils/swarmAccess');
+const { swarmDocumentAccess, canReadSwarmFeedbacks, canWriteSwarmFeedback } = require('../utils/swarmAccess');
 
 // FPC darf nur auf Meilensteine mit Transferprojekt-Kennzeichnung zugreifen.
 const isFpcBlocked = (tm, userRole) =>
@@ -2611,6 +2611,193 @@ const sendTestMail = async (req, res) => {
   }
 };
 
+// ---------- Rückmeldung Projektskizze (Schwarm) ----------
+
+const SWARM_RECOMMENDATIONS = ['continue', 'continue_with_conditions', 'stop'];
+
+// Lädt Meilenstein (nur markierte) und Arbeit inkl. Jahr für die Rechteprüfung.
+const loadSwarmMilestone = async (id) => {
+  const tm = await ThesisMilestone.findByPk(id, { attributes: ['id', 'thesis_id', 'label', 'swarm_feedback_enabled'] });
+  if (!tm || !tm.swarm_feedback_enabled) return { tm: null, thesis: null };
+  const thesis = await Thesis.findByPk(tm.thesis_id, {
+    attributes: ['id', 'department_id', 'year_id', 'is_locked'],
+    include: [{ model: Year, as: 'year', attributes: ['id', 'is_current'] }],
+  });
+  return { tm, thesis };
+};
+
+const serializeFeedback = (f, sessionUserId) => ({
+  id: f.id,
+  author: f.author ? { id: f.author.id, firstname: f.author.firstname, name: f.author.name } : null,
+  author_role: f.author_role,
+  language: f.language,
+  criterion_1: f.criterion_1,
+  criterion_2: f.criterion_2,
+  criterion_3: f.criterion_3,
+  recommendation: f.recommendation,
+  condition_what: f.condition_what,
+  condition_until: f.condition_until,
+  created_at: f.createdAt,
+  updated_at: f.updatedAt,
+  isMine: f.author_user_id === sessionUserId,
+});
+
+// Serverseitige Validierung; Fehler als i18n-Key (Frontend übersetzt).
+const validateSwarmFeedbackBody = (body) => {
+  const b = body || {};
+  const text = (v) => (typeof v === 'string' && v.trim() !== '' ? v.trim() : null);
+  const recommendation = b.recommendation;
+  if (!SWARM_RECOMMENDATIONS.includes(recommendation)) {
+    return { ok: false, errorKey: 'swarm.feedback.validation.recommendationRequired' };
+  }
+  const values = {
+    criterion_1: text(b.criterion_1),
+    criterion_2: text(b.criterion_2),
+    criterion_3: text(b.criterion_3),
+    recommendation,
+    condition_what: text(b.condition_what),
+    condition_until: null,
+  };
+  if (!values.criterion_1 && !values.criterion_2 && !values.criterion_3) {
+    return { ok: false, errorKey: 'swarm.feedback.validation.criterionRequired' };
+  }
+  const until = b.condition_until == null ? '' : String(b.condition_until).trim();
+  if (until !== '') {
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(until)) return { ok: false, errorKey: 'swarm.feedback.validation.invalidDate' };
+    values.condition_until = until;
+  }
+  if (recommendation === 'continue') {
+    values.condition_what = null;
+    values.condition_until = null;
+  }
+  return { ok: true, values };
+};
+
+const SWARM_AUTHOR_INCLUDE = { model: User, as: 'author', attributes: ['id', 'firstname', 'name'] };
+
+// GET /api/thesis-milestones/:id/swarm-feedbacks
+const listSwarmFeedbacks = async (req, res) => {
+  try {
+    const { userId, userRole } = req.session;
+    const { tm, thesis } = await loadSwarmMilestone(req.params.id);
+    if (!tm || !thesis) return res.status(404).json({ success: false, message: 'Meilenstein nicht gefunden' });
+    if (!await canReadSwarmFeedbacks(userId, userRole, thesis)) {
+      return res.status(403).json({ success: false, message: 'Keine Berechtigung' });
+    }
+    const feedbacks = await SwarmFeedback.findAll({
+      where: { thesis_milestone_id: tm.id },
+      include: [SWARM_AUTHOR_INCLUDE],
+      order: [['createdAt', 'ASC']],
+    });
+    res.json({ success: true, feedbacks: feedbacks.map((f) => serializeFeedback(f, userId)) });
+  } catch (error) {
+    console.error('Fehler beim Laden der Rückmeldungen:', error);
+    res.status(500).json({ success: false, message: 'Interner Serverfehler' });
+  }
+};
+
+// GET /api/thesis-milestones/:id/swarm-feedbacks/mine
+const getMySwarmFeedback = async (req, res) => {
+  try {
+    const { userId, userRole } = req.session;
+    const { tm, thesis } = await loadSwarmMilestone(req.params.id);
+    if (!tm || !thesis) return res.status(404).json({ success: false, message: 'Meilenstein nicht gefunden' });
+    const canWrite = await canWriteSwarmFeedback(userId, userRole, thesis);
+    if (!canWrite && !await canReadSwarmFeedbacks(userId, userRole, thesis)) {
+      return res.status(403).json({ success: false, message: 'Keine Berechtigung' });
+    }
+    const feedback = await SwarmFeedback.findOne({
+      where: { thesis_milestone_id: tm.id, author_user_id: userId },
+      include: [SWARM_AUTHOR_INCLUDE],
+    });
+    res.json({ success: true, feedback: feedback ? serializeFeedback(feedback, userId) : null, canWrite });
+  } catch (error) {
+    console.error('Fehler beim Laden der eigenen Rückmeldung:', error);
+    res.status(500).json({ success: false, message: 'Interner Serverfehler' });
+  }
+};
+
+// PUT /api/thesis-milestones/:id/swarm-feedbacks/mine — anlegen/ändern
+const upsertMySwarmFeedback = async (req, res) => {
+  try {
+    const { userId, userRole } = req.session;
+    const { tm, thesis } = await loadSwarmMilestone(req.params.id);
+    if (!tm || !thesis) return res.status(404).json({ success: false, message: 'Meilenstein nicht gefunden' });
+    if (!await canWriteSwarmFeedback(userId, userRole, thesis)) {
+      return res.status(403).json({ success: false, message: 'Keine Berechtigung' });
+    }
+    const v = validateSwarmFeedbackBody(req.body);
+    if (!v.ok) return res.status(400).json({ success: false, message: v.errorKey });
+
+    let feedback = await SwarmFeedback.findOne({ where: { thesis_milestone_id: tm.id, author_user_id: userId } });
+    const created = !feedback;
+    if (created) {
+      feedback = await SwarmFeedback.create({
+        ...v.values,
+        thesis_milestone_id: tm.id,
+        thesis_id: tm.thesis_id,
+        author_user_id: userId,
+        author_role: userRole,
+        language: req.language === 'fr' ? 'fr' : 'de',
+      });
+    } else {
+      await feedback.update(v.values);
+    }
+    await writeThesisLog(tm.thesis_id, tm.id, userId,
+      created ? 'swarm_feedback_created' : 'swarm_feedback_updated', `${tm.label}: ${v.values.recommendation}`);
+    const reloaded = await SwarmFeedback.findByPk(feedback.id, { include: [SWARM_AUTHOR_INCLUDE] });
+    res.json({ success: true, feedback: serializeFeedback(reloaded, userId), created });
+  } catch (error) {
+    console.error('Fehler beim Speichern der Rückmeldung:', error);
+    res.status(500).json({ success: false, message: 'Interner Serverfehler' });
+  }
+};
+
+const loadSwarmFeedbackForAdmin = (id) => SwarmFeedback.findByPk(id, {
+  include: [
+    SWARM_AUTHOR_INCLUDE,
+    { model: ThesisMilestone, as: 'thesisMilestone', attributes: ['id', 'label'] },
+  ],
+});
+
+// PUT /api/swarm-feedbacks/:id (Admin) — fremde Rückmeldung bearbeiten
+const adminUpdateSwarmFeedback = async (req, res) => {
+  try {
+    if (req.session.userRole !== 'admin') return res.status(403).json({ success: false, message: 'Keine Berechtigung' });
+    const feedback = await loadSwarmFeedbackForAdmin(req.params.id);
+    if (!feedback) return res.status(404).json({ success: false, message: 'Rückmeldung nicht gefunden' });
+    const v = validateSwarmFeedbackBody(req.body);
+    if (!v.ok) return res.status(400).json({ success: false, message: v.errorKey });
+    await feedback.update(v.values);
+    const label = feedback.thesisMilestone ? feedback.thesisMilestone.label : '';
+    await writeThesisLog(feedback.thesis_id, feedback.thesis_milestone_id, req.session.userId,
+      'swarm_feedback_updated', `${label}: ${v.values.recommendation}`);
+    const reloaded = await SwarmFeedback.findByPk(feedback.id, { include: [SWARM_AUTHOR_INCLUDE] });
+    res.json({ success: true, feedback: serializeFeedback(reloaded, req.session.userId) });
+  } catch (error) {
+    console.error('Fehler beim Bearbeiten der Rückmeldung:', error);
+    res.status(500).json({ success: false, message: 'Interner Serverfehler' });
+  }
+};
+
+// DELETE /api/swarm-feedbacks/:id (Admin)
+const adminDeleteSwarmFeedback = async (req, res) => {
+  try {
+    if (req.session.userRole !== 'admin') return res.status(403).json({ success: false, message: 'Keine Berechtigung' });
+    const feedback = await loadSwarmFeedbackForAdmin(req.params.id);
+    if (!feedback) return res.status(404).json({ success: false, message: 'Rückmeldung nicht gefunden' });
+    const label = feedback.thesisMilestone ? feedback.thesisMilestone.label : '';
+    const a = feedback.author;
+    await writeThesisLog(feedback.thesis_id, feedback.thesis_milestone_id, req.session.userId,
+      'swarm_feedback_deleted', `${label}: ${a ? `${a.name}, ${a.firstname}` : 'unbekannt'}`);
+    await feedback.destroy();
+    res.json({ success: true });
+  } catch (error) {
+    console.error('Fehler beim Löschen der Rückmeldung:', error);
+    res.status(500).json({ success: false, message: 'Interner Serverfehler' });
+  }
+};
+
 // ---------- Sperrung einer Diplomarbeit ----------
 
 // Sperrt eine Diplomarbeit (z.B. wegen Abbruch). Studierende dieser Arbeit
@@ -3480,6 +3667,11 @@ const deleteUploadCategory = async (req, res) => {
 };
 
 module.exports = {
+  listSwarmFeedbacks,
+  getMySwarmFeedback,
+  upsertMySwarmFeedback,
+  adminUpdateSwarmFeedback,
+  adminDeleteSwarmFeedback,
   parseMilestoneConfig,
   createThesisMilestoneFromTemplate,
   bulkDownloadCategoryZip,

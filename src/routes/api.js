@@ -2,6 +2,11 @@ const express = require('express');
 const { requireAuth, requireRole } = require('../middleware/auth');
 const evalCtrl = require('../controllers/evaluationController');
 const {
+  listSwarmFeedbacks,
+  getMySwarmFeedback,
+  upsertMySwarmFeedback,
+  adminUpdateSwarmFeedback,
+  adminDeleteSwarmFeedback,
   bulkDownloadCategoryZip,
   bulkDownloadFeedbackZip,
   getUploadCategories,
@@ -180,6 +185,13 @@ router.put('/thesis-milestones/:id/evaluation', evaluateThesisMilestone);
 router.get('/thesis-milestones/:id/assignment', getAssignment);
 router.put('/thesis-milestones/:id/assignment', saveAssignment);
 router.get('/thesis-milestones/:id/assignment.pdf', printAssignment);
+
+// Rückmeldung Projektskizze (Schwarm)
+router.get('/thesis-milestones/:id/swarm-feedbacks', listSwarmFeedbacks);
+router.get('/thesis-milestones/:id/swarm-feedbacks/mine', getMySwarmFeedback);
+router.put('/thesis-milestones/:id/swarm-feedbacks/mine', upsertMySwarmFeedback);
+router.put('/swarm-feedbacks/:id', requireRole(['admin']), adminUpdateSwarmFeedback);
+router.delete('/swarm-feedbacks/:id', requireRole(['admin']), adminDeleteSwarmFeedback);
 
 // Versioned milestone documents
 router.get('/thesis-milestone-documents/:docId/download', downloadThesisMilestoneDocument);
