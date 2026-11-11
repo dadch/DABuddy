@@ -554,6 +554,8 @@
     }
   },
   "milestonesAdmin": {
+    "swarmFeedbackEnabled": "Rückmeldung Projektskizze (Schwarm)",
+    "swarmFeedbackEnabledHint": "Dozierende und Experten des Fachbereichs erfassen im Schwarmmodus eine nicht benotete Rückmeldung.",
     "title": "Meilenstein-Verwaltung",
     "add": "Meilenstein hinzufügen",
     "copy": "Meilenstein kopieren",

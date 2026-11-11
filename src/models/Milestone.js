@@ -127,6 +127,12 @@ const Milestone = sequelize.define('Milestone', {
     allowNull: false,
     defaultValue: false,
   },
+  // Schwarmmodus: Rückmeldung zur Projektskizze (nicht benotet) aktivierbar.
+  swarm_feedback_enabled: {
+    type: DataTypes.BOOLEAN,
+    allowNull: false,
+    defaultValue: false,
+  },
   // Mail-Erinnerungen: ab wann und in welcher Periodizität. Ab 3 Tagen vor
   // dem jeweiligen Termin wird täglich versendet (Fix-Regel).
   reminder_start_at:    { type: DataTypes.DATE, allowNull: true },

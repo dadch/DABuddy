@@ -41,12 +41,12 @@ async function createSwarmFixture() {
   const thesisLocked = await mkThesis(dept, null, { is_locked: true });
 
   const dueAt = new Date(Date.now() + 30 * 24 * 3600 * 1000);
-  const mkTm = (label) => ThesisMilestone.create({
+  const mkTm = (label, swarm) => ThesisMilestone.create({
     thesis_id: thesis.id, label, due_at: dueAt, released: true, responsible_role: 'student',
-    // TODO Task 2: swarm_feedback_enabled
+    swarm_feedback_enabled: swarm,
   });
-  const tmSwarm = await mkTm('Projektskizze');
-  const tmPlain = await mkTm('Pflichtenheft');
+  const tmSwarm = await mkTm('Projektskizze', true);
+  const tmPlain = await mkTm('Pflichtenheft', false);
 
   const mkDoc = (tm) => ThesisMilestoneDocument.create({
     thesis_milestone_id: tm.id, file_name: 'x.pdf', file_path: '/nonexistent/x.pdf',

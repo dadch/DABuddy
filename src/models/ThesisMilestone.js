@@ -183,6 +183,12 @@ const ThesisMilestone = sequelize.define('ThesisMilestone', {
     allowNull: false,
     defaultValue: false,
   },
+  // Schwarmmodus: Rückmeldung zur Projektskizze (nicht benotet) aktivierbar (aus der Vorlage übernommen).
+  swarm_feedback_enabled: {
+    type: DataTypes.BOOLEAN,
+    allowNull: false,
+    defaultValue: false,
+  },
   // Rückmeldungstext für das Feedbackformular (vom Dozent/Experte bearbeitbar,
   // optional vom LLM vorbereitet). Wird beim PDF-Druck verwendet und persistiert.
   feedback_text: {

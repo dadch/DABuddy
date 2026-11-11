@@ -216,6 +216,7 @@ genannten Skripte ausführen, z.B.:
 ```bash
 docker compose exec app node scripts/add-study-mode.js
 docker compose exec app node scripts/add-assignment-feature.js
+docker compose exec app node scripts/add-swarm-feedback.js
 docker compose exec app node scripts/add-notification-log-action.js
 ```
 

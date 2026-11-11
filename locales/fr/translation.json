@@ -554,6 +554,8 @@
     }
   },
   "milestonesAdmin": {
+    "swarmFeedbackEnabled": "Retour esquisse de projet (essaim)",
+    "swarmFeedbackEnabledHint": "En mode essaim, les enseignants et experts de la filière saisissent un retour non noté.",
     "title": "Gestion des jalons",
     "add": "Ajouter un jalon",
     "copy": "Copier le jalon",

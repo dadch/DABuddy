@@ -127,6 +127,9 @@ const ROLE_LABELS = { student: t('roles.student'), coach: t('roles.coach'), expe
                                             <i class="bi bi-chat-square-text"></i> <%= t('milestonesAdmin.badge.feedbackForm') %>
                                         </span>
                                     <% } %>
+                                    <% if (m.swarm_feedback_enabled) { %>
+                                        <span class="badge bg-info-subtle text-dark"><%= t('milestonesAdmin.swarmFeedbackEnabled') %></span>
+                                    <% } %>
                                     <% (m.uploadCategories || []).forEach(function(uc) { %>
                                         <span class="badge bg-secondary" title="<%= t('milestonesAdmin.badge.uploadCategoryTitle') %>">
                                             <i class="bi bi-tag"></i> <%= categoryLabel(uc) %>
@@ -289,6 +292,11 @@ const ROLE_LABELS = { student: t('roles.student'), coach: t('roles.coach'), expe
                     <div class="form-check mb-2">
                         <input type="checkbox" class="form-check-input" name="feedback_form_enabled" id="addFeedbackFormEnabled">
                         <label class="form-check-label" for="addFeedbackFormEnabled"><%= t('milestonesAdmin.form.feedbackFormEnabled') %></label>
+                    </div>
+                    <div class="form-check mb-2">
+                        <input type="checkbox" class="form-check-input" name="swarm_feedback_enabled" id="addSwarmFeedbackEnabled">
+                        <label class="form-check-label" for="addSwarmFeedbackEnabled"><%= t('milestonesAdmin.swarmFeedbackEnabled') %></label>
+                        <div class="form-text"><%= t('milestonesAdmin.swarmFeedbackEnabledHint') %></div>
                     </div>
                     <div class="mb-3">
                         <label for="addUploadCategories" class="form-label"><%= t('milestonesAdmin.form.uploadCategories') %></label>
@@ -491,6 +499,11 @@ const ROLE_LABELS = { student: t('roles.student'), coach: t('roles.coach'), expe
                     <div class="form-check mb-2">
                         <input type="checkbox" class="form-check-input" name="feedback_form_enabled" id="editFeedbackFormEnabled">
                         <label class="form-check-label" for="editFeedbackFormEnabled"><%= t('milestonesAdmin.form.feedbackFormEnabled') %></label>
+                    </div>
+                    <div class="form-check mb-2">
+                        <input type="checkbox" class="form-check-input" name="swarm_feedback_enabled" id="editSwarmFeedbackEnabled">
+                        <label class="form-check-label" for="editSwarmFeedbackEnabled"><%= t('milestonesAdmin.swarmFeedbackEnabled') %></label>
+                        <div class="form-text"><%= t('milestonesAdmin.swarmFeedbackEnabledHint') %></div>
                     </div>
                     <div class="mb-3">
                         <label for="editUploadCategories" class="form-label"><%= t('milestonesAdmin.form.uploadCategories') %></label>
@@ -729,6 +742,7 @@ function copyMilestone(m) {
     document.getElementById('addIsTransferProject').checked = !!m.is_transfer_project;
     document.getElementById('addIsAssignment').checked = !!m.is_assignment;
     document.getElementById('addFeedbackFormEnabled').checked = !!m.feedback_form_enabled;
+    document.getElementById('addSwarmFeedbackEnabled').checked = !!m.swarm_feedback_enabled;
     document.getElementById('addReminderStartAt').value    = toLocalInput(m.reminder_start_at);
     document.getElementById('addReminderPeriodDays').value = m.reminder_period_days || 7;
     document.getElementById('addSingleDueAt').value        = toLocalInput(m.single_due_at);
@@ -769,6 +783,7 @@ function editMilestone(m) {
     document.getElementById('editIsTransferProject').checked = !!m.is_transfer_project;
     document.getElementById('editIsAssignment').checked = !!m.is_assignment;
     document.getElementById('editFeedbackFormEnabled').checked = !!m.feedback_form_enabled;
+    document.getElementById('editSwarmFeedbackEnabled').checked = !!m.swarm_feedback_enabled;
     // Snapshot der Originalwerte für die Rückfrage-Logik beim Speichern.
     window.__editOriginal = {
         due_at:            toLocalInput(m.due_at),
@@ -818,6 +833,7 @@ function normalizeConfig(data) {
     data.is_transfer_project = !!data.is_transfer_project;
     data.is_assignment = !!data.is_assignment;
     data.feedback_form_enabled = !!data.feedback_form_enabled;
+    data.swarm_feedback_enabled = !!data.swarm_feedback_enabled;
     return data;
 }
 

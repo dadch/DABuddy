@@ -192,6 +192,7 @@ const createThesisMilestoneFromTemplate = (thesisId, template, released = false)
   is_transfer_project: template.is_transfer_project,
   is_assignment: template.is_assignment,
   feedback_form_enabled: template.feedback_form_enabled,
+  swarm_feedback_enabled: template.swarm_feedback_enabled,
   reminder_start_at: template.reminder_start_at,
   reminder_period_days: template.reminder_period_days,
   single_due_at:   template.single_due_at,
@@ -1391,6 +1392,7 @@ const parseMilestoneConfig = (body) => {
   const is_transfer_project = body.is_transfer_project === undefined ? false : !!body.is_transfer_project;
   const is_assignment = body.is_assignment === undefined ? false : !!body.is_assignment;
   const feedback_form_enabled = body.feedback_form_enabled === undefined ? false : !!body.feedback_form_enabled;
+  const swarm_feedback_enabled = body.swarm_feedback_enabled === undefined ? false : !!body.swarm_feedback_enabled;
   const applies_to = ['all', 'fulltime', 'parttime'].includes(body.applies_to) ? body.applies_to : 'all';
 
   // Mail-Erinnerungs- und Per-Kind-Fälligkeits-Felder (alle optional).
@@ -1411,7 +1413,7 @@ const parseMilestoneConfig = (body) => {
     allow_update: is_assignment ? false : allow_update,
     requires_evaluation, evaluator_role, double_evaluation, evaluator_role_2,
     evaluation_form_id, requires_approval, approver_role, requires_approval_2, approver_role_2,
-    is_transfer_project, is_assignment, feedback_form_enabled, applies_to,
+    is_transfer_project, is_assignment, feedback_form_enabled, swarm_feedback_enabled, applies_to,
     reminder_start_at, reminder_period_days,
     single_due_at, first_due_at, second_due_at, final_due_at, feedback_due_at,
   };
@@ -1625,6 +1627,7 @@ const updateMilestone = async (req, res) => {
           is_transfer_project: milestone.is_transfer_project,
           is_assignment: milestone.is_assignment,
           feedback_form_enabled: milestone.feedback_form_enabled,
+          swarm_feedback_enabled: milestone.swarm_feedback_enabled,
         },
         { where: { milestone_id: milestone.id } }
       );
@@ -3474,6 +3477,8 @@ const deleteUploadCategory = async (req, res) => {
 };
 
 module.exports = {
+  parseMilestoneConfig,
+  createThesisMilestoneFromTemplate,
   bulkDownloadCategoryZip,
   bulkDownloadFeedbackZip,
   getUploadCategories,
