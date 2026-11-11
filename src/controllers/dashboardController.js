@@ -1,6 +1,6 @@
 const { User, UserRole, Thesis, Department, Year, Milestone, ThesisMilestone, ThesisMilestoneDocument, ThesisLog, EvaluationForm, ThesisEvaluation, ThesisEvaluationGroup, UploadCategory } = require('../models');
 const { Op } = require('sequelize');
-const { listSwarmTheses } = require('../utils/swarmAccess');
+const { listSwarmTheses, swarmAccess, canWriteSwarmFeedback } = require('../utils/swarmAccess');
 
 const showDashboard = async (req, res) => {
   try {
@@ -179,6 +179,53 @@ const showDashboard = async (req, res) => {
   }
 };
 
+const formatFileSize = (bytes) => {
+  if (!bytes && bytes !== 0) return '';
+  const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+  if (bytes === 0) return '0 Bytes';
+  const i = Math.floor(Math.log(bytes) / Math.log(1024));
+  return Math.round(bytes / Math.pow(1024, i) * 100) / 100 + ' ' + sizes[i];
+};
+
+const fmtDateTime = (d) => new Date(d).toLocaleDateString('de-CH') + ' '
+  + new Date(d).toLocaleTimeString('de-CH', { hour: '2-digit', minute: '2-digit' });
+
+// Eingeschränkte Detailansicht im Schwarmmodus (nur bei Schwarmzugriff ohne
+// regulären Zugriff): ausschliesslich die markierten Meilensteine mit ihren
+// Dokumenten. Keine Logs, Bewertungen, Freigaben, Chat oder andere Meilensteine.
+const renderSwarmView = async (req, res, thesis) => {
+  const userId = req.session.userId;
+  const userRole = req.session.userRole;
+  const milestones = await ThesisMilestone.findAll({
+    where: { thesis_id: thesis.id, swarm_feedback_enabled: true },
+    include: [
+      {
+        model: ThesisMilestoneDocument,
+        as: 'documents',
+        include: [
+          { model: User, as: 'uploader', attributes: ['id', 'firstname', 'name'] },
+          { model: UploadCategory, as: 'uploadCategory', required: false }
+        ]
+      },
+      { model: UploadCategory, as: 'uploadCategories', through: { attributes: [] }, required: false }
+    ],
+    order: [['due_at', 'ASC'], [{ model: ThesisMilestoneDocument, as: 'documents' }, 'version', 'DESC']]
+  });
+  const canWrite = await canWriteSwarmFeedback(userId, userRole, thesis);
+  return res.render('shared/thesis-swarm', {
+    user: { id: userId, fullName: req.session.fullName, role: userRole },
+    thesis,
+    milestones,
+    canWrite,
+    swarmFeedbacksByMilestone: {},
+    swarmFeedbackCanRead: true,
+    swarmFeedbackCanWrite: canWrite,
+    messages: req.flash(),
+    formatFileSize,
+    fmtDateTime
+  });
+};
+
 const showThesisDetail = async (req, res) => {
   try {
     const userId = req.session.userId;
@@ -215,6 +262,7 @@ const showThesisDetail = async (req, res) => {
       (userRole === 'department_lead' && await checkDepartmentLeadAccess(userId, thesis.department_id));
 
     if (!hasAccess) {
+      if (await swarmAccess(userId, userRole, thesis.id)) return renderSwarmView(req, res, thesis);
       req.flash('error', 'Sie haben keine Berechtigung, diese Diplomarbeit anzusehen');
       return res.redirect('/dashboard');
     }
@@ -271,13 +319,7 @@ const showThesisDetail = async (req, res) => {
       // Referenzzeitpunkt für Ablauf-Logik (respektiert das simulierte Tagesdatum).
       nowTs: require('../config/simulatedToday').getNow().getTime(),
       messages: req.flash(),
-      formatFileSize: (bytes) => {
-        if (!bytes && bytes !== 0) return '';
-        const sizes = ['Bytes', 'KB', 'MB', 'GB'];
-        if (bytes === 0) return '0 Bytes';
-        const i = Math.floor(Math.log(bytes) / Math.log(1024));
-        return Math.round(bytes / Math.pow(1024, i) * 100) / 100 + ' ' + sizes[i];
-      }
+      formatFileSize
     });
 
   } catch (error) {

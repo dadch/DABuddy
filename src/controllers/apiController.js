@@ -76,6 +76,7 @@ const VALID_ROLES = ['student', 'coach', 'expert', 'admin', 'department_lead', '
 // Rollen-Stellvertretung (FBL darf als Dozent handeln), siehe src/utils/roles.js
 const { actsAs } = require('../utils/roles');
 const { notifyMilestoneReleaseChange } = require('../utils/milestoneReleaseNotifier');
+const { swarmDocumentAccess } = require('../utils/swarmAccess');
 
 // FPC darf nur auf Meilensteine mit Transferprojekt-Kennzeichnung zugreifen.
 const isFpcBlocked = (tm, userRole) =>
@@ -2114,12 +2115,14 @@ const downloadThesisMilestoneDocument = async (req, res) => {
     const userRole = req.session.userRole;
 
     const doc = await ThesisMilestoneDocument.findByPk(docId, {
-      include: [{ model: ThesisMilestone, as: 'thesisMilestone', attributes: ['id', 'thesis_id', 'is_transfer_project'] }]
+      include: [{ model: ThesisMilestone, as: 'thesisMilestone', attributes: ['id', 'thesis_id', 'is_transfer_project', 'swarm_feedback_enabled'] }]
     });
     if (!doc) return res.status(404).json({ success: false, message: 'Dokument nicht gefunden' });
     if (isFpcBlocked(doc.thesisMilestone, userRole)) return res.status(403).json({ success: false, message: 'Keine Berechtigung für diesen Meilenstein' });
 
-    const access = await userHasThesisAccess(userId, userRole, doc.thesisMilestone.thesis_id);
+    // Schwarmzugriff: nur Dokumente eines markierten Meilensteins (swarmDocumentAccess).
+    const access = (await userHasThesisAccess(userId, userRole, doc.thesisMilestone.thesis_id))
+      || (await swarmDocumentAccess(userId, userRole, doc.thesisMilestone));
     if (!access) return res.status(403).json({ success: false, message: 'Sie haben keine Berechtigung, dieses Dokument herunterzuladen' });
 
     if (!fs.existsSync(doc.file_path)) return res.status(404).json({ success: false, message: 'Dokumentendatei nicht gefunden' });

@@ -939,6 +939,14 @@
     "dashboard": {
       "sectionTitle": "Weitere Arbeiten im Fachbereich (Schwarmmodus)",
       "badge": "Schwarm"
+    },
+    "restricted": {
+      "title": "Eingeschränkte Ansicht (Schwarmmodus)",
+      "hint": "Eingeschränkte Ansicht im Schwarmmodus: Sie sehen nur das Präsentationsdokument und die Rückmeldungen zur Projektskizze dieser Arbeit.",
+      "noMilestone": "Für diese Arbeit ist kein Meilenstein für Rückmeldungen markiert."
+    },
+    "feedback": {
+      "button": "Rückmeldung Projektskizze"
     }
   }
 }

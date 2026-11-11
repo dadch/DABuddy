@@ -939,6 +939,14 @@
     "dashboard": {
       "sectionTitle": "Autres travaux de la filière (mode essaim)",
       "badge": "Essaim"
+    },
+    "restricted": {
+      "title": "Vue restreinte (mode essaim)",
+      "hint": "Vue restreinte en mode essaim : vous ne voyez que le document de présentation et les retours sur l'esquisse de projet de ce travail.",
+      "noMilestone": "Aucun jalon de ce travail n'est marqué pour les retours."
+    },
+    "feedback": {
+      "button": "Retour esquisse de projet"
     }
   }
 }

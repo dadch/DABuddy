@@ -1,0 +1,126 @@
+<%- include('../partials/header', { title: t('swarm.restricted.title') + ' - ThesisBuddy', user: user }) %>
+<%#
+  Eingeschränkte Detailansicht im Schwarmmodus. Zeigt nur Stammdaten der Arbeit,
+  die markierten Meilensteine (swarm_feedback_enabled) mit ihren Dokumenten und
+  den Rückmeldungsbereich. Kein Chat, keine Bewertungen, Freigaben, Uploads,
+  anderen Meilensteine oder Änderungsprotokolle.
+%>
+<%
+const studentNames = (thesis.students || []).map(s => s.name + ', ' + s.firstname).join(', ');
+const subtitleParts = [];
+if (studentNames) subtitleParts.push(studentNames);
+if (thesis.department && thesis.department.name) subtitleParts.push(thesis.department.name);
+const _yearText = thesis.year ? ((typeof yearLabel === 'function') ? yearLabel(thesis.year) : String(thesis.year.year)) : '';
+if (_yearText) subtitleParts.push(t('dashboard.year') + ' ' + _yearText);
+%>
+
+<div class="page-breadcrumb mb-2">
+    <a href="/dashboard"><%= t('nav.dashboard') %></a>
+    <span class="sep"></span>
+    <span><%= t('swarm.restricted.title') %></span>
+</div>
+<div class="page-header">
+    <div>
+        <h1 class="page-title">
+            <%= thesis.title %>
+            <span class="badge bg-warning text-dark align-middle fs-6"><i class="bi bi-people-fill"></i> <%= t('swarm.dashboard.badge') %></span>
+            <% if (thesis.is_confidential) { %>
+                <span class="badge bg-danger align-middle fs-6"><i class="bi bi-lock-fill"></i> <%= t('confidentiality.title') %></span>
+            <% } %>
+        </h1>
+        <% if (subtitleParts.length > 0) { %>
+            <div class="page-subtitle"><%= subtitleParts.join(' · ') %></div>
+        <% } %>
+    </div>
+</div>
+
+<div class="alert alert-info d-flex align-items-start gap-2" role="note">
+    <i class="bi bi-info-circle"></i>
+    <span><%= t('swarm.restricted.hint') %></span>
+</div>
+
+<% if (!milestones || milestones.length === 0) { %>
+    <p class="text-muted"><%= t('swarm.restricted.noMilestone') %></p>
+<% } %>
+
+<% (milestones || []).forEach(function(m) {
+    const docs = m.documents || [];
+    const hasDocs = docs.length > 0;
+    const cats = m.uploadCategories || [];
+    const hasCats = cats.length > 0;
+%>
+    <div class="milestone-card mb-3">
+        <div class="d-flex justify-content-between align-items-start flex-wrap gap-2">
+            <div>
+                <h6 class="mb-1"><%= milestoneLabel(m) %></h6>
+                <div class="small text-muted">
+                    <i class="bi bi-calendar-event"></i> <%= fmtDateTime(m.due_at) %>
+                </div>
+            </div>
+            <% if (canWrite) { %>
+                <a class="btn btn-primary btn-sm" href="/dashboard/thesis/<%= thesis.id %>/swarm-feedback/<%= m.id %>"><i class="bi bi-chat-square-text"></i> <%= t('swarm.feedback.button') %></a>
+            <% } %>
+        </div>
+
+        <%
+        // Read-only-Dokumentzeile (übernommen aus coach/thesis-detail.ejs, ohne Lösch-Button).
+        function renderDocRow(doc) { %>
+            <div class="d-flex justify-content-between align-items-center border-top py-2">
+                <div>
+                    <a href="/api/thesis-milestone-documents/<%= doc.id %>/download" class="text-decoration-none">
+                        <i class="bi bi-file-earmark-pdf text-danger"></i> <%= doc.file_name %>
+                    </a>
+                    <% if (doc.is_current) { %>
+                        <span class="badge bg-success ms-1"><%= t('thesisDetail.current') %> · v<%= doc.version %></span>
+                    <% } else { %>
+                        <span class="badge bg-secondary ms-1"><%= t('thesisDetail.previousVersion') %> · v<%= doc.version %></span>
+                    <% } %>
+                    <br>
+                    <small class="text-muted">
+                        <%= formatFileSize(doc.file_size) %> · <%= t('thesisDetail.uploadedBy') %>
+                        <%= doc.uploader ? (doc.uploader.name + ', ' + doc.uploader.firstname) : t('thesisDetail.unknown') %>
+                        <%= t('thesisDetail.on') %> <%= fmtDateTime(doc.uploaded_at) %>
+                        <% if (!doc.is_current && doc.superseded_at) { %>
+                            · <%= t('thesisDetail.supersededOn') %> <%= fmtDateTime(doc.superseded_at) %>
+                        <% } %>
+                    </small>
+                </div>
+            </div>
+        <% } %>
+
+        <% if (!hasCats) { /* Legacy: ein Slot ohne Kategorie */ %>
+            <% if (hasDocs) { %>
+                <div class="mt-3">
+                    <% docs.forEach(function(doc) { renderDocRow(doc); }); %>
+                </div>
+            <% } else { %>
+                <div class="mt-2"><small class="text-muted"><i class="bi bi-dash-circle"></i> <%= t('thesisDetail.noDocumentYet') %></small></div>
+            <% } %>
+        <% } else { /* Pro Upload-Kategorie ein eigener Slot */ %>
+            <div class="mt-3">
+                <% cats.forEach(function(cat) {
+                    const catDocs = docs.filter(d => d.upload_category_id === cat.id);
+                %>
+                    <div class="rounded border mb-2 p-2">
+                        <strong><i class="bi bi-tag"></i> <%= categoryLabel(cat) %></strong>
+                        <% if (catDocs.length > 0) { catDocs.forEach(function(doc) { renderDocRow(doc); }); } else { %>
+                            <small class="text-muted d-block mt-1"><i class="bi bi-dash-circle"></i> <%= t('thesisDetail.noDocumentYet') %></small>
+                        <% } %>
+                    </div>
+                <% }); %>
+                <%
+                const orphans = docs.filter(d => !cats.find(c => c.id === d.upload_category_id));
+                if (orphans.length > 0) { %>
+                    <div class="rounded border mb-2 p-2">
+                        <strong class="small text-muted"><i class="bi bi-archive"></i> <%= t('thesisDetail.otherDocuments') %></strong>
+                        <% orphans.forEach(function(doc) { renderDocRow(doc); }); %>
+                    </div>
+                <% } %>
+            </div>
+        <% } %>
+
+        <%- include('../partials/swarm-feedback-list', { m: m, feedbacks: (swarmFeedbacksByMilestone || {})[m.id] || [], canRead: swarmFeedbackCanRead, canWrite: swarmFeedbackCanWrite, thesisId: thesis.id, user: user, fmtDateTime: fmtDateTime }) %>
+    </div>
+<% }); %>
+
+<%- include('../partials/footer') %>
