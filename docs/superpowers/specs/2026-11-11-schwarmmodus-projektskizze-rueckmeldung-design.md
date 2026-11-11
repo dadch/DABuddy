@@ -42,8 +42,11 @@ Vorlage für Inhalt und Aufbau der Rückmeldung sind die Formulare
   unverändert und unabhängig.
 - Keine E-Mail-Benachrichtigungen rund um Rückmeldungen oder Schwarmmodus.
 - Keine Mehrfach-Rückmeldungen derselben Person zur selben Arbeit.
-- Kein Schwarmzugriff für Studierende, Transferprojekt-Dozenten oder auf
-  Arbeiten anderer Fachbereiche.
+- Kein Schwarmzugriff für die Rollen Student und Dozent Transferprojekt
+  und nicht auf Arbeiten anderer Fachbereiche. Massgebend ist die in der
+  Sitzung aktive Rolle: Eine Person, die über die Mehrrollen-Zuweisung sowohl
+  Dozent Transferprojekt als auch Dozent ist, hat in der Rolle Dozent den
+  vollen Schwarmzugriff.
 
 ## Anti-Ziele (was das Feature scheitern liesse)
 
@@ -103,6 +106,13 @@ wenn **alle** Bedingungen erfüllt sind:
 3. Die Arbeit liegt in einem Fachbereich, dem die Person zugeordnet ist.
 4. Die Arbeit gehört zum aktuellen Diplomjahr.
 5. Die Arbeit ist nicht gesperrt (`is_locked = false`).
+
+Vertrauliche Arbeiten (`is_confidential`) werden im Schwarmmodus wie alle
+anderen behandelt, inklusive Dokument-Download. Die Geheimhaltung greift zum
+Zeitpunkt der Projektskizze noch nicht; die Skizze enthält zu wenig
+Informationen, als dass sie davon betroffen sein könnte. Das
+Vertraulichkeits-Kennzeichen wird in der eingeschränkten Ansicht nur
+informativ angezeigt.
 
 Der Schwarmzugriff wird ausschliesslich an diesen Stellen verwendet:
 
@@ -282,11 +292,5 @@ eingeschränkte Ansicht) ein Abschnitt „Rückmeldungen Projektskizze“:
 
 ## Offene Punkte für die Auftraggeberin / den Auftraggeber
 
-1. **Vertrauliche Arbeiten (`is_confidential`) im Schwarmmodus.** Heute
-   unterschreiben die Beteiligten einer vertraulichen Arbeit eine
-   Geheimhaltungsvereinbarung. Im Schwarmmodus könnten alle Dozierenden und
-   externen Experten des Fachbereichs die Projektskizze samt Sponsor-Angaben
-   herunterladen, ohne unterschrieben zu haben. Zu entscheiden: Karte,
-   Rückmeldung und Dokument wie bei allen anderen Arbeiten, oder Karte und
-   Rückmeldung ja, Dokument-Download nein, oder vertrauliche Arbeiten ganz
-   vom Schwarmzugriff ausnehmen. *Antwort ausstehend.*
+Keine. Die Frage zu vertraulichen Arbeiten aus der Umsetzer-Prüfung ist
+beantwortet (siehe „Schwarmzugriff“). Design am 2026-11-11 freigegeben.
