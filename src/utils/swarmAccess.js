@@ -56,15 +56,25 @@ async function listSwarmTheses(userId, userRole, yearId, include = []) {
   });
 }
 
-// Liegt die Arbeit im aktuellen Diplomjahr? Nutzt `thesis.year`, falls geladen.
+// Liegt die Arbeit im aktuellen Diplomjahr? Nutzt `thesis.year`, falls mit
+// `is_current` geladen; sonst wird das Jahr nachgeladen (bei fehlendem
+// `year_id` über die Arbeit). Ist das Jahr nicht bestimmbar, gilt die Arbeit
+// als aktuell (fail-closed: Studierende werden dann abgewiesen).
 async function isCurrentYearThesis(thesis) {
-  const year = thesis.year || await Year.findByPk(thesis.year_id, { attributes: ['is_current'] });
-  return !!(year && year.is_current);
+  if (thesis.year && typeof thesis.year.is_current === 'boolean') return thesis.year.is_current;
+  let yearId = thesis.year_id;
+  if (yearId == null && thesis.id != null) {
+    const reloaded = await Thesis.findByPk(thesis.id, { attributes: ['id', 'year_id'] });
+    yearId = reloaded ? reloaded.year_id : null;
+  }
+  const year = yearId != null ? await Year.findByPk(yearId, { attributes: ['is_current'] }) : null;
+  return year ? year.is_current === true : true;
 }
 
 // Lesen der Rückmeldungen: regulärer oder Schwarmzugriff; Studierende nur,
 // solange der Schwarmmodus für das aktuelle Jahr nicht aktiv ist.
 async function canReadSwarmFeedbacks(userId, userRole, thesis) {
+  if (!thesis) return false;
   const hasAccess = await userHasThesisAccess(userId, userRole, thesis.id)
     || await swarmAccess(userId, userRole, thesis.id);
   if (!hasAccess) return false;
@@ -75,7 +85,7 @@ async function canReadSwarmFeedbacks(userId, userRole, thesis) {
 // Erfassen einer Rückmeldung: nie auf gesperrten Arbeiten.
 // Dozent/Experte: Schwarm- oder regulärer Zugriff; FBL/Admin: regulärer Zugriff.
 async function canWriteSwarmFeedback(userId, userRole, thesis) {
-  if (thesis.is_locked !== false) return false;
+  if (!thesis || thesis.is_locked !== false) return false;
   if (SWARM_ROLES.includes(userRole)) {
     return await swarmAccess(userId, userRole, thesis.id)
       || await userHasThesisAccess(userId, userRole, thesis.id);

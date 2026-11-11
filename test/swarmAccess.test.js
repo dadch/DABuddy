@@ -46,9 +46,9 @@ test('kein Zugriff auf gesperrte Arbeit (thesisLocked)', () => withFixture(async
   assert.equal(await swarmAccess(f.expertIn.id, 'expert', f.thesisLocked.id), false);
 }));
 
-test('kein Zugriff auf Arbeit eines anderen Diplomjahrs', () => withFixture(async (f) => {
+test('kein Zugriff auf Arbeit eines anderen Diplomjahrs', (t) => withFixture(async (f) => {
   const otherYear = await Year.findOne({ where: { is_current: false } });
-  if (!otherYear) return; // ohne zweites Jahr in der DB nicht prüfbar
+  if (!otherYear) { t.skip('kein nicht-aktuelles Jahr in der DB'); return; }
   await Thesis.update({ year_id: otherYear.id }, { where: { id: f.thesis.id } });
   assert.equal(await swarmAccess(f.coachIn.id, 'coach', f.thesis.id), false);
   assert.deepEqual(await listSwarmTheses(f.coachIn.id, 'coach', otherYear.id), []);
@@ -108,4 +108,61 @@ test('swarmDocumentAccess: tmSwarm true, tmPlain false für coachIn', () => with
   assert.equal(await swarmDocumentAccess(f.student.id, 'student', f.tmSwarm), false);
   swarmMode.setActive(false);
   assert.equal(await swarmDocumentAccess(f.coachIn.id, 'coach', f.tmSwarm), false);
+}));
+
+test('canReadSwarmFeedbacks: Student abgewiesen, wenn Jahr nicht mitgeladen (Modus an)', () => withFixture(async (f) => {
+  // ohne year_id und ohne year-Assoziation
+  const noYearId = await Thesis.findByPk(f.thesis.id, { attributes: ['id', 'is_locked'] });
+  assert.equal(noYearId.year_id, undefined);
+  assert.equal(await canReadSwarmFeedbacks(f.student.id, 'student', noYearId), false);
+  // year inkludiert, aber ohne is_current
+  const yearNoFlag = await Thesis.findByPk(f.thesis.id, {
+    attributes: ['id', 'is_locked'], include: [{ model: Year, as: 'year', attributes: ['id'] }],
+  });
+  assert.equal(yearNoFlag.year.is_current, undefined);
+  assert.equal(await canReadSwarmFeedbacks(f.student.id, 'student', yearNoFlag), false);
+  // Gegenprobe: Modus aus → Student mit regulärem Zugriff darf lesen
+  swarmMode.setActive(false);
+  assert.equal(await canReadSwarmFeedbacks(f.student.id, 'student', noYearId), true);
+  assert.equal(await canReadSwarmFeedbacks(f.student.id, 'student', yearNoFlag), true);
+}));
+
+test('canRead/canWrite: null-Arbeit ergibt false', () => withFixture(async (f) => {
+  assert.equal(await canReadSwarmFeedbacks(f.coachIn.id, 'coach', null), false);
+  assert.equal(await canWriteSwarmFeedback(f.coachIn.id, 'coach', undefined), false);
+  assert.equal(await swarmDocumentAccess(f.coachIn.id, 'coach', null), false);
+}));
+
+test('canWriteSwarmFeedback: zugewiesener Coach bei Modus aus, Fachbereichsleitung', () => withFixture(async (f) => {
+  const mkLead = (key) => User.create({
+    username: `swarmtest_d${f.dept.id}_${key}`, password: 'swarmtest-pw-1', name: `Test${key}`,
+    firstname: 'Schwarm', email: `swarmtest_d${f.dept.id}_${key}@example.invalid`, role: 'department_lead', language: 'de',
+  });
+  const lead = await mkLead('lead');
+  const leadOther = await mkLead('leadOther');
+  try {
+    await f.dept.update({ department_lead_id: lead.id });
+    await f.deptOther.update({ department_lead_id: leadOther.id });
+    await f.thesis.setCoaches([f.coachIn]);
+
+    swarmMode.setActive(false);
+    // regulärer Zugriff (|| userHasThesisAccess) trägt auch ohne Schwarmmodus
+    assert.equal(await canWriteSwarmFeedback(f.coachIn.id, 'coach', f.thesis), true);
+    assert.equal(await canWriteSwarmFeedback(f.coachOut.id, 'coach', f.thesis), false);
+    assert.equal(await canWriteSwarmFeedback(lead.id, 'department_lead', f.thesis), true);
+    assert.equal(await canWriteSwarmFeedback(leadOther.id, 'department_lead', f.thesis), false);
+
+    swarmMode.setActive(true);
+    assert.equal(await canWriteSwarmFeedback(lead.id, 'department_lead', f.thesis), true);
+    assert.equal(await canWriteSwarmFeedback(leadOther.id, 'department_lead', f.thesis), false);
+    assert.equal(await canWriteSwarmFeedback(lead.id, 'department_lead', f.thesisLocked), false);
+    // FBL erhält keinen Schwarmzugriff, auch nicht im eigenen Fachbereich
+    assert.equal(await swarmAccess(lead.id, 'department_lead', f.thesis.id), false);
+  } finally {
+    await f.thesis.setCoaches([]).catch(() => {});
+    await f.dept.update({ department_lead_id: null }).catch(() => {});
+    await f.deptOther.update({ department_lead_id: null }).catch(() => {});
+    await lead.destroy().catch(() => {});
+    await leadOther.destroy().catch(() => {});
+  }
 }));
