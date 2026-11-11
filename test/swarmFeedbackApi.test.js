@@ -109,6 +109,9 @@ test('fehlende recommendation → 400; drei leere Kriterien → 400', async () =
       const d = await put(f, f.coachIn, 'coach', validBody({ condition_until: '1.12.2026' }));
       assert.equal(d.code, 400);
       assert.equal(d.body.message, 'swarm.feedback.validation.invalidDate');
+      const e = await put(f, f.coachIn, 'coach', validBody({ condition_until: '2026-02-30' }));
+      assert.equal(e.code, 400);
+      assert.equal(e.body.message, 'swarm.feedback.validation.invalidDate');
       assert.equal(await SwarmFeedback.count({ where: { thesis_milestone_id: f.tmSwarm.id } }), 0);
     });
   } finally { await f.cleanup(); }

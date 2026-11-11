@@ -2663,7 +2663,10 @@ const validateSwarmFeedbackBody = (body) => {
   }
   const until = b.condition_until == null ? '' : String(b.condition_until).trim();
   if (until !== '') {
-    if (!/^\d{4}-\d{2}-\d{2}$/.test(until)) return { ok: false, errorKey: 'swarm.feedback.validation.invalidDate' };
+    const d = /^\d{4}-\d{2}-\d{2}$/.test(until) ? new Date(`${until}T00:00:00Z`) : null;
+    if (!d || Number.isNaN(d.getTime()) || d.toISOString().slice(0, 10) !== until) {
+      return { ok: false, errorKey: 'swarm.feedback.validation.invalidDate' };
+    }
     values.condition_until = until;
   }
   if (recommendation === 'continue') {
