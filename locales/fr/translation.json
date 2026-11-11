@@ -104,7 +104,8 @@
       "bulkDownload": "Télécharger les documents en ZIP…",
       "userManagement": "Gérer les utilisateurs",
       "studentManagement": "Gérer les étudiant·e·s",
-      "departmentManagement": "Gérer les filières"
+      "departmentManagement": "Gérer les filières",
+      "swarmMode": "Mode essaim"
     },
     "thesisLocked": "Travail de diplôme verrouillé",
     "repetent": "Redoublant·e",
@@ -923,5 +924,21 @@
     "waitingFor": "En attente de",
     "weight": "Poids",
     "weightMaxPoints": "Poids {{weight}}, max. {{max}} pt."
+  },
+  "swarm": {
+    "mode": {
+      "title": "Mode essaim",
+      "description": "En mode essaim, tous les enseignants et experts voient dans le tableau de bord, en plus de leurs propres travaux, tous les travaux non bloqués de l'année de diplôme en cours de leurs filières et peuvent saisir un retour sur l'esquisse de projet sur le jalon marqué. Les étudiants ne voient ces retours qu'une fois le mode essaim désactivé. Le mode s'applique à tout le système.",
+      "active": "actif",
+      "inactive": "inactif",
+      "switchLabel": "Activer le mode essaim",
+      "saved": "Enregistré.",
+      "error": "Échec de l'enregistrement."
+    },
+    "banner": "Mode essaim actif : les enseignants et experts voient tous les travaux de leur filière et peuvent saisir des retours sur l'esquisse de projet.",
+    "dashboard": {
+      "sectionTitle": "Autres travaux de la filière (mode essaim)",
+      "badge": "Essaim"
+    }
   }
 }

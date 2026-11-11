@@ -8,12 +8,12 @@
     </div>
 </div>
 
-<% if (theses.length === 0) { %>
+<% if (theses.length === 0 && swarmTheses.length === 0) { %>
     <div class="alert alert-info" role="alert">
         <i class="bi bi-info-circle"></i>
         <%= t('dashboard.noTheses_role') %>
     </div>
-<% } else { %>
+<% } else if (theses.length > 0) { %>
     <div class="table-responsive">
         <table class="table table-striped">
             <thead>
@@ -29,39 +29,31 @@
             </thead>
             <tbody>
                 <% theses.forEach(function(thesis) { %>
-                    <tr<% if (thesis.is_locked) { %> class="table-warning"<% } %>>
-                        <td>
-                            <% if (thesis.is_locked) { %><i class="bi bi-slash-circle-fill text-danger me-2" title="<%= t('dashboard.thesisLocked') %>"></i><% } %>
-                            <strong><%= thesis.title %></strong>
-                        </td>
-                        <td><%= thesis.department.name %></td>
-                        <td>
-                            <% thesis.students.forEach(function(s, i) { %>
-                                <%= s.name %>, <%= s.firstname %><% if (i < thesis.students.length - 1) { %>, <% } %>
-                            <% }); %>
-                            <% if (thesis.is_repetent) { %>
-                                <span class="badge bg-warning text-dark ms-1"><i class="bi bi-arrow-repeat"></i> <%= t('dashboard.repetent') %></span>
-                            <% } %>
-                        </td>
-                        <td>
-                            <% thesis.coaches.forEach(function(c, i) { %>
-                                <%= c.name %>, <%= c.firstname %><% if (i < thesis.coaches.length - 1) { %>, <% } %>
-                            <% }); %>
-                        </td>
-                        <td>
-                            <% if (thesis.fieldProjectCoaches && thesis.fieldProjectCoaches.length > 0) { %>
-                                <% thesis.fieldProjectCoaches.forEach(function(f, i) { %>
-                                    <%= f.name %>, <%= f.firstname %><% if (i < thesis.fieldProjectCoaches.length - 1) { %>, <% } %>
-                                <% }); %>
-                            <% } else { %>-<% } %>
-                        </td>
-                        <td><%= thesis.sponsor || '-' %></td>
-                        <td>
-                            <a href="/dashboard/thesis/<%= thesis.id %>" class="btn btn-primary btn-sm">
-                                <i class="bi bi-eye"></i> <%= t('misc.viewDetails') %>
-                            </a>
-                        </td>
-                    </tr>
+                    <%- include('../partials/thesis-row', { thesis: thesis, swarm: false }) %>
+                <% }); %>
+            </tbody>
+        </table>
+    </div>
+<% } %>
+
+<% if (swarmTheses.length > 0) { %>
+    <h2 class="h4 mt-4"><i class="bi bi-people-fill"></i> <%= t('swarm.dashboard.sectionTitle') %></h2>
+    <div class="table-responsive">
+        <table class="table table-striped">
+            <thead>
+                <tr>
+                    <th><%= t('dashboard.headers.title') %></th>
+                    <th><%= t('dashboard.headers.department') %></th>
+                    <th><%= t('dashboard.headers.students') %></th>
+                    <th><%= t('dashboard.headers.coaches') %></th>
+                    <th><%= t('dashboard.headers.fieldProjectCoaches') %></th>
+                    <th><%= t('dashboard.headers.sponsor') %></th>
+                    <th><%= t('dashboard.headers.actions') %></th>
+                </tr>
+            </thead>
+            <tbody>
+                <% swarmTheses.forEach(function(thesis) { %>
+                    <%- include('../partials/thesis-row', { thesis: thesis, swarm: true }) %>
                 <% }); %>
             </tbody>
         </table>

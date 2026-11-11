@@ -28,6 +28,7 @@
     <%- include('sidebar', { user: typeof user !== 'undefined' ? user : null, activeNav: typeof activeNav !== 'undefined' ? activeNav : '' }) %>
 
     <main class="app-main">
+        <% if (typeof swarmModeActive !== 'undefined' && swarmModeActive && typeof user !== 'undefined' && user && ['admin','department_lead','coach','expert'].includes(user.role)) { %><div class="alert alert-warning d-flex align-items-center gap-2 mb-3" role="status"><i class="bi bi-people-fill"></i> <span><%= t('swarm.banner') %></span></div><% } %>
         <% if (typeof messages !== 'undefined' && messages) { %>
             <% if (messages.success && messages.success.length > 0) { %>
                 <% messages.success.forEach(function(message) { %>

@@ -1,0 +1,74 @@
+<%- include('../partials/header', { title: t('swarm.mode.title') + ' - ThesisBuddy', user: user }) %>
+
+<div class="page-breadcrumb mb-2">
+    <a href="/dashboard"><%= t('nav.dashboard') %></a>
+    <span class="sep"></span>
+    <span><%= t('swarm.mode.title') %></span>
+</div>
+<div class="page-header">
+    <div>
+        <h1 class="page-title"><%= t('swarm.mode.title') %></h1>
+    </div>
+</div>
+
+<div class="card mb-4">
+    <div class="card-header">
+        <strong><i class="bi bi-people-fill"></i> <%= t('swarm.mode.title') %></strong>
+        <span id="swarmBadge" class="badge bg-secondary ms-2"><%= t('swarm.mode.inactive') %></span>
+    </div>
+    <div class="card-body">
+        <div class="form-check form-switch mb-3">
+            <input class="form-check-input" type="checkbox" role="switch" id="swarmSwitch" disabled>
+            <label class="form-check-label" for="swarmSwitch"><%= t('swarm.mode.switchLabel') %></label>
+        </div>
+        <p class="text-muted small mb-2"><%= t('swarm.mode.description') %></p>
+        <div id="swarmResult" class="small" role="status"></div>
+    </div>
+</div>
+
+<script>
+    const L = {
+        active: <%- JSON.stringify(t('swarm.mode.active')) %>,
+        inactive: <%- JSON.stringify(t('swarm.mode.inactive')) %>,
+        saved: <%- JSON.stringify(t('swarm.mode.saved')) %>,
+        error: <%- JSON.stringify(t('swarm.mode.error')) %>
+    };
+    const swarmSwitch = document.getElementById('swarmSwitch');
+    const swarmBadge = document.getElementById('swarmBadge');
+    const swarmResult = document.getElementById('swarmResult');
+
+    function showState(active) {
+        swarmSwitch.checked = active;
+        swarmBadge.className = 'badge ms-2 ' + (active ? 'bg-success' : 'bg-secondary');
+        swarmBadge.textContent = active ? L.active : L.inactive;
+    }
+    function showResult(ok) {
+        swarmResult.className = 'small ' + (ok ? 'text-success' : 'text-danger');
+        swarmResult.textContent = ok ? L.saved : L.error;
+    }
+
+    fetch('/api/admin/swarm-mode')
+        .then(r => r.json())
+        .then(d => { showState(!!d.active); swarmSwitch.disabled = false; })
+        .catch(() => { showResult(false); });
+
+    swarmSwitch.addEventListener('change', async () => {
+        const wanted = swarmSwitch.checked;
+        try {
+            const r = await fetch('/api/admin/swarm-mode', {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ active: wanted })
+            });
+            const d = await r.json();
+            if (!r.ok || !d.success) throw new Error('save failed');
+            showState(!!d.active);
+            showResult(true);
+        } catch (e) {
+            showState(!wanted);
+            showResult(false);
+        }
+    });
+</script>
+
+<%- include('../partials/footer') %>

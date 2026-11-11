@@ -8,58 +8,24 @@
     </div>
 </div>
 
-<% if (theses.length === 0) { %>
+<% if (theses.length === 0 && swarmTheses.length === 0) { %>
     <div class="alert alert-info" role="alert">
         <i class="bi bi-info-circle"></i>
         <%= t('dashboard.noTheses_role') %>
     </div>
-<% } else { %>
+<% } else if (theses.length > 0) { %>
     <div class="row">
         <% theses.forEach(function(thesis) { %>
-            <div class="col-md-6 mb-4">
-                <div class="card h-100<% if (thesis.is_locked) { %> border-danger<% } %>">
-                    <div class="card-header<% if (thesis.is_locked) { %> bg-warning-subtle<% } %>">
-                        <h6 class="mb-0">
-                            <% if (thesis.is_locked) { %><i class="bi bi-slash-circle-fill text-danger me-1" title="<%= t('dashboard.thesisLocked') %>"></i><% } %>
-                            <i class="bi bi-file-text"></i> <%= thesis.title %>
-                        </h6>
-                    </div>
-                    <div class="card-body">
-                        <p><strong><%= t('dashboard.department') %>:</strong> <%= thesis.department.name %></p>
-                        <% if (thesis.sponsor) { %>
-                            <p><strong><%= t('dashboard.headers.sponsor') %>:</strong> <%= thesis.sponsor %></p>
-                        <% } %>
-                        <div class="mt-3">
-                            <h6><%= t('dashboard.headers.students') %>:</h6>
-                            <% thesis.students.forEach(function(s) { %>
-                                <div class="mb-2">
-                                    <i class="bi bi-person-fill"></i> <%= s.name %>, <%= s.firstname %>
-                                    <% if (thesis.is_repetent) { %>
-                                        <span class="badge bg-warning text-dark ms-1"><i class="bi bi-arrow-repeat"></i> <%= t('dashboard.repetent') %></span>
-                                    <% } %>
-                                    <br><small class="text-muted"><%= s.email %></small>
-                                </div>
-                            <% }); %>
-                        </div>
-                        <% if (thesis.experts.length > 0) { %>
-                            <div class="mt-3">
-                                <h6><%= t('dashboard.headers.experts') %>:</h6>
-                                <% thesis.experts.forEach(function(e) { %>
-                                    <div class="mb-2">
-                                        <i class="bi bi-award"></i> <%= e.name %>, <%= e.firstname %>
-                                        <br><small class="text-muted"><%= e.email %></small>
-                                    </div>
-                                <% }); %>
-                            </div>
-                        <% } %>
-                    </div>
-                    <div class="card-footer">
-                        <a href="/dashboard/thesis/<%= thesis.id %>" class="btn btn-primary btn-sm">
-                            <i class="bi bi-eye"></i> <%= t('misc.viewDetails') %>
-                        </a>
-                    </div>
-                </div>
-            </div>
+            <%- include('../partials/thesis-card', { thesis: thesis, swarm: false }) %>
+        <% }); %>
+    </div>
+<% } %>
+
+<% if (swarmTheses.length > 0) { %>
+    <h2 class="h4 mt-4"><i class="bi bi-people-fill"></i> <%= t('swarm.dashboard.sectionTitle') %></h2>
+    <div class="row">
+        <% swarmTheses.forEach(function(thesis) { %>
+            <%- include('../partials/thesis-card', { thesis: thesis, swarm: true }) %>
         <% }); %>
     </div>
 <% } %>

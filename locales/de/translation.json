@@ -104,7 +104,8 @@
       "bulkDownload": "Dokumente als ZIP herunterladen…",
       "userManagement": "Benutzer verwalten",
       "studentManagement": "Studierende verwalten",
-      "departmentManagement": "Fachbereiche verwalten"
+      "departmentManagement": "Fachbereiche verwalten",
+      "swarmMode": "Schwarmmodus"
     },
     "thesisLocked": "Diplomarbeit gesperrt",
     "repetent": "Repetent",
@@ -923,5 +924,21 @@
     "waitingFor": "Wartet auf",
     "weight": "Gewicht",
     "weightMaxPoints": "Gewicht {{weight}}, max. {{max}} Pkt."
+  },
+  "swarm": {
+    "mode": {
+      "title": "Schwarmmodus",
+      "description": "Im Schwarmmodus sehen alle Dozierenden und Experten im Dashboard zusätzlich alle nicht gesperrten Arbeiten des aktuellen Diplomjahrs aus ihren Fachbereichen und können auf dem markierten Meilenstein eine Rückmeldung zur Projektskizze erfassen. Studierende sehen diese Rückmeldungen erst, wenn der Schwarmmodus wieder deaktiviert ist. Der Modus gilt systemweit.",
+      "active": "aktiv",
+      "inactive": "inaktiv",
+      "switchLabel": "Schwarmmodus aktivieren",
+      "saved": "Gespeichert.",
+      "error": "Speichern fehlgeschlagen."
+    },
+    "banner": "Schwarmmodus aktiv: Dozierende und Experten sehen alle Arbeiten ihres Fachbereichs und können Rückmeldungen zur Projektskizze erfassen.",
+    "dashboard": {
+      "sectionTitle": "Weitere Arbeiten im Fachbereich (Schwarmmodus)",
+      "badge": "Schwarm"
+    }
   }
 }

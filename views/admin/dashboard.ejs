@@ -18,6 +18,7 @@
                 <li><a class="dropdown-item" href="/dashboard/admin/upload-categories"><i class="bi bi-tag"></i> <%= t('dashboard.actions.uploadCategories') %></a></li>
                 <li><a class="dropdown-item" href="/dashboard/document-templates"><i class="bi bi-folder2-open"></i> <%= t('nav.documentTemplates') %></a></li>
                 <li><a class="dropdown-item" href="/dashboard/admin/mail"><i class="bi bi-envelope"></i> <%= t('mgmt.mailSettings') %></a></li>
+                <li><a class="dropdown-item" href="/dashboard/admin/swarm"><i class="bi bi-people-fill"></i> <%= t('swarm.mode.title') %></a></li>
                 <li><hr class="dropdown-divider"></li>
                 <li><a class="dropdown-item" href="/api/theses-list.pdf<%= selectedDepartment ? '?department=' + encodeURIComponent(selectedDepartment) : '' %>" target="_blank"><i class="bi bi-file-earmark-pdf"></i> <%= t('dashboard.actions.thesesListPdf') %></a></li>
                 <li><a class="dropdown-item" href="/api/theses-list.csv<%= selectedDepartment ? '?department=' + encodeURIComponent(selectedDepartment) : '' %>"><i class="bi bi-file-earmark-spreadsheet"></i> <%= t('dashboard.actions.thesesListCsv') %></a></li>

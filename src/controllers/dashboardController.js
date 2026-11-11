@@ -1,5 +1,6 @@
 const { User, UserRole, Thesis, Department, Year, Milestone, ThesisMilestone, ThesisMilestoneDocument, ThesisLog, EvaluationForm, ThesisEvaluation, ThesisEvaluationGroup, UploadCategory } = require('../models');
 const { Op } = require('sequelize');
+const { listSwarmTheses } = require('../utils/swarmAccess');
 
 const showDashboard = async (req, res) => {
   try {
@@ -104,19 +105,27 @@ const showDashboard = async (req, res) => {
       // Ohne Studierende ans Ende sortieren (Marker '~~~~').
       return p ? [p.name || '~~~~', p.firstname || ''] : ['~~~~', '~~~~'];
     };
-    const distinctDepartments = new Set(theses.map(t => t.department_id));
-    const sortByDepartment = distinctDepartments.size > 1;
-    theses.sort((a, b) => {
-      if (sortByDepartment) {
-        const da = (a.department && a.department.name) || '';
-        const db = (b.department && b.department.name) || '';
-        const c = COLLATOR.compare(da, db);
-        if (c !== 0) return c;
-      }
-      const [an, af] = primaryStudentKey(a);
-      const [bn, bf] = primaryStudentKey(b);
-      return COLLATOR.compare(an, bn) || COLLATOR.compare(af, bf);
-    });
+    const sortTheses = (list) => {
+      const distinctDepartments = new Set(list.map(t => t.department_id));
+      const sortByDepartment = distinctDepartments.size > 1;
+      list.sort((a, b) => {
+        if (sortByDepartment) {
+          const da = (a.department && a.department.name) || '';
+          const db = (b.department && b.department.name) || '';
+          const c = COLLATOR.compare(da, db);
+          if (c !== 0) return c;
+        }
+        const [an, af] = primaryStudentKey(a);
+        const [bn, bf] = primaryStudentKey(b);
+        return COLLATOR.compare(an, bn) || COLLATOR.compare(af, bf);
+      });
+      return list;
+    };
+    sortTheses(theses);
+
+    // Schwarmmodus: zusätzliche, nicht eigene Arbeiten (nur coach/expert, sonst []).
+    const ownIds = new Set(theses.map(t => t.id));
+    const swarmTheses = sortTheses((await listSwarmTheses(userId, userRole, selectedYearId, baseInclude)).filter(t => !ownIds.has(t.id)));
 
     // Mehrfachrollen (Primär + Zusatzrollen) — wird vom Role-Switcher-Partial benötigt.
     const roleRows = await UserRole.findAll({ where: { user_id: userId }, attributes: ['role'], raw: true });
@@ -133,6 +142,7 @@ const showDashboard = async (req, res) => {
       availableRoles,
       currentRole: userRole,
       theses,
+      swarmTheses,
       messages: req.flash(),
     };
 
@@ -479,6 +489,23 @@ const showMailSettings = async (req, res) => {
   }
 };
 
+const showSwarmMode = async (req, res) => {
+  try {
+    if (req.session.userRole !== 'admin') {
+      req.flash('error', 'Zugriff verweigert. Nur Administratoren.');
+      return res.redirect('/dashboard');
+    }
+    res.render('admin/swarm-mode', {
+      user: { fullName: req.session.fullName, role: req.session.userRole },
+      messages: req.flash(),
+    });
+  } catch (e) {
+    console.error('showSwarmMode error:', e);
+    req.flash('error', 'Seite konnte nicht geladen werden.');
+    res.redirect('/dashboard');
+  }
+};
+
 const showUploadCategoriesManagement = async (req, res) => {
   try {
     if (req.session.userRole !== 'admin') {
@@ -556,6 +583,7 @@ module.exports = {
   showProfile,
   updateProfile,
   showMailSettings,
+  showSwarmMode,
   showYearsManagement,
   showUploadCategoriesManagement,
   showMilestonesManagement,
