@@ -983,7 +983,13 @@
         "recommendationRequired": "Veuillez choisir une recommandation.",
         "criterionRequired": "Veuillez remplir au moins un critère.",
         "invalidDate": "Veuillez indiquer une date valide (AAAA-MM-JJ)."
-      }
+      },
+      "listTitle": "Retours esquisse de projet",
+      "none": "Pas encore de retours.",
+      "studentHidden": "Les retours seront disponibles après la présentation.",
+      "pdf": "PDF",
+      "delete": "Supprimer",
+      "deleteConfirm": "Vraiment supprimer ?"
     }
   }
 }

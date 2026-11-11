@@ -1,6 +1,6 @@
 const { SwarmFeedback, User, UserRole, Thesis, Department, Year, Milestone, ThesisMilestone, ThesisMilestoneDocument, ThesisLog, EvaluationForm, ThesisEvaluation, ThesisEvaluationGroup, UploadCategory } = require('../models');
 const { Op } = require('sequelize');
-const { listSwarmTheses, swarmAccess, canWriteSwarmFeedback } = require('../utils/swarmAccess');
+const { listSwarmTheses, swarmAccess, canWriteSwarmFeedback, canReadSwarmFeedbacks } = require('../utils/swarmAccess');
 
 const showDashboard = async (req, res) => {
   try {
@@ -190,6 +190,23 @@ const formatFileSize = (bytes) => {
 const fmtDateTime = (d) => new Date(d).toLocaleDateString('de-CH') + ' '
   + new Date(d).toLocaleTimeString('de-CH', { hour: '2-digit', minute: '2-digit' });
 
+// Rückmeldungen Projektskizze für die Meilensteinliste. Ohne Leserecht (z.B.
+// Studierende vor Freigabe) werden keine Daten an das Template gegeben.
+const loadSwarmFeedbackData = async (userId, userRole, thesis) => {
+  const canRead = await canReadSwarmFeedbacks(userId, userRole, thesis);
+  const canWrite = await canWriteSwarmFeedback(userId, userRole, thesis);
+  const byMilestone = {};
+  if (canRead) {
+    const rows = await SwarmFeedback.findAll({
+      where: { thesis_id: thesis.id },
+      include: [{ model: User, as: 'author', attributes: ['id', 'firstname', 'name'] }],
+      order: [['createdAt', 'ASC']]
+    });
+    for (const row of rows) (byMilestone[row.thesis_milestone_id] = byMilestone[row.thesis_milestone_id] || []).push(row);
+  }
+  return { byMilestone, canRead, canWrite };
+};
+
 // Eingeschränkte Detailansicht im Schwarmmodus (nur bei Schwarmzugriff ohne
 // regulären Zugriff): ausschliesslich die markierten Meilensteine mit ihren
 // Dokumenten. Keine Logs, Bewertungen, Freigaben, Chat oder andere Meilensteine.
@@ -211,15 +228,16 @@ const renderSwarmView = async (req, res, thesis) => {
     ],
     order: [['due_at', 'ASC'], [{ model: ThesisMilestoneDocument, as: 'documents' }, 'version', 'DESC']]
   });
-  const canWrite = await canWriteSwarmFeedback(userId, userRole, thesis);
+  const sf = await loadSwarmFeedbackData(userId, userRole, thesis);
+  const canWrite = sf.canWrite;
   return res.render('shared/thesis-swarm', {
     user: { id: userId, fullName: req.session.fullName, role: userRole },
     thesis,
     milestones,
     canWrite,
-    swarmFeedbacksByMilestone: {},
-    swarmFeedbackCanRead: true,
-    swarmFeedbackCanWrite: canWrite,
+    swarmFeedbacksByMilestone: sf.byMilestone,
+    swarmFeedbackCanRead: sf.canRead,
+    swarmFeedbackCanWrite: sf.canWrite,
     messages: req.flash(),
     formatFileSize,
     fmtDateTime
@@ -311,6 +329,11 @@ const showThesisDetail = async (req, res) => {
       limit: 100
     });
 
+    const swarmEnabled = milestones.some(m => m.swarm_feedback_enabled);
+    const sf = swarmEnabled
+      ? await loadSwarmFeedbackData(userId, userRole, thesis)
+      : { byMilestone: {}, canRead: false, canWrite: false };
+
     res.render(`${userRole}/thesis-detail`, {
       user: { id: userId, fullName: req.session.fullName, role: userRole },
       thesis,
@@ -318,6 +341,9 @@ const showThesisDetail = async (req, res) => {
       logs,
       // Referenzzeitpunkt für Ablauf-Logik (respektiert das simulierte Tagesdatum).
       nowTs: require('../config/simulatedToday').getNow().getTime(),
+      swarmFeedbacksByMilestone: sf.byMilestone,
+      swarmFeedbackCanRead: sf.canRead,
+      swarmFeedbackCanWrite: sf.canWrite,
       messages: req.flash(),
       formatFileSize
     });

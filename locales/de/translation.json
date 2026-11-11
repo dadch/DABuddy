@@ -983,7 +983,13 @@
         "recommendationRequired": "Bitte eine Empfehlung wählen.",
         "criterionRequired": "Bitte mindestens ein Kriterium ausfüllen.",
         "invalidDate": "Bitte ein gültiges Datum (JJJJ-MM-TT) angeben."
-      }
+      },
+      "listTitle": "Rückmeldungen Projektskizze",
+      "none": "Noch keine Rückmeldungen.",
+      "studentHidden": "Die Rückmeldungen werden nach der Präsentationsveranstaltung freigeschaltet.",
+      "pdf": "PDF",
+      "delete": "Löschen",
+      "deleteConfirm": "Wirklich löschen?"
     }
   }
 }

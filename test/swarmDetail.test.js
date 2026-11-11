@@ -167,3 +167,29 @@ test('showSwarmFeedbackForm: Student, nicht markierter Meilenstein, fremder Meil
     await f.cleanup();
   }
 });
+
+test('showThesisDetail: Rückmeldungsliste — Student sieht bei Modus an keine Daten, bei Modus aus schon; Coach in Schwarmansicht', async () => {
+  const f = await createSwarmFixture();
+  try {
+    await SwarmFeedback.create({
+      thesis_milestone_id: f.tmSwarm.id, thesis_id: f.thesis.id, author_user_id: f.coachIn.id,
+      author_role: 'coach', language: 'de', criterion_1: 'x', recommendation: 'continue'
+    });
+    await withMode(true, async () => {
+      const s = await detail(f.student, 'student', f.thesis);
+      assert.equal(s.view, 'student/thesis-detail');
+      assert.equal(s.data.swarmFeedbackCanRead, false);
+      assert.deepEqual(s.data.swarmFeedbacksByMilestone, {});
+      const c = await detail(f.coachIn, 'coach', f.thesis);
+      assert.equal(c.view, 'shared/thesis-swarm');
+      assert.equal(c.data.swarmFeedbacksByMilestone[f.tmSwarm.id].length, 1);
+      assert.equal(c.data.swarmFeedbacksByMilestone[f.tmSwarm.id][0].author.id, f.coachIn.id);
+      assert.equal(c.data.swarmFeedbackCanWrite, true);
+    });
+    await withMode(false, async () => {
+      const s = await detail(f.student, 'student', f.thesis);
+      assert.equal(s.data.swarmFeedbackCanRead, true);
+      assert.equal(s.data.swarmFeedbacksByMilestone[f.tmSwarm.id].length, 1);
+    });
+  } finally { await f.cleanup(); }
+});
