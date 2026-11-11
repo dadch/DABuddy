@@ -97,6 +97,7 @@ After running the seed script, you can login with these accounts:
 - `npm start`: Start production server
 - `npm run dev`: Start development server with nodemon
 - `npm run seed`: Reset database and populate with sample data
+- `npm test`: Führt die node:test-Suite gegen das lokale Postgres aus (Fixtures werden von den Tests angelegt und wieder gelöscht; die Schwarmmodus-Tests schalten `data/app-settings.json` um und stellen sie wieder her)
 
 ## Lebenszyklus einer Diplomarbeit
 
@@ -139,6 +140,40 @@ ihrer Sprache; die auslösende Person selbst nicht. Der Versand ist best effort
 Änderungsprotokoll als «Benachrichtigung versendet» vermerkt
 (`src/utils/milestoneReleaseNotifier.js`). Bestehende Installationen brauchen
 einmalig `node scripts/add-notification-log-action.js` (neuer Log-Enum-Wert).
+
+## Schwarmmodus und Rückmeldung Projektskizze
+
+Rund um die Projektskizzen-Präsentation können Dozierende und Experten des
+Fachbereichs Arbeiten ihrer Kolleginnen und Kollegen ansehen und eine
+**nicht benotete** Rückmeldung zur Projektskizze erfassen.
+
+- **Schalter:** Nur Admin, über das Menü «Schwarmmodus» (`/dashboard/admin/swarm`).
+  Solange der Modus aktiv ist, zeigt der Kopfbereich für Admin, FBL, Dozent/in
+  und Experte/in einen Hinweisbalken.
+- **Wer sieht was:** Dozent/in und Experte/in eines Fachbereichs sehen Arbeiten
+  dieses Fachbereichs, die im aktuellen Jahr liegen und nicht gesperrt sind
+  (`src/utils/swarmAccess.js`). Sie erscheinen im Dashboard unter «Weitere
+  Arbeiten im Fachbereich (Schwarmmodus)» mit dem Badge «Schwarm». Die Arbeit
+  öffnet in einer eingeschränkten Ansicht: nur markierte Meilensteine, deren
+  Dokumente, Rückmeldeknopf und -liste.
+- **Markierung:** In der Meilensteinverwaltung (Vorlage) das Feld
+  «Rückmeldung Projektskizze (Schwarm)» setzen; es wird auf Arbeiten kopiert
+  (auch via «auf bestehende anwenden»).
+- **Formular:** drei Kriterien, eine Empfehlung (nicht verbindlich) und
+  optional eine Auflage (WAS / bis WANN). Pro Person eine Rückmeldung; sie ist
+  vom Autor änderbar, Admin kann bearbeiten und löschen.
+- **Sichtbarkeit für Studierende:** erst nach Deaktivieren des Modus (bzw. für
+  Arbeiten ausserhalb des aktuellen Jahres); bis dahin erscheint der Hinweis
+  «Die Rückmeldungen werden nach der Präsentationsveranstaltung freigeschaltet.»
+- **PDF:** pro Rückmeldung und im Archiv-Export. Erstellen, Ändern und Löschen
+  werden im Änderungsprotokoll vermerkt (`swarm_feedback_*`).
+- **Bestehende Installationen:** einmalig `node scripts/add-swarm-feedback.js`.
+- **Tests:** `npm test` (braucht die lokale DB).
+- **Abnahme-Checkliste (manuell, zwei Browser-Sitzungen Admin + Dozent):**
+  Modus einschalten; Dozent sieht fremde Arbeit im Dashboard; eingeschränkte
+  Ansicht öffnen und Dokument laden; Rückmeldung mit Auflage erfassen; PDF
+  öffnen; Modus ausschalten; Dozent sieht die Arbeit nicht mehr, Student sieht
+  die Rückmeldung; Admin sieht die Log-Einträge.
 
 ## Mail-Konfiguration (.env)
 
