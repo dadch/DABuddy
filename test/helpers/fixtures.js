@@ -2,8 +2,12 @@ const {
   sequelize, User, Department, Year, Thesis, ThesisMilestone, ThesisMilestoneDocument,
 } = require('../../src/models');
 
+// Eindeutiger Stempel auch bei parallel laufenden Testdateien (eigene Prozesse).
+let fixtureCounter = 0;
+
 async function createSwarmFixture() {
-  const stamp = Date.now();
+  fixtureCounter += 1;
+  const stamp = `${Date.now().toString(36)}${process.pid.toString(36)}${fixtureCounter}`;
   const year = await Year.findOne({ where: { is_current: true } });
   if (!year) throw new Error('Kein aktuelles Jahr (is_current) in der DB');
 
