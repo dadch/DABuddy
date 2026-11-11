@@ -168,7 +168,7 @@ Fachbereichs Arbeiten ihrer Kolleginnen und Kollegen ansehen und eine
 - **PDF:** pro Rückmeldung und im Archiv-Export. Erstellen, Ändern und Löschen
   werden im Änderungsprotokoll vermerkt (`swarm_feedback_*`).
 - **Bestehende Installationen:** einmalig `node scripts/add-swarm-feedback.js`.
-- **Tests:** `npm test` (braucht die lokale DB).
+- **Tests:** `npm test` (braucht die lokale DB). Die Suite läuft seriell, weil die Tests sich die lokale Datenbank und die Einstellungsdatei teilen.
 - **Abnahme-Checkliste (manuell, zwei Browser-Sitzungen Admin + Dozent):**
   Modus einschalten; Dozent sieht fremde Arbeit im Dashboard; eingeschränkte
   Ansicht öffnen und Dokument laden; Rückmeldung mit Auflage erfassen; PDF
