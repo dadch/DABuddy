@@ -120,7 +120,8 @@
         "feedback": "Feedback",
         "dueBy": "bis",
         "evalLegendDouble": "B1 · B2 · F",
-        "evalLegendNone": "—"
+        "evalLegendNone": "—",
+        "swarmStatus": "Status"
       },
       "feedback": {
         "openPdf": "Feedbackformular als PDF öffnen",
@@ -149,6 +150,12 @@
         "pending": "offen, im Termin",
         "overdue": "Termin verpasst",
         "notApplicable": "nicht vorgesehen"
+      },
+      "swarmStatus": {
+        "none": "Keine Rückmeldung",
+        "ok": "Weiter ohne Auflage",
+        "conditions": "Auflage",
+        "stop": "Gestoppt"
       }
     }
   },

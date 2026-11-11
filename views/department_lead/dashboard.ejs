@@ -78,6 +78,17 @@
     display: inline-block; width: 6px; height: 6px; border-radius: 50%; background: #6610f2;
 }
 
+/* Status-Badge Rückmeldung Projektskizze (Ampel) */
+.fbl-table th.ms-col-swarm, .fbl-table td.ms-cell-swarm { min-width: 56px; width: 56px; text-align: center; }
+.swarm-status {
+    display: inline-block; width: 14px; height: 14px; border-radius: 50%;
+    border: 1px solid rgba(0,0,0,0.15); vertical-align: middle;
+}
+.swarm-status-none       { background: #adb5bd; }
+.swarm-status-ok         { background: #198754; }
+.swarm-status-conditions { background: #fd7e14; }
+.swarm-status-stop       { background: #dc3545; }
+
 /* Bewertungs-Badges */
 .grade-badge, .grade-placeholder {
     display: inline-flex; align-items: center; justify-content: center;
@@ -186,6 +197,7 @@ a.grade-badge.grade-link:not(.grade-final) { color: #212529; }
                     const personNames = (arr) => (arr || []).map(p => `${p.name || ''}, ${p.firstname || ''}`).join('; ') || '—';
 
                     const milestoneTemplates = locals.milestoneTemplates || [];
+                    const swarmFeedbackStatus = locals.swarmFeedbackStatus || (() => 'none');
                     %>
 
                     <% if (milestoneTemplates.length === 0) { %>
@@ -214,6 +226,13 @@ a.grade-badge.grade-link:not(.grade-final) { color: #212529; }
                                             <div class="ms-head-label" title="<%= escapeAttr(lbl) %>"><%= lbl %></div>
                                             <div class="ms-head-due"><%= t('dashboard.fbl.col.dueBy') %> <%= fmtDate(mt.due_at) %></div>
                                         </th>
+                                        <% if (mt.swarm_feedback_enabled) { %>
+                                            <th class="ms-col ms-col-swarm">
+                                                <div class="ms-head"><i class="bi bi-people"></i> <%= t('dashboard.fbl.col.swarmStatus') %></div>
+                                                <div class="ms-head-label" title="<%= escapeAttr(lbl) %>"><%= lbl %></div>
+                                                <div class="ms-head-due">&nbsp;</div>
+                                            </th>
+                                        <% } %>
                                         <th class="ms-col ms-col-eval">
                                             <div class="ms-head"><i class="bi bi-clipboard-check"></i> <%= t('dashboard.fbl.col.evaluation') %></div>
                                             <div class="ms-head-label" title="<%= escapeAttr(lbl) %>"><%= lbl %></div>
@@ -330,6 +349,16 @@ a.grade-badge.grade-link:not(.grade-final) { color: #212529; }
                                                     <span title="<%= t('dashboard.fbl.tooltip.by', { date: fmtDate(dueAt) }) %>"><i class="bi bi-hourglass-split text-muted"></i></span>
                                                 <% } %>
                                             </td>
+
+                                            <% if (mt.swarm_feedback_enabled) {
+                                                const swarmStatus = swarmFeedbackStatus(tm ? tm.swarmFeedbacks : []);
+                                            %>
+                                                <td class="ms-cell ms-cell-swarm">
+                                                    <span class="swarm-status swarm-status-<%= swarmStatus %>"
+                                                          title="<%= escapeAttr(t('dashboard.fbl.swarmStatus.' + swarmStatus)) %>"
+                                                          aria-label="<%= escapeAttr(t('dashboard.fbl.swarmStatus.' + swarmStatus)) %>"></span>
+                                                </td>
+                                            <% } %>
 
                                             <%
                                             // Bewertungs-Zelle
@@ -448,6 +477,13 @@ a.grade-badge.grade-link:not(.grade-final) { color: #212529; }
                         <span><span class="legend-swatch legend-pending"></span> <%= t('dashboard.fbl.legend.pending') %></span>
                         <span><span class="legend-swatch legend-overdue"></span> <%= t('dashboard.fbl.legend.overdue') %></span>
                         <span><span class="legend-swatch legend-na"></span> <%= t('dashboard.fbl.legend.notApplicable') %></span>
+                        <% if (milestoneTemplates.some(mt => mt.swarm_feedback_enabled)) { %>
+                            <span class="ms-2"><i class="bi bi-people"></i> <%= t('dashboard.fbl.col.swarmStatus') %>:</span>
+                            <span><span class="swarm-status swarm-status-none"></span> <%= t('dashboard.fbl.swarmStatus.none') %></span>
+                            <span><span class="swarm-status swarm-status-ok"></span> <%= t('dashboard.fbl.swarmStatus.ok') %></span>
+                            <span><span class="swarm-status swarm-status-conditions"></span> <%= t('dashboard.fbl.swarmStatus.conditions') %></span>
+                            <span><span class="swarm-status swarm-status-stop"></span> <%= t('dashboard.fbl.swarmStatus.stop') %></span>
+                        <% } %>
                     </div>
                 <% } %>
             </div>

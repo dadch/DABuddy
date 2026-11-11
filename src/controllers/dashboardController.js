@@ -1,6 +1,7 @@
 const { SwarmFeedback, User, UserRole, Thesis, Department, Year, Milestone, ThesisMilestone, ThesisMilestoneDocument, ThesisLog, EvaluationForm, ThesisEvaluation, ThesisEvaluationGroup, UploadCategory } = require('../models');
 const { Op } = require('sequelize');
 const { listSwarmTheses, swarmAccess, canWriteSwarmFeedback, canReadSwarmFeedbacks } = require('../utils/swarmAccess');
+const { swarmFeedbackStatus } = require('../utils/swarmFeedbackStatus');
 
 const showDashboard = async (req, res) => {
   try {
@@ -73,6 +74,8 @@ const showDashboard = async (req, res) => {
                   attributes: ['id', 'kind', 'overall_grade', 'evaluated_by'],
                   include: [{ model: User, as: 'evaluator', attributes: ['id', 'firstname', 'name'] }],
                 },
+                // Für die Status-Spalte "Rückmeldung Projektskizze" (Ampel).
+                { model: SwarmFeedback, as: 'swarmFeedbacks', required: false, attributes: ['id', 'recommendation'] },
               ],
             },
           ],
@@ -154,6 +157,7 @@ const showDashboard = async (req, res) => {
       const ledDepartments = await Department.findAll({ where: { department_lead_id: userId }, order: [['name', 'ASC']] });
       dashboardData.departments = ledDepartments;
       dashboardData.selectedDepartment = req.query.department;
+      dashboardData.swarmFeedbackStatus = swarmFeedbackStatus;
       dashboardData.availableYears = await Year.findAll({ order: [['year', 'DESC']], attributes: ['id', 'year', 'label_de', 'label_fr'] });
       // Meilenstein-Vorlagen des Diplomjahres definieren die Spaltenstruktur
       // der FBL-Übersichtstabelle (chronologisch nach Fälligkeit).
@@ -162,7 +166,7 @@ const showDashboard = async (req, res) => {
         attributes: [
           'id', 'label', 'label_fr', 'due_at', 'allow_upload', 'requires_evaluation',
           'double_evaluation', 'evaluator_role', 'evaluator_role_2',
-          'feedback_form_enabled',
+          'feedback_form_enabled', 'swarm_feedback_enabled',
         ],
         order: [['due_at', 'ASC'], ['id', 'ASC']],
       });

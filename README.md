@@ -167,6 +167,10 @@ Fachbereichs Arbeiten ihrer Kolleginnen und Kollegen ansehen und eine
   «Die Rückmeldungen werden nach der Präsentationsveranstaltung freigeschaltet.»
 - **PDF:** pro Rückmeldung und im Archiv-Export. Erstellen, Ändern und Löschen
   werden im Änderungsprotokoll vermerkt (`swarm_feedback_*`).
+- **FBL-Übersicht:** rechts neben der Doc-Spalte eines markierten Meilensteins
+  zeigt eine schmale Spalte «Status» die Rückmeldungen als Ampel: grau = keine
+  Rückmeldung, grün = nur «Weiter ohne Auflage», orange = mindestens eine
+  «Auflage», rot = mindestens ein «Gestoppt» (rot übersteuert orange).
 - **Bestehende Installationen:** einmalig `node scripts/add-swarm-feedback.js`.
 - **Tests:** `npm test` (braucht die lokale DB). Die Suite läuft seriell, weil die Tests sich die lokale Datenbank und die Einstellungsdatei teilen.
 - **Abnahme-Checkliste (manuell, zwei Browser-Sitzungen Admin + Dozent):**

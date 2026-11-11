@@ -59,3 +59,39 @@ test('showSwarmMode rendert Admin-Seite', async () => {
   await showSwarmMode(req, res);
   assert.equal(res.view, 'admin/swarm-mode');
 });
+
+test('FBL-Dashboard: Status-Spalte erhält Rückmeldungen und Vorlagen-Flag', async () => {
+  const f = await createSwarmFixture();
+  const { Department, User, Milestone, SwarmFeedback } = require('../src/models');
+  const lead = await User.create({
+    username: `swarmtest_lead_${f.dept.id}`, password: 'swarmtest-pw-1', name: 'Lead', firstname: 'Schwarm',
+    email: `swarmtest_lead_${f.dept.id}@example.invalid`, role: 'department_lead', language: 'de',
+  });
+  let template = null;
+  try {
+    await f.dept.update({ department_lead_id: lead.id });
+    template = await Milestone.create({
+      year_id: f.year.id, label: `Schwarm-Vorlage-${f.dept.id}`, due_at: new Date(), responsible_role: 'student',
+      swarm_feedback_enabled: true,
+    });
+    await f.tmSwarm.update({ milestone_id: template.id });
+    await SwarmFeedback.create({
+      thesis_milestone_id: f.tmSwarm.id, thesis_id: f.thesis.id, author_user_id: f.coachIn.id,
+      author_role: 'coach', recommendation: 'continue_with_conditions', criterion_1: 'x',
+    });
+    const r = await dashboardAs(f, lead, 'department_lead', false);
+    assert.equal(r.view, 'department_lead/dashboard');
+    const mt = r.data.milestoneTemplates.find(m => m.id === template.id);
+    assert.equal(mt.swarm_feedback_enabled, true);
+    const thesis = r.data.theses.find(t => t.id === f.thesis.id);
+    const tm = thesis.milestones.find(m => m.id === f.tmSwarm.id);
+    assert.equal(r.data.swarmFeedbackStatus(tm.swarmFeedbacks), 'conditions');
+    const plain = thesis.milestones.find(m => m.id === f.tmPlain.id);
+    assert.equal(r.data.swarmFeedbackStatus(plain.swarmFeedbacks), 'none');
+  } finally {
+    await f.dept.update({ department_lead_id: null }).catch(() => {});
+    if (template) await template.destroy().catch(() => {});
+    await f.cleanup();
+    await lead.destroy().catch(() => {});
+  }
+});
