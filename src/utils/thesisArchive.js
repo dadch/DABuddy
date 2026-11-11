@@ -308,8 +308,10 @@ async function buildThesisArchiveBuffer(thesisId) {
       }
     }
 
-    // Rückmeldungen Projektskizze (Schwarm): eine PDF je Rückmeldung.
-    if (tm.swarm_feedback_enabled) {
+    // Rückmeldungen Projektskizze (Schwarm): eine PDF je Rückmeldung. Ohne
+    // Bedingung auf die Markierung, damit Rückmeldungen auch nach deren
+    // Entfernen archiviert werden (leere Abfrage, wenn keine existieren).
+    {
       try {
         const language = thesis.language === 'fr' ? 'fr' : 'de';
         const sfs = await SwarmFeedback.findAll({

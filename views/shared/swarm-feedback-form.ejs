@@ -7,7 +7,9 @@
 <%
 const studentNames = (thesis.students || []).map(s => s.firstname + ' ' + s.name).join(', ');
 const authorText = user.fullName + ' (' + t('roles.' + user.role) + ')';
-const todayText = new Date().toLocaleDateString(lang === 'fr' ? 'fr-CH' : 'de-CH');
+// Beim Bearbeiten das Erfassungsdatum zeigen (toJSON() liefert `createdAt`), sonst heute.
+const dateSource = existing ? (existing.createdAt || existing.created_at) : null;
+const dateText = new Date(dateSource || Date.now()).toLocaleDateString(lang === 'fr' ? 'fr-CH' : 'de-CH');
 const backUrl = '/dashboard/thesis/' + thesis.id;
 %>
 
@@ -33,7 +35,7 @@ const backUrl = '/dashboard/thesis/' + thesis.id;
             <dt class="col-sm-3"><%= t('swarm.feedback.author') %></dt>
             <dd class="col-sm-9"><%= authorText %></dd>
             <dt class="col-sm-3"><%= t('swarm.feedback.date') %></dt>
-            <dd class="col-sm-9"><%= todayText %></dd>
+            <dd class="col-sm-9"><%= dateText %></dd>
         </dl>
 
         <form id="swarmFeedbackForm" novalidate>

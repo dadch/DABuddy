@@ -104,8 +104,7 @@
       "bulkDownload": "Télécharger les documents en ZIP…",
       "userManagement": "Gérer les utilisateurs",
       "studentManagement": "Gérer les étudiant·e·s",
-      "departmentManagement": "Gérer les filières",
-      "swarmMode": "Mode essaim"
+      "departmentManagement": "Gérer les filières"
     },
     "thesisLocked": "Travail de diplôme verrouillé",
     "repetent": "Redoublant·e",
@@ -978,7 +977,6 @@
       "conditionUntil": "jusqu'à QUAND",
       "save": "Enregistrer",
       "cancel": "Annuler",
-      "saved": "Retour enregistré.",
       "validation": {
         "recommendationRequired": "Veuillez choisir une recommandation.",
         "criterionRequired": "Veuillez remplir au moins un critère.",

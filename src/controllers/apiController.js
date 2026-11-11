@@ -2617,10 +2617,17 @@ const sendTestMail = async (req, res) => {
 
 const SWARM_RECOMMENDATIONS = ['continue', 'continue_with_conditions', 'stop'];
 
-// Lädt Meilenstein (nur markierte) und Arbeit inkl. Jahr für die Rechteprüfung.
-const loadSwarmMilestone = async (id) => {
+// Lädt Meilenstein und Arbeit inkl. Jahr für die Rechteprüfung. Schreiben setzt
+// die Markierung voraus; Lesen ist auch nach dem Entfernen der Markierung
+// möglich, solange Rückmeldungen existieren (sie dürfen nicht unlesbar werden).
+const loadSwarmMilestone = async (id, { forWrite = false } = {}) => {
   const tm = await ThesisMilestone.findByPk(id, { attributes: ['id', 'thesis_id', 'label', 'swarm_feedback_enabled'] });
-  if (!tm || !tm.swarm_feedback_enabled) return { tm: null, thesis: null };
+  if (!tm) return { tm: null, thesis: null };
+  if (!tm.swarm_feedback_enabled) {
+    if (forWrite) return { tm: null, thesis: null };
+    const count = await SwarmFeedback.count({ where: { thesis_milestone_id: tm.id } });
+    if (count === 0) return { tm: null, thesis: null };
+  }
   const thesis = await Thesis.findByPk(tm.thesis_id, {
     attributes: ['id', 'department_id', 'year_id', 'is_locked'],
     include: [{ model: Year, as: 'year', attributes: ['id', 'is_current'] }],
@@ -2765,7 +2772,7 @@ const getMySwarmFeedback = async (req, res) => {
 const upsertMySwarmFeedback = async (req, res) => {
   try {
     const { userId, userRole } = req.session;
-    const { tm, thesis } = await loadSwarmMilestone(req.params.id);
+    const { tm, thesis } = await loadSwarmMilestone(req.params.id, { forWrite: true });
     if (!tm || !thesis) return res.status(404).json({ success: false, message: 'Meilenstein nicht gefunden' });
     if (!await canWriteSwarmFeedback(userId, userRole, thesis)) {
       return res.status(403).json({ success: false, message: 'Keine Berechtigung' });

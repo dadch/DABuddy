@@ -230,9 +230,24 @@ const renderSwarmView = async (req, res, thesis) => {
   });
   const sf = await loadSwarmFeedbackData(userId, userRole, thesis);
   const canWrite = sf.canWrite;
+  // Nur die Felder an das Template geben, die die Ansicht braucht (keine
+  // Betreuenden/Expert:innen inkl. E-Mail-Adressen); die Rechteprüfung oben
+  // arbeitet mit der vollständigen Instanz.
+  const y = thesis.year;
+  const viewThesis = {
+    id: thesis.id,
+    title: thesis.title,
+    is_confidential: thesis.is_confidential,
+    is_locked: thesis.is_locked,
+    year_id: thesis.year_id,
+    department_id: thesis.department_id,
+    department: thesis.department ? { name: thesis.department.name } : null,
+    year: y ? { year: y.year, label_de: y.label_de, label_fr: y.label_fr, is_current: y.is_current } : null,
+    students: (thesis.students || []).map(s => ({ id: s.id, firstname: s.firstname, name: s.name }))
+  };
   return res.render('shared/thesis-swarm', {
     user: { id: userId, fullName: req.session.fullName, role: userRole },
-    thesis,
+    thesis: viewThesis,
     milestones,
     canWrite,
     swarmFeedbacksByMilestone: sf.byMilestone,
@@ -329,10 +344,9 @@ const showThesisDetail = async (req, res) => {
       limit: 100
     });
 
-    const swarmEnabled = milestones.some(m => m.swarm_feedback_enabled);
-    const sf = swarmEnabled
-      ? await loadSwarmFeedbackData(userId, userRole, thesis)
-      : { byMilestone: {}, canRead: false, canWrite: false };
+    // Immer laden: Rückmeldungen bleiben lesbar, auch wenn die Markierung des
+    // Meilensteins nachträglich entfernt wurde. Ohne Leserecht kommen keine Daten.
+    const sf = await loadSwarmFeedbackData(userId, userRole, thesis);
 
     res.render(`${userRole}/thesis-detail`, {
       user: { id: userId, fullName: req.session.fullName, role: userRole },

@@ -285,3 +285,30 @@ test('Upsert parallel: zwei gleichzeitige PUTs → beide 200, genau eine Zeile',
     assert.equal(await SwarmFeedback.count({ where: { thesis_milestone_id: f.tmSwarm.id } }), 1);
   } finally { await f.cleanup(); }
 });
+
+test('Markierung entfernt: bestehende Rückmeldungen bleiben lesbar, Erfassen nicht mehr möglich', async () => {
+  const f = await createSwarmFixture();
+  try {
+    await withMode(true, async () => {
+      const a = await put(f, f.coachIn, 'coach', validBody());
+      assert.equal(a.code, 200, JSON.stringify(a.body));
+    });
+    await f.tmSwarm.update({ swarm_feedback_enabled: false });
+    await withMode(false, async () => {
+      const l = await list(f, f.student, 'student');
+      assert.equal(l.code, 200, JSON.stringify(l.body));
+      assert.equal(l.body.feedbacks.length, 1);
+      const m = await call(getMySwarmFeedback, f.student, 'student', { id: f.tmSwarm.id });
+      assert.equal(m.code, 200, JSON.stringify(m.body));
+    });
+    await withMode(true, async () => {
+      const w = await put(f, f.expertIn, 'expert', validBody());
+      assert.equal(w.code, 404, 'Schreiben setzt die Markierung voraus');
+      const p = await list(f, f.coachIn, 'coach', f.tmPlain);
+      assert.equal(p.code, 404, 'Unmarkiert ohne Rückmeldungen bleibt 404');
+    });
+  } finally {
+    await f.tmSwarm.update({ swarm_feedback_enabled: true }).catch(() => {});
+    await f.cleanup();
+  }
+});

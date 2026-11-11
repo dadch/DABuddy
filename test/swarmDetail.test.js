@@ -193,3 +193,39 @@ test('showThesisDetail: Rückmeldungsliste — Student sieht bei Modus an keine 
     });
   } finally { await f.cleanup(); }
 });
+
+test('showThesisDetail: Rückmeldungen bleiben sichtbar, wenn die Markierung entfernt wurde', async () => {
+  const f = await createSwarmFixture();
+  try {
+    await SwarmFeedback.create({
+      thesis_milestone_id: f.tmSwarm.id, thesis_id: f.thesis.id, author_user_id: f.coachIn.id,
+      author_role: 'coach', language: 'de', criterion_1: 'x', recommendation: 'continue'
+    });
+    await f.tmSwarm.update({ swarm_feedback_enabled: false });
+    await withMode(false, async () => {
+      const s = await detail(f.student, 'student', f.thesis);
+      assert.equal(s.view, 'student/thesis-detail');
+      assert.equal(s.data.swarmFeedbackCanRead, true);
+      assert.equal(s.data.swarmFeedbacksByMilestone[f.tmSwarm.id].length, 1);
+    });
+  } finally {
+    await f.tmSwarm.update({ swarm_feedback_enabled: true }).catch(() => {});
+    await f.cleanup();
+  }
+});
+
+test('Schwarmansicht erhält nur ein reduziertes Thesis-Objekt (keine Betreuenden/E-Mails)', async () => {
+  const f = await createSwarmFixture();
+  try {
+    await withMode(true, async () => {
+      const r = await detail(f.coachIn, 'coach', f.thesis);
+      assert.equal(r.view, 'shared/thesis-swarm');
+      const t = r.data.thesis;
+      assert.equal(t.id, f.thesis.id);
+      assert.equal(t.coaches, undefined);
+      assert.equal(t.experts, undefined);
+      assert.equal(t.fieldProjectCoaches, undefined);
+      for (const s of t.students) assert.deepEqual(Object.keys(s).sort(), ['firstname', 'id', 'name']);
+    });
+  } finally { await f.cleanup(); }
+});

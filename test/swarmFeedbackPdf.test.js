@@ -101,3 +101,17 @@ test('GET pdf: Student bei Modus an 403; coachIn 200 PDF; coachOut 403; unbekann
     });
   } finally { await f.cleanup(); }
 });
+
+test('Archiv einer Arbeit enthält die Rückmeldungs-PDF', async () => {
+  const { buildThesisArchiveBuffer } = require('../src/utils/thesisArchive');
+  const f = await createSwarmFixture();
+  try {
+    await mkFeedback(f);
+    const buf = await buildThesisArchiveBuffer(f.thesis.id);
+    // Kein ZIP-Leser im Projekt: Dateinamen stehen unkomprimiert in den
+    // Local-File-Headern bzw. im Central Directory des ZIP.
+    const names = buf.toString('latin1').match(/[^\x00/]*\/Rueckmeldung_Projektskizze_[^\x00]*?\.pdf/g) || [];
+    assert.ok(buf.includes(Buffer.from('Rueckmeldung_Projektskizze_')), 'Eintrag fehlt im Archiv');
+    assert.ok(names.some(n => /Rueckmeldung_Projektskizze_.*\.pdf$/.test(n)), JSON.stringify(names));
+  } finally { await f.cleanup(); }
+});

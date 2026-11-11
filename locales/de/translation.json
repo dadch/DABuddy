@@ -104,8 +104,7 @@
       "bulkDownload": "Dokumente als ZIP herunterladen…",
       "userManagement": "Benutzer verwalten",
       "studentManagement": "Studierende verwalten",
-      "departmentManagement": "Fachbereiche verwalten",
-      "swarmMode": "Schwarmmodus"
+      "departmentManagement": "Fachbereiche verwalten"
     },
     "thesisLocked": "Diplomarbeit gesperrt",
     "repetent": "Repetent",
@@ -978,7 +977,6 @@
       "conditionUntil": "bis WANN",
       "save": "Speichern",
       "cancel": "Abbrechen",
-      "saved": "Rückmeldung gespeichert.",
       "validation": {
         "recommendationRequired": "Bitte eine Empfehlung wählen.",
         "criterionRequired": "Bitte mindestens ein Kriterium ausfüllen.",
