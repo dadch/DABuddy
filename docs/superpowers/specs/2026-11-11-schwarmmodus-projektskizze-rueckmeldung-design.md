@@ -236,6 +236,11 @@ eingeschränkte Ansicht) ein Abschnitt „Rückmeldungen Projektskizze“:
   freigeschaltet.“
 - Der Abschnitt ist unabhängig davon sichtbar, ob der Meilenstein
   freigegeben, abgeschlossen oder abgelaufen ist.
+- Die Sperre für Studierende während des aktiven Schwarmmodus gilt nur für
+  Arbeiten des aktuellen Diplomjahrs, analog zum Schwarmzugriff. Studierende
+  älterer Kohorten (überlappende Jahre, Repetenten) behalten ihre längst
+  freigeschalteten Rückmeldungen auch während einer Veranstaltung der neuen
+  Kohorte (Entscheid Verfasser).
 
 ### PDF
 
@@ -277,5 +282,11 @@ eingeschränkte Ansicht) ein Abschnitt „Rückmeldungen Projektskizze“:
 
 ## Offene Punkte für die Auftraggeberin / den Auftraggeber
 
-Keine zum Zeitpunkt der Erstellung; Rückfragen aus der Umsetzer-Prüfung
-werden hier ergänzt.
+1. **Vertrauliche Arbeiten (`is_confidential`) im Schwarmmodus.** Heute
+   unterschreiben die Beteiligten einer vertraulichen Arbeit eine
+   Geheimhaltungsvereinbarung. Im Schwarmmodus könnten alle Dozierenden und
+   externen Experten des Fachbereichs die Projektskizze samt Sponsor-Angaben
+   herunterladen, ohne unterschrieben zu haben. Zu entscheiden: Karte,
+   Rückmeldung und Dokument wie bei allen anderen Arbeiten, oder Karte und
+   Rückmeldung ja, Dokument-Download nein, oder vertrauliche Arbeiten ganz
+   vom Schwarmzugriff ausnehmen. *Antwort ausstehend.*
