@@ -803,7 +803,10 @@
       "feedbackUpdated": "Feedbackformular bearbeitet",
       "reminderSent": "Erinnerung versendet",
       "notificationSent": "Benachrichtigung versendet",
-      "assignmentUpdated": "Aufgabenstellung bearbeitet"
+      "assignmentUpdated": "Aufgabenstellung bearbeitet",
+      "swarmFeedbackCreated": "Rückmeldung Projektskizze erfasst",
+      "swarmFeedbackUpdated": "Rückmeldung Projektskizze geändert",
+      "swarmFeedbackDeleted": "Rückmeldung Projektskizze gelöscht"
     },
     "adopt": "Übernehmen",
     "approvalError": "Fehler bei der Freigabe",

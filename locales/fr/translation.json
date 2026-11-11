@@ -803,7 +803,10 @@
       "feedbackUpdated": "Formulaire de feedback modifié",
       "reminderSent": "Rappel envoyé",
       "notificationSent": "Notification envoyée",
-      "assignmentUpdated": "Énoncé modifié"
+      "assignmentUpdated": "Énoncé modifié",
+      "swarmFeedbackCreated": "Retour esquisse de projet saisi",
+      "swarmFeedbackUpdated": "Retour esquisse de projet modifié",
+      "swarmFeedbackDeleted": "Retour esquisse de projet supprimé"
     },
     "adopt": "Reprendre",
     "approvalError": "Erreur lors de la validation",

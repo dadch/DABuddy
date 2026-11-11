@@ -19,6 +19,7 @@ const ChatReadReceipt = require('./ChatReadReceipt');
 const UploadCategory = require('./UploadCategory');
 const DocumentTemplate = require('./DocumentTemplate');
 const MailReminder = require('./MailReminder');
+const SwarmFeedback = require('./SwarmFeedback');
 
 // Mehrfachrollen: 1:n von User zu UserRole
 User.hasMany(UserRole, { foreignKey: 'user_id', as: 'extraRoles', onDelete: 'CASCADE' });
@@ -163,6 +164,13 @@ ThesisEvaluationGroup.hasMany(ThesisEvaluationCriterion, { foreignKey: 'thesis_e
 ThesisEvaluationCriterion.belongsTo(ThesisEvaluationGroup, { foreignKey: 'thesis_evaluation_group_id', as: 'group' });
 ThesisEvaluation.belongsTo(User, { foreignKey: 'evaluated_by', as: 'evaluator' });
 
+// Schwarmmodus: Rückmeldungen zur Projektskizze
+ThesisMilestone.hasMany(SwarmFeedback, { foreignKey: 'thesis_milestone_id', as: 'swarmFeedbacks', onDelete: 'CASCADE' });
+SwarmFeedback.belongsTo(ThesisMilestone, { foreignKey: 'thesis_milestone_id', as: 'thesisMilestone' });
+Thesis.hasMany(SwarmFeedback, { foreignKey: 'thesis_id', as: 'swarmFeedbacks', onDelete: 'CASCADE' });
+SwarmFeedback.belongsTo(Thesis, { foreignKey: 'thesis_id', as: 'thesis' });
+SwarmFeedback.belongsTo(User, { foreignKey: 'author_user_id', as: 'author' });
+
 // Upload-Kategorien <-> Meilenstein-Vorlagen / Snapshots (Many-to-Many)
 Milestone.belongsToMany(UploadCategory, {
   through: 'milestone_upload_categories',
@@ -224,4 +232,5 @@ module.exports = {
   UploadCategory,
   DocumentTemplate,
   MailReminder,
+  SwarmFeedback,
 };

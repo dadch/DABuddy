@@ -52,6 +52,9 @@ const ACTION_LABELS = {
   reminder_sent: 'Erinnerung versendet',
   notification_sent: 'Benachrichtigung versendet',
   assignment_updated: 'Aufgabenstellung bearbeitet',
+  swarm_feedback_created: 'Rückmeldung Projektskizze erfasst',
+  swarm_feedback_updated: 'Rückmeldung Projektskizze geändert',
+  swarm_feedback_deleted: 'Rückmeldung Projektskizze gelöscht',
 };
 
 // ---------- Dateinamen-Helfer ----------------------------------------------

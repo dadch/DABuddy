@@ -55,7 +55,10 @@ const ThesisLog = sequelize.define('ThesisLog', {
       'feedback_updated',
       'reminder_sent',
       'assignment_updated',
-      'notification_sent'
+      'notification_sent',
+      'swarm_feedback_created',
+      'swarm_feedback_updated',
+      'swarm_feedback_deleted'
     ),
     allowNull: false,
   },
