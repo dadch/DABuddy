@@ -61,6 +61,7 @@ app.use((req, res, next) => {
   // Für EJS-Templates verfügbar machen.
   res.locals.t = (key, opts) => req.t(key, opts);
   res.locals.lang = lng;
+  res.locals.swarmModeActive = require('./src/config/swarmMode').isActive();
   res.locals.supportedLanguages = SUPPORTED_LANGUAGES;
   // Helper: lokalisierter Meilenstein-Titel. Erwartet ein Objekt mit
   // `label` (DE) und optional `label_fr`. Fällt auf DE zurück, wenn das

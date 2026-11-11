@@ -77,6 +77,8 @@ const {
   setSimulatedToday,
   getSecretariatEmail,
   setSecretariatEmail,
+  getSwarmMode,
+  setSwarmMode,
   getChatMessages,
   postChatMessage,
   downloadChatAttachment,
@@ -204,6 +206,8 @@ router.get('/admin/mail/simulated-today', requireRole(['admin']), getSimulatedTo
 router.put('/admin/mail/simulated-today', requireRole(['admin']), setSimulatedToday);
 router.get('/admin/mail/secretariat-email', requireRole(['admin']), getSecretariatEmail);
 router.put('/admin/mail/secretariat-email', requireRole(['admin']), setSecretariatEmail);
+router.get('/admin/swarm-mode', requireRole(['admin']), getSwarmMode);
+router.put('/admin/swarm-mode', requireRole(['admin']), setSwarmMode);
 
 // Dokumentvorlagen (global). Liste/Download: alle angemeldeten Benutzer.
 // Upload/Delete: Admin + FachbereichsleiterIn.

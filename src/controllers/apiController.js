@@ -2521,6 +2521,22 @@ const setSecretariatEmail = async (req, res) => {
   res.json({ success: true, email: stored || null });
 };
 
+// Schwarmmodus: systemweiter Schalter (Admin-only).
+const getSwarmMode = async (req, res) => {
+  if (req.session.userRole !== 'admin') return res.status(403).json({ success: false, message: 'Keine Berechtigung' });
+  const swarmMode = require('../config/swarmMode');
+  res.json({ success: true, active: swarmMode.isActive() });
+};
+
+const setSwarmMode = async (req, res) => {
+  if (req.session.userRole !== 'admin') return res.status(403).json({ success: false, message: 'Keine Berechtigung' });
+  if (!req.body || typeof req.body.active !== 'boolean') {
+    return res.status(400).json({ success: false, message: 'Feld "active" muss ein Boolean sein.' });
+  }
+  const swarmMode = require('../config/swarmMode');
+  res.json({ success: true, active: swarmMode.setActive(req.body.active) });
+};
+
 // Test-Override: simuliertes „Heute" für den Reminder-Job. Admin-only.
 const getSimulatedToday = async (req, res) => {
   if (req.session.userRole !== 'admin') return res.status(403).json({ success: false, message: 'Keine Berechtigung' });
@@ -3528,6 +3544,8 @@ module.exports = {
   setSimulatedToday,
   getSecretariatEmail,
   setSecretariatEmail,
+  getSwarmMode,
+  setSwarmMode,
   getChatMessages,
   postChatMessage,
   downloadChatAttachment,
