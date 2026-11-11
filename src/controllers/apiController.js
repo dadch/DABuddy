@@ -2664,7 +2664,7 @@ const validateSwarmFeedbackBody = (body) => {
   const until = b.condition_until == null ? '' : String(b.condition_until).trim();
   if (until !== '') {
     const d = /^\d{4}-\d{2}-\d{2}$/.test(until) ? new Date(`${until}T00:00:00Z`) : null;
-    if (!d || Number.isNaN(d.getTime()) || d.toISOString().slice(0, 10) !== until) {
+    if (!d || Number.isNaN(d.getTime()) || Number(until.slice(0, 4)) < 1 || d.toISOString().slice(0, 10) !== until) {
       return { ok: false, errorKey: 'swarm.feedback.validation.invalidDate' };
     }
     values.condition_until = until;
@@ -2732,20 +2732,28 @@ const upsertMySwarmFeedback = async (req, res) => {
     const v = validateSwarmFeedbackBody(req.body);
     if (!v.ok) return res.status(400).json({ success: false, message: v.errorKey });
 
-    let feedback = await SwarmFeedback.findOne({ where: { thesis_milestone_id: tm.id, author_user_id: userId } });
-    const created = !feedback;
-    if (created) {
-      feedback = await SwarmFeedback.create({
-        ...v.values,
-        thesis_milestone_id: tm.id,
-        thesis_id: tm.thesis_id,
-        author_user_id: userId,
-        author_role: userRole,
-        language: req.language === 'fr' ? 'fr' : 'de',
-      });
-    } else {
-      await feedback.update(v.values);
+    const mineWhere = { thesis_milestone_id: tm.id, author_user_id: userId };
+    let feedback = await SwarmFeedback.findOne({ where: mineWhere });
+    let created = false;
+    if (!feedback) {
+      try {
+        feedback = await SwarmFeedback.create({
+          ...v.values,
+          thesis_milestone_id: tm.id,
+          thesis_id: tm.thesis_id,
+          author_user_id: userId,
+          author_role: userRole,
+          language: req.language === 'fr' ? 'fr' : 'de',
+        });
+        created = true;
+      } catch (e) {
+        // Paralleler PUT derselben Person (Doppelklick): Zeile existiert jetzt → ändern.
+        if (e.name !== 'SequelizeUniqueConstraintError') throw e;
+        feedback = await SwarmFeedback.findOne({ where: mineWhere });
+        if (!feedback) throw e;
+      }
     }
+    if (!created) await feedback.update(v.values);
     await writeThesisLog(tm.thesis_id, tm.id, userId,
       created ? 'swarm_feedback_created' : 'swarm_feedback_updated', `${tm.label}: ${v.values.recommendation}`);
     const reloaded = await SwarmFeedback.findByPk(feedback.id, { include: [SWARM_AUTHOR_INCLUDE] });
@@ -2791,9 +2799,10 @@ const adminDeleteSwarmFeedback = async (req, res) => {
     if (!feedback) return res.status(404).json({ success: false, message: 'Rückmeldung nicht gefunden' });
     const label = feedback.thesisMilestone ? feedback.thesisMilestone.label : '';
     const a = feedback.author;
-    await writeThesisLog(feedback.thesis_id, feedback.thesis_milestone_id, req.session.userId,
-      'swarm_feedback_deleted', `${label}: ${a ? `${a.name}, ${a.firstname}` : 'unbekannt'}`);
+    const { thesis_id: thesisId, thesis_milestone_id: tmId } = feedback;
     await feedback.destroy();
+    await writeThesisLog(thesisId, tmId, req.session.userId,
+      'swarm_feedback_deleted', `${label}: ${a ? `${a.name}, ${a.firstname}` : 'unbekannt'}`);
     res.json({ success: true });
   } catch (error) {
     console.error('Fehler beim Löschen der Rückmeldung:', error);

@@ -112,6 +112,9 @@ test('fehlende recommendation → 400; drei leere Kriterien → 400', async () =
       const e = await put(f, f.coachIn, 'coach', validBody({ condition_until: '2026-02-30' }));
       assert.equal(e.code, 400);
       assert.equal(e.body.message, 'swarm.feedback.validation.invalidDate');
+      const z = await put(f, f.coachIn, 'coach', validBody({ condition_until: '0000-01-01' }));
+      assert.equal(z.code, 400);
+      assert.equal(z.body.message, 'swarm.feedback.validation.invalidDate');
       assert.equal(await SwarmFeedback.count({ where: { thesis_milestone_id: f.tmSwarm.id } }), 0);
     });
   } finally { await f.cleanup(); }
@@ -238,5 +241,47 @@ test('DELETE/PUT als coach 403 (Handler-Guard; Route-requireRole nicht per Handl
     assert.deepEqual(logs.map((l) => l.action), ['swarm_feedback_updated', 'swarm_feedback_deleted']);
     assert.equal(logs[0].detail, 'Projektskizze: continue');
     assert.equal(logs[1].detail, `Projektskizze: ${f.coachIn.name}, ${f.coachIn.firstname}`);
+  } finally { await f.cleanup(); }
+});
+
+test('Upsert-Konflikt: Zeile existiert, findOne liefert beim ersten Mal null → 200, created false, eine Zeile', async () => {
+  const f = await createSwarmFixture();
+  const origFindOne = SwarmFeedback.findOne;
+  try {
+    await SwarmFeedback.create({
+      thesis_milestone_id: f.tmSwarm.id, thesis_id: f.thesis.id, author_user_id: f.coachIn.id,
+      author_role: 'coach', language: 'de', criterion_1: 'Alt', recommendation: 'stop',
+    });
+    let first = true;
+    SwarmFeedback.findOne = function stubbed(...args) {
+      if (first) { first = false; return Promise.resolve(null); }
+      return origFindOne.apply(this, args);
+    };
+    await withMode(true, async () => {
+      const r = await put(f, f.coachIn, 'coach', validBody({ criterion_1: 'Neu' }));
+      assert.equal(r.code, 200, JSON.stringify(r.body));
+      assert.equal(r.body.created, false);
+      assert.equal(r.body.feedback.criterion_1, 'Neu');
+    });
+    SwarmFeedback.findOne = origFindOne;
+    assert.equal(await SwarmFeedback.count({ where: { thesis_milestone_id: f.tmSwarm.id } }), 1);
+    const logs = await ThesisLog.findAll({ where: { thesis_milestone_id: f.tmSwarm.id, action: ['swarm_feedback_created', 'swarm_feedback_updated'] } });
+    assert.deepEqual(logs.map((l) => l.action), ['swarm_feedback_updated']);
+  } finally { SwarmFeedback.findOne = origFindOne; await f.cleanup(); }
+});
+
+test('Upsert parallel: zwei gleichzeitige PUTs → beide 200, genau eine Zeile', async () => {
+  const f = await createSwarmFixture();
+  try {
+    await withMode(true, async () => {
+      const [a, b] = await Promise.all([
+        put(f, f.expertIn, 'expert', validBody()),
+        put(f, f.expertIn, 'expert', validBody({ recommendation: 'stop' })),
+      ]);
+      assert.equal(a.code, 200, JSON.stringify(a.body));
+      assert.equal(b.code, 200, JSON.stringify(b.body));
+      assert.equal([a.body.created, b.body.created].filter(Boolean).length, 1);
+    });
+    assert.equal(await SwarmFeedback.count({ where: { thesis_milestone_id: f.tmSwarm.id } }), 1);
   } finally { await f.cleanup(); }
 });
