@@ -1,4 +1,4 @@
-const { User, UserRole, Thesis, Department, Year, Milestone, ThesisMilestone, ThesisMilestoneDocument, ThesisLog, EvaluationForm, ThesisEvaluation, ThesisEvaluationGroup, UploadCategory } = require('../models');
+const { SwarmFeedback, User, UserRole, Thesis, Department, Year, Milestone, ThesisMilestone, ThesisMilestoneDocument, ThesisLog, EvaluationForm, ThesisEvaluation, ThesisEvaluationGroup, UploadCategory } = require('../models');
 const { Op } = require('sequelize');
 const { listSwarmTheses, swarmAccess, canWriteSwarmFeedback } = require('../utils/swarmAccess');
 
@@ -548,6 +548,48 @@ const showSwarmMode = async (req, res) => {
   }
 };
 
+// Formularseite für die Rückmeldung zur Projektskizze (Schwarmmodus).
+const showSwarmFeedbackForm = async (req, res) => {
+  try {
+    const userId = req.session.userId;
+    const userRole = req.session.userRole;
+    const back = `/dashboard/thesis/${parseInt(req.params.id, 10) || 0}`;
+    const thesis = await Thesis.findByPk(req.params.id, {
+      attributes: ['id', 'title', 'department_id', 'year_id', 'is_locked'],
+      include: [
+        { model: Year, as: 'year', attributes: ['id', 'year', 'label_de', 'label_fr', 'is_current'] },
+        { model: Department, as: 'department', attributes: ['id', 'name'] },
+        { model: User, as: 'students', attributes: ['id', 'firstname', 'name'] }
+      ]
+    });
+    const milestone = await ThesisMilestone.findByPk(req.params.tmId, {
+      attributes: ['id', 'thesis_id', 'label', 'label_fr', 'due_at', 'swarm_feedback_enabled']
+    });
+    if (!thesis || !milestone || milestone.thesis_id !== thesis.id) {
+      req.flash('error', 'Meilenstein nicht gefunden');
+      return res.redirect(back);
+    }
+    if (!milestone.swarm_feedback_enabled || !(await canWriteSwarmFeedback(userId, userRole, thesis))) {
+      req.flash('error', 'Keine Berechtigung');
+      return res.redirect(back);
+    }
+    const existing = await SwarmFeedback.findOne({
+      where: { thesis_milestone_id: milestone.id, author_user_id: userId }
+    });
+    return res.render('shared/swarm-feedback-form', {
+      user: { id: userId, fullName: req.session.fullName, role: userRole },
+      thesis,
+      milestone,
+      existing: existing ? existing.toJSON() : null,
+      messages: req.flash()
+    });
+  } catch (e) {
+    console.error('showSwarmFeedbackForm error:', e);
+    req.flash('error', 'Fehler beim Laden des Formulars');
+    return res.redirect('/dashboard');
+  }
+};
+
 const showUploadCategoriesManagement = async (req, res) => {
   try {
     if (req.session.userRole !== 'admin') {
@@ -626,6 +668,7 @@ module.exports = {
   updateProfile,
   showMailSettings,
   showSwarmMode,
+  showSwarmFeedbackForm,
   showYearsManagement,
   showUploadCategoriesManagement,
   showMilestonesManagement,

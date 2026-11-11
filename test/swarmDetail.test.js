@@ -2,7 +2,8 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const swarmMode = require('../src/config/swarmMode');
 const { createSwarmFixture, mkReq, mkRes, closeDb } = require('./helpers/fixtures');
-const { showThesisDetail } = require('../src/controllers/dashboardController');
+const { showThesisDetail, showSwarmFeedbackForm } = require('../src/controllers/dashboardController');
+const { SwarmFeedback, ThesisMilestone } = require('../src/models');
 const { downloadThesisMilestoneDocument } = require('../src/controllers/apiController');
 
 test.after(closeDb);
@@ -107,4 +108,62 @@ test('showThesisDetail: ohne Schwarmmodus bzw. fremder Fachbereich → Redirect;
       assert.equal(s.data.milestones.length, 2);
     });
   } finally { await f.cleanup(); }
+});
+
+async function form(user, role, thesisId, tmId) {
+  const req = mkReq({ userId: user.id, userRole: role, params: { id: thesisId, tmId } });
+  req.session.fullName = 'Test';
+  const flashes = [];
+  req.flash = (type, msg) => { if (type) flashes.push([type, msg]); return {}; };
+  const res = mkRes();
+  await showSwarmFeedbackForm(req, res);
+  res.flashes = flashes;
+  return res;
+}
+
+test('showSwarmFeedbackForm: coachIn rendert Formular, existing null, danach vorbelegt', async () => {
+  const f = await createSwarmFixture();
+  try {
+    await withMode(true, async () => {
+      const r = await form(f.coachIn, 'coach', f.thesis.id, f.tmSwarm.id);
+      assert.equal(r.view, 'shared/swarm-feedback-form');
+      assert.equal(r.data.existing, null);
+      assert.equal(r.data.milestone.id, f.tmSwarm.id);
+      await SwarmFeedback.create({
+        thesis_milestone_id: f.tmSwarm.id, thesis_id: f.thesis.id, author_user_id: f.coachIn.id,
+        author_role: 'coach', language: 'de', criterion_1: 'x', recommendation: 'continue'
+      });
+      const r2 = await form(f.coachIn, 'coach', f.thesis.id, f.tmSwarm.id);
+      assert.equal(r2.data.existing.recommendation, 'continue');
+    });
+  } finally { await f.cleanup(); }
+});
+
+test('showSwarmFeedbackForm: Student, nicht markierter Meilenstein, fremder Meilenstein, Modus aus → Redirect', async () => {
+  const f = await createSwarmFixture();
+  let tmOther;
+  try {
+    tmOther = await ThesisMilestone.create({
+      thesis_id: f.thesisOther.id, label: 'Fremd', due_at: new Date(), released: true, responsible_role: 'student', swarm_feedback_enabled: true
+    });
+    await withMode(true, async () => {
+      const a = await form(f.student, 'student', f.thesis.id, f.tmSwarm.id);
+      assert.equal(a.view, undefined);
+      assert.equal(a.redirected, `/dashboard/thesis/${f.thesis.id}`);
+      const b = await form(f.coachIn, 'coach', f.thesis.id, f.tmPlain.id);
+      assert.equal(b.view, undefined);
+      assert.equal(b.redirected, `/dashboard/thesis/${f.thesis.id}`);
+      const c = await form(f.coachIn, 'coach', f.thesis.id, tmOther.id);
+      assert.equal(c.view, undefined);
+      assert.equal(c.redirected, `/dashboard/thesis/${f.thesis.id}`);
+    });
+    await withMode(false, async () => {
+      const d = await form(f.coachIn, 'coach', f.thesis.id, f.tmSwarm.id);
+      assert.equal(d.view, undefined);
+      assert.equal(d.redirected, `/dashboard/thesis/${f.thesis.id}`);
+    });
+  } finally {
+    if (tmOther) await tmOther.destroy();
+    await f.cleanup();
+  }
 });

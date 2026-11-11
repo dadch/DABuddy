@@ -946,7 +946,44 @@
       "noMilestone": "Für diese Arbeit ist kein Meilenstein für Rückmeldungen markiert."
     },
     "feedback": {
-      "button": "Rückmeldung Projektskizze"
+      "button": "Rückmeldung Projektskizze",
+      "buttonEdit": "Eigene Rückmeldung bearbeiten",
+      "title": "Rückmeldung Projektskizzenpräsentation",
+      "student": "Student/in",
+      "author": "Dozierende / Experten",
+      "date": "Datum",
+      "criteria": {
+        "c1": {
+          "title": "Ausgangslage",
+          "desc": "Verständliche Beschreibung des aktuellen Zustands bzw. der aktuellen Situation, so dass ein Handlungsbedarf klar zu erkennen ist. Sinnvolle Projektabgrenzung."
+        },
+        "c2": {
+          "title": "Herausforderungen – Chancen",
+          "desc": "Faktenbasierte Begründung des Handlungsbedarfs. Weshalb muss JETZT gehandelt werden und was passiert, wenn nichts gemacht wird?"
+        },
+        "c3": {
+          "title": "Erwarteter Nutzen / Ziele",
+          "desc": "Nutzen für das Unternehmen quantitativ und qualitativ. Der betriebswirtschaftliche Kontext und der Einbezug strategischer Ziele werden aufgeführt. Ausgewogene SMART-Ziele."
+        }
+      },
+      "recommendation": {
+        "label": "Empfehlung",
+        "hint": "Die Empfehlung ist nicht verbindlich.",
+        "continue": "Weiter ohne Auflage",
+        "continue_with_conditions": "Weiter mit Auflage",
+        "stop": "Gestoppt – neue Diplomarbeit suchen"
+      },
+      "conditionTitle": "Bei Auflage oder Stopp",
+      "conditionWhat": "WAS ist nachzuliefern",
+      "conditionUntil": "bis WANN",
+      "save": "Speichern",
+      "cancel": "Abbrechen",
+      "saved": "Rückmeldung gespeichert.",
+      "validation": {
+        "recommendationRequired": "Bitte eine Empfehlung wählen.",
+        "criterionRequired": "Bitte mindestens ein Kriterium ausfüllen.",
+        "invalidDate": "Bitte ein gültiges Datum (JJJJ-MM-TT) angeben."
+      }
     }
   }
 }

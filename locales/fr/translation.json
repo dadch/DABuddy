@@ -946,7 +946,44 @@
       "noMilestone": "Aucun jalon de ce travail n'est marqué pour les retours."
     },
     "feedback": {
-      "button": "Retour esquisse de projet"
+      "button": "Retour esquisse de projet",
+      "buttonEdit": "Modifier mon retour",
+      "title": "Retour sur la présentation de l'esquisse de projet",
+      "student": "Étudiant(e)",
+      "author": "Enseignants / Experts",
+      "date": "Date",
+      "criteria": {
+        "c1": {
+          "title": "Situation initiale",
+          "desc": "Description claire de l'état actuel ou de la situation actuelle, permettant d'identifier clairement les actions à mener. Délimitation pertinente du projet."
+        },
+        "c2": {
+          "title": "Défis - Opportunités",
+          "desc": "Justification factuelle de la nécessité d'agir. Pourquoi faut-il agir MAINTENANT et que se passera-t-il si on ne fait rien ?"
+        },
+        "c3": {
+          "title": "Avantages attendus / Objectifs",
+          "desc": "Avantages pour l'entreprise, sur le plan quantitatif et qualitatif. Le contexte économique et la prise en compte des objectifs stratégiques sont présentés. Des objectifs SMART équilibrés."
+        }
+      },
+      "recommendation": {
+        "label": "Recommandation",
+        "hint": "La recommandation n'est pas contraignante.",
+        "continue": "Continuer sans condition",
+        "continue_with_conditions": "Continuer avec condition",
+        "stop": "Arrêté - chercher nouveau sujet"
+      },
+      "conditionTitle": "En cas de condition ou d'arrêt",
+      "conditionWhat": "QUOI faire",
+      "conditionUntil": "jusqu'à QUAND",
+      "save": "Enregistrer",
+      "cancel": "Annuler",
+      "saved": "Retour enregistré.",
+      "validation": {
+        "recommendationRequired": "Veuillez choisir une recommandation.",
+        "criterionRequired": "Veuillez remplir au moins un critère.",
+        "invalidDate": "Veuillez indiquer une date valide (AAAA-MM-JJ)."
+      }
     }
   }
 }

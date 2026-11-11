@@ -5,6 +5,7 @@ const { requireAuth, requireRole } = require('../middleware/auth');
 
 router.get('/dashboard', requireAuth, dashboardController.showDashboard);
 router.get('/dashboard/thesis/:id', requireAuth, dashboardController.showThesisDetail);
+router.get('/dashboard/thesis/:id/swarm-feedback/:tmId', requireAuth, dashboardController.showSwarmFeedbackForm);
 router.get('/dashboard/thesis/:id/chat', requireAuth, dashboardController.showThesisChat);
 router.get('/dashboard/document-templates', requireAuth, dashboardController.showDocumentTemplates);
 router.get('/dashboard/profile', requireAuth, dashboardController.showProfile);
