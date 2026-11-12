@@ -1,0 +1,28 @@
+<%# Such-/Filterzeile und Auswahl-Aktionen der Benutzerliste (Admin + FBL). Logik: /js/user-list.js %>
+<div class="row g-2 mb-3">
+    <div class="col-md-6">
+        <input type="search" class="form-control" id="userSearchInput"
+               placeholder="<%= t('mgmt.users.searchPlaceholder') %>" oninput="renderUsersList()">
+    </div>
+    <div class="col-md-3">
+        <select class="form-select" id="userRoleFilter" onchange="renderUsersList()"
+                aria-label="<%= t('mgmt.users.filterRole') %>">
+            <option value=""><%= t('mgmt.users.filterRoleAll') %></option>
+        </select>
+    </div>
+    <div class="col-md-3">
+        <select class="form-select" id="userDepartmentFilter" onchange="renderUsersList()"
+                aria-label="<%= t('mgmt.users.filterDepartment') %>">
+            <option value=""><%= t('mgmt.users.filterDepartmentAll') %></option>
+        </select>
+    </div>
+</div>
+<div class="d-flex flex-wrap align-items-center gap-2 mb-2">
+    <button type="button" class="btn btn-outline-primary btn-sm" id="userEmailExportBtn" disabled
+            onclick="openUserEmailExport()">
+        <i class="bi bi-envelope"></i> <%= t('mgmt.users.emailExportButton') %>
+        (<span id="userSelectedCount">0</span>)
+    </button>
+    <button type="button" class="btn btn-link btn-sm d-none" id="userClearSelectionBtn"
+            onclick="clearUserSelection()"><%= t('mgmt.users.clearSelection') %></button>
+</div>

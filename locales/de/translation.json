@@ -511,7 +511,18 @@
       "deleteConfirm": "Möchten Sie diesen Benutzer wirklich löschen?",
       "deleteError": "Fehler beim Löschen des Benutzers",
       "addError": "Fehler beim Hinzufügen des Benutzers",
-      "updateError": "Fehler beim Aktualisieren des Benutzers"
+      "updateError": "Fehler beim Aktualisieren des Benutzers",
+      "filterRole": "Nach Rolle filtern",
+      "filterRoleAll": "Alle Rollen",
+      "filterDepartment": "Nach Fachbereich filtern",
+      "filterDepartmentAll": "Alle Fachbereiche",
+      "selectAll": "Alle sichtbaren auswählen",
+      "clearSelection": "Auswahl aufheben",
+      "emailExportButton": "E-Mail-Adressen",
+      "emailExportTitle": "E-Mail-Adressen der ausgewählten Benutzer",
+      "emailExportHint": "Adressen mit Semikolon getrennt, z. B. zum Einfügen ins An-/Bcc-Feld",
+      "emailExportCopy": "Kopieren",
+      "emailExportCopied": "In die Zwischenablage kopiert"
     },
     "departments": {
       "managementTitle": "Fachbereichsverwaltung",

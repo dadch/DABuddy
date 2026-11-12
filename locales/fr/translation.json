@@ -511,7 +511,18 @@
       "deleteConfirm": "Voulez-vous vraiment supprimer cet utilisateur ?",
       "deleteError": "Erreur lors de la suppression de l'utilisateur",
       "addError": "Erreur lors de l'ajout de l'utilisateur",
-      "updateError": "Erreur lors de la mise à jour de l'utilisateur"
+      "updateError": "Erreur lors de la mise à jour de l'utilisateur",
+      "filterRole": "Filtrer par rôle",
+      "filterRoleAll": "Tous les rôles",
+      "filterDepartment": "Filtrer par filière",
+      "filterDepartmentAll": "Toutes les filières",
+      "selectAll": "Sélectionner tous les utilisateurs visibles",
+      "clearSelection": "Annuler la sélection",
+      "emailExportButton": "Adresses e-mail",
+      "emailExportTitle": "Adresses e-mail des utilisateurs sélectionnés",
+      "emailExportHint": "Adresses séparées par un point-virgule, p. ex. à coller dans le champ À/Cci",
+      "emailExportCopy": "Copier",
+      "emailExportCopied": "Copié dans le presse-papiers"
     },
     "departments": {
       "managementTitle": "Gestion des filières",

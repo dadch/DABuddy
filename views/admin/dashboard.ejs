@@ -336,10 +336,7 @@
                     </div>
                 </div>
                 <div id="userImportResult"></div>
-                <div class="mb-3">
-                    <input type="search" class="form-control" id="userSearchInput"
-                           placeholder="<%= t('mgmt.users.searchPlaceholder') %>" oninput="renderUsersList()">
-                </div>
+                <%- include('../partials/user-list-tools') %>
                 <div id="usersList">
                     <!-- Benutzer werden via AJAX geladen -->
                 </div>
@@ -638,6 +635,7 @@ const MGMT_L = {
     actions: <%- JSON.stringify(t('common.actions')) %>,
     userNoDepartments: <%- JSON.stringify(t('mgmt.users.noDepartments')) %>,
     userNotFound: <%- JSON.stringify(t('mgmt.users.notFound')) %>,
+    userSelectAll: <%- JSON.stringify(t('mgmt.users.selectAll')) %>,
     userLoadError: <%- JSON.stringify(t('mgmt.users.loadError')) %>,
     userLoadDataError: <%- JSON.stringify(t('mgmt.users.loadDataError')) %>,
     userDeleteConfirm: <%- JSON.stringify(t('mgmt.users.deleteConfirm')) %>,
@@ -675,7 +673,7 @@ function openAddThesisModal() {
 
 function openUserManagementModal() {
     document.getElementById('userImportResult').innerHTML = '';
-    document.getElementById('userSearchInput').value = '';
+    resetUserListState();
     loadUsers();
     loadDepartmentOptions();
     new bootstrap.Modal(document.getElementById('userManagementModal')).show();
@@ -903,53 +901,7 @@ function loadUsers() {
         });
 }
 
-// Teilstring-Suche (case-insensitiv) über Vor- und Nachname
-function renderUsersList() {
-    const q = (document.getElementById('userSearchInput').value || '').trim().toLowerCase();
-    const users = q
-        ? allUsersCache.filter(u => (u.firstname || '').toLowerCase().includes(q) || (u.name || '').toLowerCase().includes(q))
-        : allUsersCache;
-    const usersList = document.getElementById('usersList');
-    usersList.innerHTML = `
-                <div class="table-responsive">
-                    <table class="table table-striped">
-                        <thead>
-                            <tr>
-                                <th>${MGMT_L.userUsername}</th>
-                                <th>${MGMT_L.userName}</th>
-                                <th>${MGMT_L.userEmail}</th>
-                                <th>${MGMT_L.userRole}</th>
-                                <th>${MGMT_L.userDepartments}</th>
-                                <th>${MGMT_L.actions}</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            ${users.map(user => `
-                                <tr>
-                                    <td>${user.username}</td>
-                                    <td>${user.name}, ${user.firstname}</td>
-                                    <td>${user.email}</td>
-                                    <td><span class="badge bg-secondary">${roleLabel(user.role)}</span></td>
-                                    <td>
-                                        ${user.departments && user.departments.length > 0
-                                            ? user.departments.map(dept => `<span class="badge bg-info me-1">${dept.name}</span>`).join('')
-                                            : `<span class="text-muted">${MGMT_L.userNoDepartments}</span>`}
-                                    </td>
-                                    <td>
-                                        <button class="btn btn-outline-primary btn-sm me-1" onclick="editUser(${user.id})">
-                                            <i class="bi bi-pencil"></i>
-                                        </button>
-                                        <button class="btn btn-outline-danger btn-sm" onclick="deleteUser(${user.id})">
-                                            <i class="bi bi-trash"></i>
-                                        </button>
-                                    </td>
-                                </tr>
-                            `).join('') || `<tr><td colspan="6" class="text-center text-muted">${MGMT_L.userNotFound}</td></tr>`}
-                        </tbody>
-                    </table>
-                </div>
-            `;
-}
+// renderUsersList() inkl. Rollen-/Fachbereichsfilter und Auswahl: /js/user-list.js
 
 function editUser(userId) {
     fetch(`/api/users`)
@@ -1452,5 +1404,8 @@ async function archiveSelected() {
 <%- include('../partials/student-management') %>
 
 <%- include('../partials/bulk-download-modal', { selectedDepartment: typeof selectedDepartment !== 'undefined' ? selectedDepartment : '' }) %>
+
+<%- include('../partials/user-email-export-modal') %>
+<script src="/js/user-list.js"></script>
 
 <%- include('../partials/footer') %>

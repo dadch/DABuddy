@@ -1,0 +1,27 @@
+<!-- E-Mail-Adressen der ausgewählten Benutzer (Benutzerverwaltung) -->
+<div class="modal fade" id="userEmailExportModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title"><%= t('mgmt.users.emailExportTitle') %></h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <p class="form-text mt-0">
+                    <%= t('mgmt.users.emailExportHint') %>
+                    (<span id="userEmailExportCount">0</span>)
+                </p>
+                <textarea class="form-control font-monospace" id="userEmailExportText" rows="8" readonly></textarea>
+                <div class="text-success small mt-2 d-none" id="userEmailExportCopied">
+                    <i class="bi bi-check2"></i> <%= t('mgmt.users.emailExportCopied') %>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal"><%= t('common.close') %></button>
+                <button type="button" class="btn btn-primary" onclick="copyUserEmails()">
+                    <i class="bi bi-clipboard"></i> <%= t('mgmt.users.emailExportCopy') %>
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
