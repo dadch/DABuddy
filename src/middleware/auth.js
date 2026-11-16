@@ -13,6 +13,10 @@ const requireAuth = async (req, res, next) => {
   // Wenn der eingeloggte User aktuell als Studierende/r unterwegs ist und seine
   // Diplomarbeit zwischenzeitlich gesperrt wurde, Session sofort verwerfen.
   if (req.session.userRole === 'student') {
+    // Schwarmmodus: Studierenden-Sessions sofort beenden.
+    if (require('../config/swarmMode').isActive()) {
+      return req.session.destroy(() => res.redirect('/login?swarm=1'));
+    }
     try {
       const { User } = require('../models');
       const user = await User.findByPk(req.session.userId);

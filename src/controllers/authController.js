@@ -2,6 +2,7 @@ const { User, UserRole, Year, Thesis } = require('../models');
 const { Op, fn, col, where } = require('sequelize');
 const crypto = require('crypto');
 const bcrypt = require('bcrypt');
+const swarmMode = require('../config/swarmMode');
 
 // Fixer Dummy-Hash für einen konstanten bcrypt-Vergleich, wenn kein Benutzer
 // gefunden wurde — verhindert Timing-basierte Benutzer-Enumeration am Login.
@@ -120,6 +121,10 @@ const microsoftCallback = async (req, res) => {
 
     // Locked-Thesis-Check (wie beim Passwort-Login).
     const roles = await getUserRoles(user.id);
+    if (swarmMode.allowedLoginRoles(roles).length === 0) {
+      req.flash('error', swarmMode.STUDENT_LOGIN_BLOCKED_MESSAGE);
+      return res.redirect('/login');
+    }
     if (roles.includes('student')) {
       const lockedThesis = await user.getStudentTheses({ where: { is_locked: true }, limit: 1 });
       if (lockedThesis && lockedThesis.length > 0) {
@@ -159,8 +164,9 @@ async function getUserRoles(userId) {
 
 // Wählt die beim Login aktive Rolle: bevorzugt last_active_role (falls noch zugewiesen),
 // sonst die Primärrolle aus users.role.
+// Im Schwarmmodus wird «student» übersprungen (siehe swarmMode.allowedLoginRoles).
 async function pickRoleForUser(user) {
-  const roles = await getUserRoles(user.id);
+  const roles = swarmMode.allowedLoginRoles(await getUserRoles(user.id));
   if (user.last_active_role && roles.includes(user.last_active_role)) return user.last_active_role;
   if (roles.includes(user.role)) return user.role;
   return roles[0] || user.role;
@@ -171,6 +177,9 @@ const showLogin = async (req, res) => {
   // Admin-Einstellung bzw. die letzte Auswahl von Admin/FachbereichsleiterIn.
   if (req.query.locked === '1') {
     req.flash('error', 'Diese Diplomarbeit wurde gesperrt. Bitte kontaktieren Sie die Fachbereichsleitung.');
+  }
+  if (req.query.swarm === '1') {
+    req.flash('error', swarmMode.STUDENT_LOGIN_BLOCKED_MESSAGE);
   }
   res.render('login', { messages: req.flash() });
 };
@@ -232,6 +241,11 @@ const processLogin = async (req, res) => {
     // Passwörter sind zufällig und nicht verwendbar).
     if (!roles.includes('admin')) {
       req.flash('error', 'Für dieses Konto ist die Anmeldung nur über den M365-Login möglich.');
+      return res.redirect('/login');
+    }
+
+    if (swarmMode.allowedLoginRoles(roles).length === 0) {
+      req.flash('error', swarmMode.STUDENT_LOGIN_BLOCKED_MESSAGE);
       return res.redirect('/login');
     }
 

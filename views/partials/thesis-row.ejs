@@ -1,6 +1,7 @@
-<tr<% if (thesis.is_locked) { %> class="table-warning"<% } %>>
+<tr<% if (thesis.is_locked) { %> class="table-warning"<% } else if (thesis.is_confidential) { %> class="row-confidential"<% } %>>
     <td>
         <% if (thesis.is_locked) { %><i class="bi bi-slash-circle-fill text-danger me-2" title="<%= t('dashboard.thesisLocked') %>"></i><% } %>
+        <% if (thesis.is_confidential) { %><i class="bi bi-lock-fill text-danger me-1" title="<%= t('confidentiality.title') %>" aria-label="<%= t('confidentiality.title') %>"></i><% } %>
         <strong><%= thesis.title %></strong>
         <% if (swarm) { %><span class="badge bg-warning text-dark ms-2"><%= t('swarm.dashboard.badge') %></span><% } %>
     </td>

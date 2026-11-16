@@ -1,8 +1,9 @@
 <div class="col-md-6 mb-4">
-    <div class="card h-100<% if (thesis.is_locked) { %> border-danger<% } %>">
+    <div class="card h-100<% if (thesis.is_locked) { %> border-danger<% } else if (thesis.is_confidential) { %> card-confidential<% } %>">
         <div class="card-header<% if (thesis.is_locked) { %> bg-warning-subtle<% } %>">
             <h6 class="mb-0">
                 <% if (thesis.is_locked) { %><i class="bi bi-slash-circle-fill text-danger me-1" title="<%= t('dashboard.thesisLocked') %>"></i><% } %>
+                <% if (thesis.is_confidential) { %><i class="bi bi-lock-fill text-danger me-1" title="<%= t('confidentiality.title') %>" aria-label="<%= t('confidentiality.title') %>"></i><% } %>
                 <i class="bi bi-file-text"></i> <%= thesis.title %>
                 <% if (swarm) { %><span class="badge bg-warning text-dark ms-2"><%= t('swarm.dashboard.badge') %></span><% } %>
             </h6>

@@ -846,3 +846,18 @@ a:hover { color: var(--primary); text-decoration: underline; }
     .page-header { flex-direction: column; align-items: flex-start; }
     .page-header .page-actions { flex-wrap: wrap; }
 }
+
+/* ---------- Geheimhaltung ----------
+   Gleiche Farben wie der Geheimhaltungsblock der Detailansicht
+   (partials/confidentiality-section.ejs). Gesperrt (gelb) hat Vorrang. */
+:root {
+    --confidential-bg: #ffe5e5;
+    --confidential-header: #f9c8c8;
+    --confidential-border: #f5b1b1;
+}
+.table > tbody > tr.row-confidential > * { background-color: var(--confidential-bg); }
+.card.card-confidential { border-color: var(--confidential-border); }
+.card.card-confidential > .card-header {
+    background-color: var(--confidential-header);
+    border-bottom-color: var(--confidential-border);
+}

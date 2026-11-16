@@ -33,6 +33,7 @@
     font-size: 0.75rem;
 }
 .fbl-table tbody tr:hover td { background-color: #f8f9fa; }
+.fbl-table tbody tr.row-confidential td { background-color: var(--confidential-bg) !important; }
 .fbl-table tbody tr.row-locked td { background-color: #fff3cd !important; }
 
 /* Sticky left columns */
@@ -48,6 +49,7 @@
 .fbl-table .stick-dept    { left: 386px;             min-width: 120px; }
 .fbl-table .stick-student { left: 506px;             min-width: 160px; border-right: 2px solid #ced4da; white-space: normal; }
 .fbl-table tbody tr:hover .stick { background-color: #f8f9fa; }
+.fbl-table tbody tr.row-confidential .stick { background-color: var(--confidential-bg) !important; }
 .fbl-table tbody tr.row-locked .stick { background-color: #fff3cd !important; }
 
 /* Meilenstein-Spaltenköpfe */
@@ -260,7 +262,7 @@ a.grade-badge.grade-link:not(.grade-final) { color: #212529; }
                                         if (tm.milestone_id != null) tmByTemplate[tm.milestone_id] = tm;
                                     });
                                     %>
-                                    <tr class="<%= thesis.is_locked ? 'row-locked' : '' %>">
+                                    <tr class="<%= [thesis.is_locked && 'row-locked', thesis.is_confidential && 'row-confidential'].filter(Boolean).join(' ') %>">
                                         <td class="stick stick-select"><input type="checkbox" class="form-check-input thesis-select" value="<%= thesis.id %>"></td>
                                         <td class="stick stick-actions">
                                             <div class="btn-group btn-group-sm" role="group">
@@ -277,6 +279,7 @@ a.grade-badge.grade-link:not(.grade-final) { color: #212529; }
                                         </td>
                                         <td class="stick stick-title">
                                             <% if (thesis.is_locked) { %><i class="bi bi-slash-circle-fill text-danger me-1" title="<%= t('dashboard.thesisLocked') %>"></i><% } %>
+                                            <% if (thesis.is_confidential) { %><i class="bi bi-lock-fill text-danger me-1" title="<%= t('confidentiality.title') %>" aria-label="<%= t('confidentiality.title') %>"></i><% } %>
                                             <a href="/dashboard/thesis/<%= thesis.id %>" class="fw-medium text-decoration-none text-body"><%= thesis.title %></a>
                                         </td>
                                         <td class="stick stick-dept small"><%= thesis.department ? thesis.department.name : '' %></td>

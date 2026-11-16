@@ -3395,12 +3395,16 @@ const deleteYear = async (req, res) => {
 // die gewünschte Rolle zugewiesen ist). Merkt sich die Auswahl in users.last_active_role.
 const switchActiveRole = async (req, res) => {
   try {
+    const swarmMode = require('../config/swarmMode');
     const userId = req.session.userId;
     const requested = String(req.body.role || '');
     const rows = await UserRole.findAll({ where: { user_id: userId }, attributes: ['role'], raw: true });
     const roles = rows.map(r => r.role);
     if (!roles.includes(requested)) {
       return res.status(403).json({ success: false, message: 'Diese Rolle ist Ihnen nicht zugewiesen' });
+    }
+    if (!swarmMode.allowedLoginRoles([requested]).length) {
+      return res.status(403).json({ success: false, message: swarmMode.STUDENT_LOGIN_BLOCKED_MESSAGE });
     }
     req.session.userRole = requested;
     await User.update({ last_active_role: requested }, { where: { id: userId } });
