@@ -2,7 +2,7 @@
 // (src/utils/thesisAccess.js) hinaus gewährt. Alle anderen Endpunkte prüfen
 // weiterhin nur `userHasThesisAccess`.
 //
-// `swarmAccess` ist nur dann true, wenn ALLE fünf Bedingungen erfüllt sind:
+// `swarmAccess` ist nur dann true, wenn ALLE sechs Bedingungen erfüllt sind:
 //   1. Schwarmmodus aktiv.
 //   2. Aktive Session-Rolle ist `coach` oder `expert` (nie Student,
 //      Transferprojekt-Dozent, Fachbereichsleitung oder Admin).
@@ -10,6 +10,9 @@
 //      (`user_departments`).
 //   4. Die Arbeit gehört zum aktuellen Diplomjahr (`years.is_current`).
 //   5. Die Arbeit ist nicht gesperrt (`is_locked = false`).
+//   6. Die Arbeit unterliegt keiner Geheimhaltung (`is_confidential = false`).
+//      Arbeiten mit Geheimhaltung sehen im Schwarmmodus nur Beteiligte mit
+//      regulärem Zugriff, die Fachbereichsleitung und Admins.
 //
 // Verwendet nur für: Dashboard-Liste, eingeschränkte Detailansicht, Download
 // der Dokumente des markierten Meilensteins, Lesen/Schreiben von Rückmeldungen.
@@ -32,10 +35,11 @@ async function swarmAccess(userId, userRole, thesisId) {
   if (!swarmMode.isActive()) return false;
   if (!SWARM_ROLES.includes(userRole)) return false;
   const thesis = await Thesis.findByPk(thesisId, {
-    attributes: ['id', 'department_id', 'is_locked'],
+    attributes: ['id', 'department_id', 'is_locked', 'is_confidential'],
     include: [{ model: Year, as: 'year', attributes: ['is_current'] }],
   });
   if (!thesis || thesis.is_locked !== false) return false;
+  if (thesis.is_confidential !== false) return false;
   if (!thesis.year || thesis.year.is_current !== true) return false;
   const deptIds = await userDepartmentIds(userId);
   return deptIds.includes(thesis.department_id);
@@ -51,7 +55,7 @@ async function listSwarmTheses(userId, userRole, yearId, include = []) {
   const deptIds = await userDepartmentIds(userId);
   if (deptIds.length === 0) return [];
   return Thesis.findAll({
-    where: { year_id: current.id, department_id: deptIds, is_locked: false },
+    where: { year_id: current.id, department_id: deptIds, is_locked: false, is_confidential: false },
     include,
   });
 }

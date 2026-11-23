@@ -166,3 +166,20 @@ test('canWriteSwarmFeedback: zugewiesener Coach bei Modus aus, Fachbereichsleitu
     await leadOther.destroy().catch(() => {});
   }
 }));
+
+test('Geheimhaltung: kein Schwarmzugriff für Dozent/Experte, regulärer Zugriff bleibt', () => withFixture(async (f) => {
+  await f.thesis.update({ is_confidential: true });
+  // Schwarmzugriff (Detail per URL, Dokumente, Rückmeldungen) gesperrt
+  assert.equal(await swarmAccess(f.coachIn.id, 'coach', f.thesis.id), false);
+  assert.equal(await swarmAccess(f.expertIn.id, 'expert', f.thesis.id), false);
+  assert.equal(await swarmDocumentAccess(f.coachIn.id, 'coach', f.tmSwarm), false);
+  assert.equal(await canReadSwarmFeedbacks(f.coachIn.id, 'coach', f.thesis), false);
+  assert.equal(await canWriteSwarmFeedback(f.expertIn.id, 'expert', f.thesis), false);
+  // Dashboard-Liste
+  const ids = (await listSwarmTheses(f.coachIn.id, 'coach', f.year.id)).map((t) => t.id);
+  assert.ok(!ids.includes(f.thesis.id));
+  // Zugewiesener Dozent behält den regulären Zugriff
+  await f.thesis.setCoaches([f.coachIn]);
+  assert.equal(await canReadSwarmFeedbacks(f.coachIn.id, 'coach', f.thesis), true);
+  assert.equal(await canWriteSwarmFeedback(f.coachIn.id, 'coach', f.thesis), true);
+}));

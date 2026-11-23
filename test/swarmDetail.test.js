@@ -229,3 +229,38 @@ test('Schwarmansicht erhält nur ein reduziertes Thesis-Objekt (keine Betreuende
     });
   } finally { await f.cleanup(); }
 });
+
+test('Geheimhaltung im Schwarmmodus: Direkt-URLs für Dozent/Experte gesperrt, FBL darf', async () => {
+  const { User } = require('../src/models');
+  const f = await createSwarmFixture();
+  const lead = await User.create({
+    username: `swarmtest_d${f.dept.id}_conflead`, password: 'swarmtest-pw-1', name: 'TestLead',
+    firstname: 'Schwarm', email: `swarmtest_d${f.dept.id}_conflead@example.invalid`, role: 'department_lead', language: 'de',
+  });
+  try {
+    await f.thesis.update({ is_confidential: true });
+    await f.dept.update({ department_lead_id: lead.id });
+    await withMode(true, async () => {
+      for (const [u, role] of [[f.coachIn, 'coach'], [f.expertIn, 'expert']]) {
+        const d = await detail(u, role, f.thesis);
+        assert.equal(d.redirected, '/dashboard', `${role}: Detail nicht gesperrt`);
+        assert.notEqual(d.view, 'shared/thesis-swarm');
+        const dl = await download(u, role, f.docSwarm);
+        assert.equal(dl.code, 403, `${role}: Download nicht gesperrt`);
+        const req = mkReq({ userId: u.id, userRole: role, params: { id: f.thesis.id, tmId: f.tmSwarm.id } });
+        req.flash = () => ({});
+        const res = mkRes();
+        await showSwarmFeedbackForm(req, res);
+        assert.equal(res.view, undefined, `${role}: Rückmeldeformular nicht gesperrt`);
+      }
+      const ld = await detail(lead, 'department_lead', f.thesis);
+      assert.equal(ld.redirected, undefined);
+      assert.ok(ld.view);
+      assert.ok(passedGate(await download(lead, 'department_lead', f.docSwarm)));
+    });
+  } finally {
+    await f.dept.update({ department_lead_id: null }).catch(() => {});
+    await f.cleanup();
+    await lead.destroy().catch(() => {});
+  }
+});
