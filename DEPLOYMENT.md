@@ -213,6 +213,11 @@ aber keine bestehenden. Neue Datenbank-Spalten kommen als idempotente
 Migrationsskripte unter `scripts/` mit. Nach einem Update die im Changelog/Commit
 genannten Skripte ausführen, z.B.:
 
+> Die Skripte erst **nach** `docker compose build app` und `docker compose up -d app`
+> ausführen. Der Code ist ins Image kopiert (kein Bind-Mount). Ein Container mit
+> altem Image kennt neue Skripte nicht und meldet `Cannot find module
+> '/app/scripts/…'`.
+
 ```bash
 docker compose exec app node scripts/add-study-mode.js
 docker compose exec app node scripts/add-assignment-feature.js
