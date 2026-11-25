@@ -167,6 +167,13 @@ router.put('/department-lead/users/:id', requireRole(['department_lead']), updat
 router.delete('/department-lead/users/:id', requireRole(['department_lead']), deleteDepartmentLeadUser);
 router.get('/department-lead/departments', requireRole(['department_lead']), getDepartmentLeadDepartments);
 
+// Rundmail "Alle benachrichtigen", Einzelnachricht + Nachrichten-Log (FBL)
+const broadcastCtrl = require('../controllers/departmentBroadcastController');
+router.get('/department-lead/broadcast/recipients', requireRole(['department_lead']), broadcastCtrl.previewBroadcastRecipients);
+router.post('/department-lead/broadcast', requireRole(['department_lead']), broadcastCtrl.sendDepartmentBroadcast);
+router.post('/department-lead/message', requireRole(['department_lead']), broadcastCtrl.sendDepartmentMessage);
+router.get('/department-lead/broadcasts', requireRole(['department_lead', 'admin']), broadcastCtrl.getDepartmentBroadcasts);
+
 // Milestone template management (admin)
 router.get('/years/:yearId/milestones', requireRole(['admin']), getMilestones);
 router.post('/years/:yearId/milestones', requireRole(['admin']), createMilestone);

@@ -218,6 +218,7 @@ docker compose exec app node scripts/add-study-mode.js
 docker compose exec app node scripts/add-assignment-feature.js
 docker compose exec app node scripts/add-swarm-feedback.js
 docker compose exec app node scripts/add-notification-log-action.js
+docker compose exec app node scripts/add-department-broadcasts.js
 ```
 
 (Die Skripte sind idempotent — mehrfaches Ausführen ist unschädlich.)

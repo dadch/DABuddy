@@ -179,6 +179,16 @@ Fachbereichs Arbeiten ihrer Kolleginnen und Kollegen ansehen und eine
   öffnen; Modus ausschalten; Dozent sieht die Arbeit nicht mehr, Student sieht
   die Rückmeldung; Admin sieht die Log-Einträge.
 
+## Nachrichten der Fachbereichsleitung («Alle benachrichtigen», Einzelnachricht)
+
+- **Ort:** Kebab-Menü im FBL-Dashboard → «Alle benachrichtigen» (Dialog mit Betreff und Nachricht) und «Nachrichten-Log».
+- **Empfänger:** alle Dozierenden und Experten, die einer Arbeit der aktuellen Ansicht (gewählter Jahrgang + aktiver Fachbereichsfilter) zugewiesen sind, jede Person genau einmal.
+- **Sonderfall:** Hat in der ganzen Ansicht keine Arbeit einen Dozenten oder Experten, gehen die Mails an alle zuweisbaren Personen der Fachbereiche. Zuweisbar heisst: Mitglied des Fachbereichs und Dozent/Experte als Primär- oder Zusatzrolle.
+- **Einzelnachricht:** In der FBL-Liste steht bei jedem Dozenten und Experten ein Briefsymbol. Die Nachricht muss nichts mit der Arbeit zu tun haben; die Arbeit dient nur der Berechtigungsprüfung (Fachbereich der FBL, Person ist dort Dozent oder Experte) und bestimmt den Fachbereich im Log.
+- **Versand:** einzeln an jeden Empfänger, mit Reply-To auf die Adresse der FBL. Jede Mail beginnt automatisch mit «Hallo <Vorname>» (französischsprachige Empfänger: «Bonjour <prénom>») und endet mit einem kurzen Absender-Hinweis.
+- **Log:** Tabellen `department_broadcasts` (Modus `assigned`, `fallback` oder `single`) und `department_broadcast_recipients`, pro Empfänger mit Status (gesendet/fehlgeschlagen) und Fehlertext. Jede FBL sieht alle Rundmails ihrer Fachbereiche. Für Admins liefert die API alle Einträge (`GET /api/department-lead/broadcasts`).
+- **Bestehende Installationen:** einmalig `node scripts/add-department-broadcasts.js`.
+
 ## Mail-Konfiguration (.env)
 
 Die Applikation versendet Mail-Erinnerungen an Bewerter und Approver. SMTP wird

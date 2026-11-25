@@ -20,6 +20,8 @@ const UploadCategory = require('./UploadCategory');
 const DocumentTemplate = require('./DocumentTemplate');
 const MailReminder = require('./MailReminder');
 const SwarmFeedback = require('./SwarmFeedback');
+const DepartmentBroadcast = require('./DepartmentBroadcast');
+const DepartmentBroadcastRecipient = require('./DepartmentBroadcastRecipient');
 
 // Mehrfachrollen: 1:n von User zu UserRole
 User.hasMany(UserRole, { foreignKey: 'user_id', as: 'extraRoles', onDelete: 'CASCADE' });
@@ -210,6 +212,10 @@ ChatReadReceipt.belongsTo(ChatMessage, { foreignKey: 'message_id', as: 'message'
 ChatReadReceipt.belongsTo(User, { foreignKey: 'user_id', as: 'user' });
 User.hasMany(ChatReadReceipt, { foreignKey: 'user_id', as: 'chatReadReceipts' });
 
+// Rundmails der Fachbereichsleitung ("Alle benachrichtigen")
+DepartmentBroadcast.hasMany(DepartmentBroadcastRecipient, { foreignKey: 'broadcast_id', as: 'recipients', onDelete: 'CASCADE' });
+DepartmentBroadcastRecipient.belongsTo(DepartmentBroadcast, { foreignKey: 'broadcast_id', as: 'broadcast' });
+
 module.exports = {
   sequelize,
   User,
@@ -233,4 +239,6 @@ module.exports = {
   DocumentTemplate,
   MailReminder,
   SwarmFeedback,
+  DepartmentBroadcast,
+  DepartmentBroadcastRecipient,
 };

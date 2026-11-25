@@ -1,0 +1,295 @@
+<!-- "Alle benachrichtigen", Einzelnachricht und Nachrichten-Log der Fachbereichsleitung.
+     Erwartet: selectedDepartment (aktiver Fachbereichsfilter des Dashboards). -->
+<div class="modal fade" id="broadcastModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title"><i class="bi bi-megaphone"></i> <%= t('mgmt.broadcast.menu') %></h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div id="broadcastRecipients" class="mb-3"></div>
+                <div class="mb-3">
+                    <label for="broadcastSubject" class="form-label"><%= t('mgmt.broadcast.subject') %></label>
+                    <input type="text" class="form-control" id="broadcastSubject" maxlength="255">
+                </div>
+                <div class="mb-2">
+                    <label for="broadcastMessage" class="form-label"><%= t('mgmt.broadcast.message') %></label>
+                    <textarea class="form-control" id="broadcastMessage" rows="8" maxlength="20000"></textarea>
+                </div>
+                <p class="small text-muted mb-0"><%= t('mgmt.broadcast.greetingHint') %> <%= t('mgmt.broadcast.hint') %></p>
+                <div id="broadcastResult" class="mt-3"></div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal"><%= t('common.close') %></button>
+                <button type="button" class="btn btn-primary" id="broadcastSendBtn" onclick="sendBroadcast()" disabled>
+                    <i class="bi bi-send"></i> <%= t('mgmt.broadcast.send') %>
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+.msg-btn { line-height: 1; font-size: 0.85rem; color: var(--text-muted, #6c757d); text-decoration: none; }
+.msg-btn:hover, .msg-btn:focus { color: var(--primary); }
+</style>
+
+<div class="modal fade" id="messageModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title"><i class="bi bi-envelope"></i> <%= t('mgmt.message.title') %> <span id="messageRecipientName"></span></h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="mb-3">
+                    <label for="messageSubject" class="form-label"><%= t('mgmt.broadcast.subject') %></label>
+                    <input type="text" class="form-control" id="messageSubject" maxlength="255">
+                </div>
+                <div class="mb-2">
+                    <label for="messageBody" class="form-label"><%= t('mgmt.broadcast.message') %></label>
+                    <textarea class="form-control" id="messageBody" rows="8" maxlength="20000"></textarea>
+                </div>
+                <p class="small text-muted mb-0"><%= t('mgmt.broadcast.greetingHint') %> <%= t('mgmt.message.hint') %></p>
+                <div id="messageResult" class="mt-3"></div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal"><%= t('common.close') %></button>
+                <button type="button" class="btn btn-primary" id="messageSendBtn" onclick="sendMessage()">
+                    <i class="bi bi-send"></i> <%= t('mgmt.broadcast.send') %>
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="broadcastLogModal" tabindex="-1">
+    <div class="modal-dialog modal-xl modal-dialog-scrollable">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title"><i class="bi bi-journal-text"></i> <%= t('mgmt.broadcast.logMenu') %></h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body" id="broadcastLogBody"></div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal"><%= t('common.close') %></button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+(function () {
+    const L = <%- JSON.stringify({
+        loading: t('mgmt.broadcast.loading'),
+        recipientsAssigned: t('mgmt.broadcast.recipientsAssigned'),
+        recipientsFallback: t('mgmt.broadcast.recipientsFallback'),
+        noRecipients: t('mgmt.broadcast.noRecipients'),
+        mailNotConfigured: t('mgmt.broadcast.mailNotConfigured'),
+        departments: t('mgmt.broadcast.departments'),
+        showRecipients: t('mgmt.broadcast.showRecipients'),
+        confirm: t('mgmt.broadcast.confirm'),
+        sending: t('mgmt.broadcast.sending'),
+        sentResult: t('mgmt.broadcast.sentResult'),
+        failedResult: t('mgmt.broadcast.failedResult'),
+        missingFields: t('mgmt.broadcast.missingFields'),
+        logEmpty: t('mgmt.broadcast.logEmpty'),
+        logDate: t('mgmt.broadcast.logDate'),
+        logSender: t('mgmt.broadcast.logSender'),
+        logSubject: t('mgmt.broadcast.logSubject'),
+        logRecipients: t('mgmt.broadcast.logRecipients'),
+        modeAssigned: t('mgmt.broadcast.modeAssigned'),
+        modeFallback: t('mgmt.broadcast.modeFallback'),
+        modeSingle: t('mgmt.broadcast.modeSingle'),
+        messageSent: t('mgmt.message.sent'),
+        statusSent: t('mgmt.broadcast.statusSent'),
+        statusFailed: t('mgmt.broadcast.statusFailed'),
+        name: t('mgmt.users.name'),
+        email: t('mgmt.users.email'),
+        role: t('mgmt.users.role'),
+        status: t('mgmt.broadcast.status'),
+        error: t('mgmt.unknownError'),
+        roles: { coach: t('roles.coach'), expert: t('roles.expert') }
+    }) %>;
+    const DEPT = <%- JSON.stringify(selectedDepartment ? String(selectedDepartment) : '') %>;
+    const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+    const roleText = roles => (roles || []).map(r => L.roles[r] || r).join(', ');
+    const fmtDate = iso => iso ? new Date(iso).toLocaleString('de-CH', { dateStyle: 'short', timeStyle: 'short' }) : '';
+    let recipientCount = 0;
+    const MODE_LABEL = { assigned: L.modeAssigned, fallback: L.modeFallback, single: L.modeSingle };
+    const MODE_BADGE = { assigned: 'secondary', fallback: 'warning text-dark', single: 'info text-dark' };
+
+    window.openBroadcastModal = function () {
+        document.getElementById('broadcastSubject').value = '';
+        document.getElementById('broadcastMessage').value = '';
+        document.getElementById('broadcastResult').innerHTML = '';
+        const btn = document.getElementById('broadcastSendBtn');
+        btn.disabled = true;
+        const box = document.getElementById('broadcastRecipients');
+        box.innerHTML = `<div class="text-muted"><i class="bi bi-hourglass-split"></i> ${esc(L.loading)}</div>`;
+        new bootstrap.Modal(document.getElementById('broadcastModal')).show();
+
+        fetch('/api/department-lead/broadcast/recipients' + (DEPT ? '?department=' + encodeURIComponent(DEPT) : ''))
+            .then(r => r.json())
+            .then(d => {
+                if (!d.success) throw new Error(d.message || L.error);
+                recipientCount = d.recipients.length;
+                let html = '';
+                if (!d.mailConfigured) {
+                    html += `<div class="alert alert-warning py-2"><i class="bi bi-exclamation-triangle"></i> ${esc(L.mailNotConfigured)}</div>`;
+                }
+                if (recipientCount === 0) {
+                    html += `<div class="alert alert-info py-2 mb-0">${esc(L.noRecipients)}</div>`;
+                } else {
+                    const intro = (d.mode === 'fallback' ? L.recipientsFallback : L.recipientsAssigned).replace('{{n}}', recipientCount);
+                    html += `<div class="alert ${d.mode === 'fallback' ? 'alert-warning' : 'alert-info'} py-2 mb-0">`
+                        + `<div>${esc(intro)}</div>`
+                        + `<div class="small">${esc(L.departments)}: ${esc(d.departments.join(', '))}</div>`
+                        + `<details class="mt-1"><summary class="small">${esc(L.showRecipients)}</summary>`
+                        + `<ul class="small mb-0 mt-1">${d.recipients.map(r =>
+                            `<li>${esc(r.name)} &lt;${esc(r.email)}&gt; · ${esc(roleText(r.roles))}</li>`).join('')}</ul>`
+                        + `</details></div>`;
+                }
+                box.innerHTML = html;
+                btn.disabled = !(recipientCount > 0 && d.mailConfigured);
+            })
+            .catch(err => {
+                console.error(err);
+                box.innerHTML = `<div class="alert alert-danger py-2 mb-0">${esc(err.message || L.error)}</div>`;
+            });
+    };
+
+    window.sendBroadcast = function () {
+        const subject = document.getElementById('broadcastSubject').value.trim();
+        const message = document.getElementById('broadcastMessage').value.trim();
+        const target = document.getElementById('broadcastResult');
+        if (!subject || !message) {
+            target.innerHTML = `<div class="alert alert-danger py-2 mb-0">${esc(L.missingFields)}</div>`;
+            return;
+        }
+        if (!confirm(L.confirm.replace('{{n}}', recipientCount))) return;
+        const btn = document.getElementById('broadcastSendBtn');
+        btn.disabled = true;
+        target.innerHTML = `<div class="text-muted"><i class="bi bi-hourglass-split"></i> ${esc(L.sending)}</div>`;
+        fetch('/api/department-lead/broadcast', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ subject, message, department: DEPT || null }),
+        })
+            .then(r => r.json())
+            .then(d => {
+                if (!d.success) {
+                    btn.disabled = false;
+                    target.innerHTML = `<div class="alert alert-danger py-2 mb-0">${esc(d.message || L.error)}</div>`;
+                    return;
+                }
+                let html = `<div class="alert ${d.failed ? 'alert-warning' : 'alert-success'} py-2 mb-0">`
+                    + `<i class="bi ${d.failed ? 'bi-exclamation-triangle' : 'bi-check-circle'}"></i> `
+                    + esc(L.sentResult.replace('{{n}}', d.sent));
+                if (d.failed) html += ' · ' + esc(L.failedResult.replace('{{n}}', d.failed));
+                html += '</div>';
+                target.innerHTML = html;
+            })
+            .catch(err => {
+                console.error(err);
+                btn.disabled = false;
+                target.innerHTML = `<div class="alert alert-danger py-2 mb-0">${esc(L.error)}</div>`;
+            });
+    };
+
+    let messageTarget = null;
+    window.openMessageModal = function (btn) {
+        messageTarget = { thesisId: btn.dataset.thesisId, userId: btn.dataset.userId };
+        document.getElementById('messageRecipientName').textContent = btn.dataset.name;
+        document.getElementById('messageSubject').value = '';
+        document.getElementById('messageBody').value = '';
+        document.getElementById('messageResult').innerHTML = '';
+        document.getElementById('messageSendBtn').disabled = false;
+        new bootstrap.Modal(document.getElementById('messageModal')).show();
+    };
+
+    window.sendMessage = function () {
+        const subject = document.getElementById('messageSubject').value.trim();
+        const message = document.getElementById('messageBody').value.trim();
+        const target = document.getElementById('messageResult');
+        if (!subject || !message) {
+            target.innerHTML = `<div class="alert alert-danger py-2 mb-0">${esc(L.missingFields)}</div>`;
+            return;
+        }
+        const btn = document.getElementById('messageSendBtn');
+        btn.disabled = true;
+        target.innerHTML = `<div class="text-muted"><i class="bi bi-hourglass-split"></i> ${esc(L.sending)}</div>`;
+        fetch('/api/department-lead/message', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ thesis_id: messageTarget.thesisId, user_id: messageTarget.userId, subject, message }),
+        })
+            .then(r => r.json())
+            .then(d => {
+                if (!d.success) {
+                    btn.disabled = false;
+                    target.innerHTML = `<div class="alert alert-danger py-2 mb-0">${esc(d.message || L.error)}</div>`;
+                    return;
+                }
+                target.innerHTML = `<div class="alert alert-success py-2 mb-0"><i class="bi bi-check-circle"></i> ${esc(L.messageSent)}</div>`;
+            })
+            .catch(err => {
+                console.error(err);
+                btn.disabled = false;
+                target.innerHTML = `<div class="alert alert-danger py-2 mb-0">${esc(L.error)}</div>`;
+            });
+    };
+
+    window.openBroadcastLogModal = function () {
+        const body = document.getElementById('broadcastLogBody');
+        body.innerHTML = `<div class="text-muted"><i class="bi bi-hourglass-split"></i> ${esc(L.loading)}</div>`;
+        new bootstrap.Modal(document.getElementById('broadcastLogModal')).show();
+        fetch('/api/department-lead/broadcasts')
+            .then(r => r.json())
+            .then(d => {
+                if (!d.success) throw new Error(d.message || L.error);
+                if (!d.items.length) {
+                    body.innerHTML = `<div class="alert alert-info mb-0">${esc(L.logEmpty)}</div>`;
+                    return;
+                }
+                body.innerHTML = d.items.map(item => {
+                    const sent = item.recipients.filter(r => r.status === 'sent').length;
+                    const failed = item.recipients.length - sent;
+                    const rows = item.recipients.map(r => `<tr>
+                        <td>${esc(r.name)}</td>
+                        <td>${esc(r.email)}</td>
+                        <td>${esc(roleText(r.roles))}</td>
+                        <td>${r.status === 'sent'
+                            ? `<span class="badge bg-success">${esc(L.statusSent)}</span> <span class="small text-muted">${esc(fmtDate(r.sent_at))}</span>`
+                            : `<span class="badge bg-danger">${esc(L.statusFailed)}</span> <span class="small text-danger">${esc(r.error)}</span>`}</td>
+                    </tr>`).join('');
+                    return `<details class="card mb-2"><summary class="card-header d-flex flex-wrap gap-2 align-items-center" style="cursor:pointer">
+                            <span class="text-muted small">${esc(fmtDate(item.created_at))}</span>
+                            <strong>${esc(item.subject)}</strong>
+                            <span class="small">· ${esc(L.logSender)}: ${esc(item.sender_name)}</span>
+                            <span class="small">· ${esc(item.departments.join(', '))}</span>
+                            <span class="ms-auto">
+                                <span class="badge bg-${MODE_BADGE[item.recipient_mode] || 'secondary'}">${esc(MODE_LABEL[item.recipient_mode] || item.recipient_mode)}</span>
+                                <span class="badge bg-success">${sent}</span>
+                                ${failed ? `<span class="badge bg-danger">${failed}</span>` : ''}
+                            </span>
+                        </summary>
+                        <div class="card-body">
+                            <pre class="mb-3" style="white-space:pre-wrap;font-family:inherit">${esc(item.body)}</pre>
+                            <h6>${esc(L.logRecipients)} (${item.recipients.length})</h6>
+                            <div class="table-responsive"><table class="table table-sm mb-0">
+                                <thead><tr><th>${esc(L.name)}</th><th>${esc(L.email)}</th><th>${esc(L.role)}</th><th>${esc(L.status)}</th></tr></thead>
+                                <tbody>${rows}</tbody>
+                            </table></div>
+                        </div>
+                    </details>`;
+                }).join('');
+            })
+            .catch(err => {
+                console.error(err);
+                body.innerHTML = `<div class="alert alert-danger mb-0">${esc(err.message || L.error)}</div>`;
+            });
+    };
+})();
+</script>

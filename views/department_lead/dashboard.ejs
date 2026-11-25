@@ -138,6 +138,9 @@ a.grade-badge.grade-link:not(.grade-final) { color: #212529; }
                 <li><button class="dropdown-item" type="button" onclick="openBulkDownloadModal()"><i class="bi bi-archive"></i> <%= t('dashboard.actions.bulkDownload') %></button></li>
                 <li><button class="dropdown-item" type="button" onclick="archiveSelected()"><i class="bi bi-box-seam"></i> <%= t('mgmt.archive.menu') %></button></li>
                 <li><hr class="dropdown-divider"></li>
+                <li><button class="dropdown-item" type="button" onclick="openBroadcastModal()"><i class="bi bi-megaphone"></i> <%= t('mgmt.broadcast.menu') %></button></li>
+                <li><button class="dropdown-item" type="button" onclick="openBroadcastLogModal()"><i class="bi bi-journal-text"></i> <%= t('mgmt.broadcast.logMenu') %></button></li>
+                <li><hr class="dropdown-divider"></li>
                 <li><button class="dropdown-item" type="button" onclick="openUserManagementModal()"><i class="bi bi-people"></i> <%= t('dashboard.actions.userManagement') %></button></li>
                 <li><button class="dropdown-item" type="button" onclick="openStudentManagement()"><i class="bi bi-mortarboard"></i> <%= t('dashboard.actions.studentManagement') %></button></li>
             </ul>
@@ -302,12 +305,12 @@ a.grade-badge.grade-link:not(.grade-final) { color: #212529; }
                                         </td>
                                         <td class="small">
                                             <% if (thesis.coaches.length > 0) { %>
-                                                <% thesis.coaches.forEach(function(c) { %><div><%= c.name %>, <%= c.firstname %></div><% }); %>
+                                                <% thesis.coaches.forEach(function(c) { %><div class="person-with-msg"><%= c.name %>, <%= c.firstname %><button type="button" class="btn btn-link btn-sm p-0 ms-1 align-baseline msg-btn" title="<%= t('mgmt.message.button') %>" aria-label="<%= t('mgmt.message.button') %>: <%= c.firstname %> <%= c.name %>" data-thesis-id="<%= thesis.id %>" data-user-id="<%= c.id %>" data-name="<%= c.firstname %> <%= c.name %>" onclick="openMessageModal(this)"><i class="bi bi-envelope"></i></button></div><% }); %>
                                             <% } else { %><span class="text-muted">—</span><% } %>
                                         </td>
                                         <td class="small">
                                             <% if (thesis.experts.length > 0) { %>
-                                                <% thesis.experts.forEach(function(e) { %><div><%= e.name %>, <%= e.firstname %></div><% }); %>
+                                                <% thesis.experts.forEach(function(e) { %><div class="person-with-msg"><%= e.name %>, <%= e.firstname %><button type="button" class="btn btn-link btn-sm p-0 ms-1 align-baseline msg-btn" title="<%= t('mgmt.message.button') %>" aria-label="<%= t('mgmt.message.button') %>: <%= e.firstname %> <%= e.name %>" data-thesis-id="<%= thesis.id %>" data-user-id="<%= e.id %>" data-name="<%= e.firstname %> <%= e.name %>" onclick="openMessageModal(this)"><i class="bi bi-envelope"></i></button></div><% }); %>
                                             <% } else { %><span class="text-muted">—</span><% } %>
                                         </td>
                                         <td class="small"><%= thesis.sponsor || '—' %></td>
@@ -1471,5 +1474,6 @@ async function archiveSelected() {
 
 <%- include('../partials/user-email-export-modal') %>
 <script src="/js/user-list.js"></script>
+<%- include('../partials/department-broadcast', { selectedDepartment: selectedDepartment }) %>
 
 <%- include('../partials/footer') %>
