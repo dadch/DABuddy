@@ -120,6 +120,9 @@ a.grade-badge.grade-link:not(.grade-final) { color: #212529; }
     <h1 class="page-title"><%= t('dashboard.titleDepartmentLead') %></h1>
     <div class="page-actions">
         <%- include('../partials/year-switcher', { availableYears: availableYears, selectedYearId: selectedYearId }) %>
+        <a href="/dashboard/document-templates" class="pill-btn">
+            <i class="bi bi-folder2-open"></i> <%= t('nav.documentTemplates') %>
+        </a>
         <%- include('../partials/role-switcher', { availableRoles: availableRoles, currentRole: currentRole }) %>
         <div class="dropdown">
             <button class="btn btn-primary btn-icon" type="button" id="dashboardActionsMenu" data-bs-toggle="dropdown" aria-expanded="false" title="<%= t('common.actions') %>">

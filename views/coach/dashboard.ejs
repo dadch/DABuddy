@@ -4,6 +4,9 @@
     <h1><%= t('dashboard.titleCoach') %></h1>
     <div class="d-flex align-items-center gap-3">
         <span class="text-muted"><i class="bi bi-calendar"></i> <%= t('dashboard.year') %>: <%= yearLabel(selectedYearObj) %></span>
+        <a href="/dashboard/document-templates" class="pill-btn">
+            <i class="bi bi-folder2-open"></i> <%= t('nav.documentTemplates') %>
+        </a>
         <%- include('../partials/role-switcher', { availableRoles: availableRoles, currentRole: currentRole }) %>
     </div>
 </div>
